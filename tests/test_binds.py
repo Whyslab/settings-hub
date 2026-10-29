@@ -154,6 +154,40 @@ def test_alt_tab_is_one_entry_not_a_conflict(world):
     assert conflicts.conflict(entries, Combo.of("SUPER CTRL", "K"), alt_tab.actions()) is None
 
 
+@pytest.mark.parametrize("a,b", [
+    ("grave", "code:49"), ("Escape", "code:9"), ("Page_Down", "Next"), ("page_up", "Prior"),
+    ("K", "code:45"), ("XF86AudioMute", "code:121"), ("Tab", "TAB"),
+])
+def test_keysym_and_keycode_spellings_of_one_key_are_one_combination(a, b):
+    assert Combo.of("SUPER", a) == Combo.of("SUPER", b)
+
+
+def test_other_keys_stay_apart():
+    assert Combo.of("SUPER", "grave") != Combo.of("SUPER", "code:50")
+    assert Combo.of("SUPER", "grave") != Combo.of("SUPER SHIFT", "code:49")
+    assert Combo.of("SUPER", "XF86Launch5") == Combo.of("SUPER", "xf86launch5")  # not in the table
+    assert Combo.of("SUPER", "mouse:272") != Combo.of("SUPER", "code:272")
+
+
+def test_a_captured_keysym_conflicts_with_a_keycode_bind(world):
+    """The capture reports the key under Esc as "grave"; the config binds it as code:49."""
+    cfg = parser.parse(world.conf, world.own)
+    entries = conflicts.entries(cfg.binds)
+    sysmon = next(e for e in entries if e.key == "SUPER, code:49")
+    alt_tab = next(e for e in entries if e.key == "ALT, Tab")
+    assert conflicts.conflict(entries, Combo.of("SUPER", "grave"), alt_tab.actions()) is sysmon
+
+
+def test_replacing_a_keycode_bind_by_its_keysym_unbinds_the_keycode_spelling(world):
+    """Hyprland's unbind matches the spelling, so the occupant is unbound as code:49."""
+    moved = world.backend.change(world.backend.op_rebind("SUPER, Q", 64, "grave"))
+    assert moved.after["SUPER, grave"] == [
+        "unbind = SUPER, code:49  # hyprland.conf:269",
+        "bind = SUPER, grave, exec, kitty  # hyprland.conf:41"]
+    cfg = parser.parse(world.conf, world.own)
+    assert [b.arg for b in cfg.binds if b.combo == Combo.of("SUPER", "code:49")] == ["kitty"]
+
+
 # ---- writer -----------------------------------------------------------------
 
 

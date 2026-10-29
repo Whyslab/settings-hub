@@ -29,7 +29,7 @@ pages **Screen and sleep**, **Wallpaper and theme**, **Animations** and
 - loading of other projects' live modules under private names, and one
   apply-queue thread per backend;
 - `settings-open`, the hotkey entry point, with every fallback;
-- a sandbox installer and uninstaller.
+- an installer and uninstaller (live, dry run, sandbox).
 
 ## Screen and sleep
 
@@ -231,16 +231,32 @@ and a modifier state - no synthetic input.
 
 ## Install
 
-This revision installs into a sandbox only:
-
 ```
-./install.sh --prefix /tmp/sandbox
-./uninstall.sh --prefix /tmp/sandbox --purge
+./install.sh --dry-run          # print every action, change nothing
+./install.sh                    # install and hook into the running Hyprland
+settings-hub-uninstall --dry-run
+settings-hub-uninstall          # undo it (--purge also removes history and logs)
+./install.sh --prefix /tmp/sandbox && ./uninstall.sh --prefix /tmp/sandbox --purge
 ```
 
-Everything the installer creates is listed in an install manifest; the
-uninstaller removes exactly that, and removes its one line from
-`hyprland.conf` only when that exact line occurs exactly once.
+A live install copies the program to `~/.local/share/settings-hub`, puts
+`settings-open` and `settings-hub-uninstall` in `~/.local/bin`, writes
+`settings-hub.desktop` and `~/.config/hypr/settings-hub.conf` (a reinstall keeps
+its binds block byte for byte), hides the old "Screen and sleep" menu entry
+(`NoDisplay=true` in `screen-sleep.desktop`, only if it has no NoDisplay line;
+screen-sleep's own installer rewrites that file and the entry comes back) and
+adds one line at the end of `hyprland.conf` (a dated copy
+`hyprland.conf.bak-DATE-settings-hub` first). Then `hyprctl reload`: if
+`hyprctl configerrors` shows new errors, the line is taken out again and the
+installer exits with 1. The background copy is started through
+`hyprctl dispatch exec`, not as a child of the installer.
+
+Everything the installer creates or adds is listed in
+`~/.local/state/settings-hub/install-manifest`; the uninstaller asks the
+background copy to quit, resets the key-capture submap, removes exactly the
+listed files and lines (a line only when it occurs exactly once; the file keeps
+its inode and permissions), reloads Hyprland and never restores whole files
+from copies. A sandbox (`--prefix`) never calls `hyprctl` or `gdbus`.
 
 ## License
 

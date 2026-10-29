@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from conftest import ROOT
 
+from settings_hub import strings
+
 FAIL_STUB = """#!/bin/sh
 echo "{name} $*" >>"{log}"
 exit 97
@@ -95,7 +97,8 @@ def test_generated_hyprland_file(sb):
     conf = sb.path(".config/hypr/settings-hub.conf").read_text()
     assert f"exec-once = python3 {sb.home}/.local/share/settings-hub/app.py --daemon" in conf
     assert ("windowrule = match:class ^(settings-hub|io\\.github\\.whyslab\\.SettingsHub)$, "
-            "float true, size 920 640, center true") in conf
+            f"match:initial_title ^({strings.APP_TITLE})$, float true, size 920 640, "
+            "center true") in conf
     assert f"bind   = SUPER SHIFT, N, exec, {sb.home}/.local/bin/settings-open screen-sleep" in conf
     assert "unbind = SUPER SHIFT, W" in conf
     assert f"bind   = SUPER, I, exec, {sb.home}/.local/bin/settings-open\n" in conf
@@ -173,9 +176,18 @@ def test_manifest_paths_outside_the_prefix_are_never_removed(sb, tmp_path):
     assert victim.read_text() == "keep me"
 
 
-@pytest.mark.parametrize("script", ["install.sh", "uninstall.sh"])
-def test_without_prefix_nothing_happens(sb, script):
-    proc = sb.run(script, check=False)
-    assert proc.returncode == 2
-    assert "sandbox" in proc.stderr
-    assert list(sb.home.iterdir()) == []
+def test_dry_run_into_a_sandbox_writes_nothing(sb):
+    out = sb.run("install.sh", "--prefix", str(sb.prefix), "--dry-run").stdout
+    assert "would write" in out
+    assert not sb.prefix.exists()
+
+
+def test_generated_file_does_not_size_dialogs(sb):
+    """The 920x640 rule matches the main window's title; dialogs share the class only."""
+    sb.install()
+    rules = [line for line in sb.path(".config/hypr/settings-hub.conf").read_text().splitlines()
+             if line.startswith("windowrule")]
+    assert len(rules) == 2
+    main, dialogs = rules
+    assert f"match:initial_title ^({strings.APP_TITLE})$" in main and "size 920 640" in main
+    assert "match:modal true" in dialogs and "size" not in dialogs

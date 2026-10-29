@@ -74,15 +74,40 @@ def mods_text(mask: int) -> str:
     return " ".join(name for name, bit in MOD_ORDER if mask & bit)
 
 
+# Keysym -> key code on the first keyboard layout (us). Hyprland resolves a
+# keysym bind on the first layout without modifiers, so "SUPER, grave" and
+# "SUPER, code:49" fire on the same key press and are one combination.
+# Taken from xkb: `xkbcli how-to-type --layout us --keysym NAME` (level 1).
+# Page_Up/Page_Down are xkb's other names of Prior/Next.
+US_KEYCODES = {
+    "escape": 9, "1": 10, "2": 11, "3": 12, "4": 13, "5": 14, "6": 15, "7": 16, "8": 17,
+    "9": 18, "0": 19, "minus": 20, "equal": 21, "backspace": 22, "tab": 23, "q": 24, "w": 25,
+    "e": 26, "r": 27, "t": 28, "y": 29, "u": 30, "i": 31, "o": 32, "p": 33,
+    "bracketleft": 34, "bracketright": 35, "return": 36, "a": 38, "s": 39, "d": 40, "f": 41,
+    "g": 42, "h": 43, "j": 44, "k": 45, "l": 46, "semicolon": 47, "apostrophe": 48,
+    "grave": 49, "backslash": 51, "z": 52, "x": 53, "c": 54, "v": 55, "b": 56, "n": 57,
+    "m": 58, "comma": 59, "period": 60, "slash": 61, "space": 65, "f1": 67, "f2": 68,
+    "f3": 69, "f4": 70, "f5": 71, "f6": 72, "f7": 73, "f8": 74, "f9": 75, "f10": 76,
+    "scroll_lock": 78, "f11": 95, "f12": 96, "print": 107, "home": 110, "up": 111,
+    "prior": 112, "page_up": 112, "left": 113, "right": 114, "end": 115, "down": 116,
+    "next": 117, "page_down": 117, "insert": 118, "delete": 119, "xf86audiomute": 121,
+    "xf86audiolowervolume": 122, "xf86audioraisevolume": 123, "pause": 127, "menu": 135,
+    "xf86audionext": 171, "xf86audioplay": 172, "xf86audioprev": 173, "xf86audiostop": 174,
+    "xf86audiomicmute": 198, "xf86monbrightnessdown": 232, "xf86monbrightnessup": 233,
+}
+
+
 def key_identity(key: str) -> str:
-    """Two spellings that fire on the same key press compare equal."""
+    """Two spellings that fire on the same key press compare equal:
+    "grave" == "code:49", "Page_Down" == "next", "k" == "K"."""
     key = key.strip()
     low = key.lower()
     if low.startswith("code:"):
         return "code:" + low[5:].strip()
     if low.startswith("mouse:"):
         return low
-    return key.casefold()  # Hyprland looks keysyms up case-insensitively
+    code = US_KEYCODES.get(key.casefold())  # Hyprland looks keysyms up case-insensitively
+    return f"code:{code}" if code else key.casefold()
 
 
 @dataclass(frozen=True)
