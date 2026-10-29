@@ -89,7 +89,12 @@ PAGES = {
     "binds": {
         "title": "Бинды",
         "keywords": ["бинд", "клавиша", "сочетание", "горячая", "клавиатура", "ярлык"],
-        "rows": {},
+        "rows": {
+            "list": ("Все бинды", [
+                "переназначить", "отключить", "вернуть", "сочетание клавиш", "hyprland",
+            ]),
+            "add": ("Добавить бинд", ["добавить", "новое сочетание", "команда"]),
+        },
     },
     "history": {
         "title": "История",
@@ -100,9 +105,6 @@ PAGES = {
         },
     },
 }
-
-PLACEHOLDER_TITLE = "Раздел появится на следующем шаге"
-PLACEHOLDER_NOTE = "Пока здесь пусто: настройки этого раздела переносятся по одному."
 
 # History page.
 HISTORY_UNDO_GROUP = "Отменить"
@@ -312,3 +314,204 @@ AN_APPLYING = "Применяю…"
 AN_PREVIEWING = "Показываю…"
 AN_PREVIEW_FAILED = "Не удалось показать: {error}"
 AN_FAILED = "Не удалось применить: {error}"
+
+# ---- Binds page --------------------------------------------------------------
+
+BN_ROWS = PAGES["binds"]["rows"]
+BN_SEARCH = "Найти бинд"
+BN_NOTHING = "Ничего не найдено"
+BN_LUA = "Hyprland перешёл на Lua — редактор выключен до переноса"
+BN_LUA_HINT = "Найден {path}: Hyprland читает его вместо hyprland.conf."
+BN_NOT_SOURCED = "settings-hub.conf пока не подключён к hyprland.conf"
+BN_NOT_SOURCED_HINT = "Правки сохранятся, но подействуют после установки."
+BN_READ_FAILED = "Не удалось прочитать бинды"
+BN_LIVE_UNKNOWN = "Живой список Hyprland недоступен: сверка не проведена."
+BN_MISMATCH = "В живом Hyprland этот бинд выглядит иначе, чем в файле"
+BN_SETUP_GROUP = "Бинды"
+BN_NOTE = ("Правки пишутся только в свой блок settings-hub.conf; hyprland.conf не меняется. "
+           "«Вернуть как было» убирает правку этого сочетания.")
+BN_MENU = "Действия"
+BN_REBIND = "Переназначить…"
+BN_DISABLE = "Отключить"
+BN_DISABLE_ONE = "Отключить: {name}"
+BN_DISABLE_ALL = "Отключить всё"
+BN_REVERT = "Вернуть как было"
+BN_PRESS = "Нажмите сочетание…"
+BN_PRESS_HINT = "Esc — отмена"
+BN_MOVED_FROM = "было: {combo}"
+BN_DISABLED_NOTE = "отключено"
+BN_READ_ONLY = "Только для чтения: бинд режима не правится здесь"
+BN_ADD_GROUP = BN_ROWS["add"][0]
+BN_ADD_COMMAND = "Команда"
+BN_ADD_COMMAND_HINT = "Например, kitty или ~/bin/script.sh"
+BN_ADD_COMBO = "Сочетание"
+BN_ADD_COMBO_NONE = "не задано"
+BN_ADD_COMBO_BUTTON = "Задать…"
+BN_ADD_BUTTON = "Добавить"
+BN_CONFLICT_TITLE = "Сочетание {combo} уже занято"
+BN_CONFLICT_BODY = "Сейчас на нём «{name}». Заменить? Прежний бинд отключится."
+BN_CONFLICT_REPLACE = "Заменить"
+BN_CONFLICT_CANCEL = "Отмена"
+BN_SAME_COMBO = "Это то же сочетание"
+BN_APPLYING = "Применяю…"
+BN_DONE_REBIND = "«{name}»: теперь {combo}"
+BN_DONE_DISABLE = "Отключено: {name}"
+BN_DONE_REVERT = "Возвращено как было: {name}"
+BN_DONE_ADD = "Добавлено: {combo}"
+BN_NOTHING_CHANGED = "Ничего не изменилось"
+BN_NOT_RELOADED = "Сохранено, но Hyprland не перечитал конфиг"
+BN_FAILED = "Не удалось: {error}"
+BN_CONFIG_ERRORS = "Hyprland нашёл ошибки, правка отменена: {errors}"
+BN_LATER_FILE = "сочетание {combo} задаётся ещё и после settings-hub.conf ({where})"
+BN_NO_BLOCK = "в {path} нет блока биндов settings-hub"
+
+# History labels (one per user action; both combinations of a rebind share it).
+BN_LABEL_REBIND = "Бинды: «{name}» → {combo}"
+BN_LABEL_DISABLE = "Бинды: отключено «{name}»"
+BN_LABEL_REVERT = "Бинды: вернуть «{name}»"
+BN_LABEL_ADD = "Бинды: добавлено {combo}"
+
+# Groups of the list, by group id (binds.names.group_of).
+BN_GROUPS = {
+    "apps": "Программы и команды",
+    "windows": "Окна",
+    "workspaces": "Рабочие столы",
+    "device": "Клавиши звука и яркости",
+    "mouse": "Мышь",
+    "other": "Прочее",
+    "submap": "Режим «{name}»",
+    "disabled": "Отключённые",
+    "live": "Только в живом Hyprland",
+}
+
+# Key names. Modifiers in the order they are shown.
+BN_MODS = {"SUPER": "Super", "CTRL": "Ctrl", "ALT": "Alt", "SHIFT": "Shift", "CAPS": "Caps",
+           "MOD2": "Mod2", "MOD3": "Mod3", "MOD5": "Mod5"}
+BN_KEY_JOIN = " + "
+# Keysym names (lower case) -> what the user reads.
+BN_KEYS = {
+    "xf86audiomute": "Без звука",
+    "xf86audiolowervolume": "Тише",
+    "xf86audioraisevolume": "Громче",
+    "xf86audiomicmute": "Микрофон",
+    "xf86audioplay": "Пуск/пауза",
+    "xf86audionext": "Следующий трек",
+    "xf86audioprev": "Предыдущий трек",
+    "xf86monbrightnessdown": "Яркость −",
+    "xf86monbrightnessup": "Яркость +",
+    "print": "Print Screen",
+    "escape": "Esc",
+    "return": "Enter",
+    "space": "Пробел",
+    "tab": "Tab",
+    "backspace": "Backspace",
+    "delete": "Delete",
+    "left": "←",
+    "right": "→",
+    "up": "↑",
+    "down": "↓",
+    "page_up": "Page Up",
+    "page_down": "Page Down",
+    "home": "Home",
+    "end": "End",
+    "grave": "`",
+    "comma": ",",
+    "period": ".",
+    "minus": "-",
+    "equal": "=",
+    "slash": "/",
+    "backslash": "\\",
+    "semicolon": ";",
+    "apostrophe": "'",
+    "bracketleft": "[",
+    "bracketright": "]",
+    "mouse:272": "Левая кнопка мыши",
+    "mouse:273": "Правая кнопка мыши",
+    "mouse:274": "Средняя кнопка мыши",
+    "mouse_down": "Колесо вниз",
+    "mouse_up": "Колесо вверх",
+}
+# code:N (a physical key, any layout) -> the key on a US keyboard.
+BN_KEYCODES = {49: "`", 9: "Esc", 23: "Tab", 65: "Пробел"}
+BN_KEYCODE = "Клавиша {code}"
+
+# Names by dispatcher (and argument), when the config has no description or comment.
+BN_DISPATCHERS = {
+    "killactive": "Закрыть окно",
+    "forcekillactive": "Убить окно",
+    "togglefloating": "Плавающее окно",
+    "fullscreen": "Во весь экран",
+    "cyclenext": "Следующее окно",
+    "bringactivetotop": "Поднять окно наверх",
+    "pin": "Закрепить окно",
+    "pseudo": "Псевдоплитка",
+    "togglesplit": "Повернуть деление",
+    "centerwindow": "Окно по центру",
+    "togglegroup": "Группа окон",
+    "exit": "Выйти из Hyprland",
+    "focusurgentorlast": "Прошлое окно",
+}
+BN_DIRECTIONS = {"l": "влево", "r": "вправо", "u": "вверх", "d": "вниз"}
+BN_WITH_ARG = {
+    "workspace": "Стол {arg}",
+    "movetoworkspace": "Перенести окно на стол {arg}",
+    "movetoworkspacesilent": "Тихо перенести окно на стол {arg}",
+    "togglespecialworkspace": "Особый стол {arg}",
+    "movefocus": "Фокус {dir}",
+    "movewindow": "Сдвинуть окно {dir}",
+    "swapwindow": "Поменять окно {dir}",
+    "resizeactive": "Размер окна {arg}",
+    "submap": "Режим «{arg}»",
+    "layoutmsg": "Лента: {arg}",
+    "exec": "{arg}",
+}
+BN_WORKSPACE_STEPS = {
+    "+1": "Следующий стол", "-1": "Предыдущий стол",
+    "e+1": "Следующий занятый стол", "e-1": "Предыдущий занятый стол",
+    "previous": "Прошлый стол",
+}
+BN_SUBMAP_RESET = "Выйти из режима"
+BN_LAYOUTMSG = {
+    "swapcol l": "Поменять с колонкой слева",
+    "swapcol r": "Поменять с колонкой справа",
+    "colresize -conf": "Окно в ленте уже",
+    "colresize +conf": "Окно в ленте шире",
+}
+BN_MOUSE = {"movewindow": "Перетащить окно мышью", "resizewindow": "Тянуть размер окна мышью"}
+# exec commands: the first pattern (a regular expression) found in the command wins.
+BN_COMMANDS = (
+    (r"screenshot\.sh\s+area", "Снимок области"),
+    (r"screenshot\.sh\s+screen", "Снимок экрана"),
+    (r"wallpaper\.sh\s+next", "Следующие обои"),
+    (r"hub-wallpaper\.sh|settings-open\s+wallpaper", "Выбор обоев"),
+    (r"settings-open\s+screen-sleep|screen-sleep/gui\.py", "Экран и сон"),
+    (r"settings-open\b", "Настройки"),
+    (r"hub-clipboard\.sh|cliphist", "История буфера обмена"),
+    (r"/hub\.sh\b", "Меню (хаб)"),
+    (r"rofi\s+-show\s+drun", "Список программ"),
+    (r"wlogout", "Меню выключения"),
+    (r"hyprshutdown|dispatch\s+exit", "Выход из сеанса"),
+    (r"timer\.py", "Таймер"),
+    (r"netspeed\.py", "Скорость интернета"),
+    (r"spotlight", "Поиск"),
+    (r"hyprpicker", "Пипетка"),
+    (r"set-mute", "Без звука"),
+    (r"set-volume.*%-", "Тише"),
+    (r"set-volume.*%\+", "Громче"),
+    (r"brightnessctl.*%-", "Темнее"),
+    (r"brightnessctl.*%\+", "Светлее"),
+    (r"handy", "Голосовой ввод"),
+    (r"winmode\.py", "Режим «как Windows»"),
+    (r"windows\.py", "Список окон"),
+    (r"backup-manager", "Резервные копии"),
+    (r"sysmon\.sh", "Монитор системы"),
+    (r"^\S*kitty\b", "Терминал"),
+    (r"^\S*(thunar|nautilus|dolphin)\b", "Файлы"),
+    (r"^\S*(firefox|chromium|brave)\b", "Браузер"),
+    (r"^\S*obsidian\b", "Obsidian"),
+)
+# A comment that starts with a key ("Ctrl + J: ...", "code:49 — ...") names the
+# key; what follows the separator is the action. A comment that still talks about
+# the key itself ("физическая клавиша...", "... hotkey") is not a name.
+BN_KEY_WORDS = ("клавиш", "кнопк", "привязк", "hotkey", "shortcut", "keybind")
+BN_NAME_MAX = 72

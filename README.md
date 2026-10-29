@@ -14,12 +14,13 @@ The interface is in Russian; all user-facing text lives in
 | ![light](docs/screenshots/step2-night-light.png) | ![dark](docs/screenshots/step2-night-dark.png) |
 | ![light](docs/screenshots/step3-wallpaper-light.png) | ![dark](docs/screenshots/step3-wallpaper-dark.png) |
 | ![light](docs/screenshots/step3-animations-light.png) | ![dark](docs/screenshots/step3-animations-dark.png) |
+| ![light](docs/screenshots/step4-binds-light.png) | ![dark](docs/screenshots/step4-binds-dark.png) |
 
 ## Status
 
 Version 1 is being built step by step. Done so far: the **framework** and the
-pages **Screen and sleep**, **Wallpaper and theme** and **Animations**. The
-framework:
+pages **Screen and sleep**, **Wallpaper and theme**, **Animations** and
+**Binds**. The framework:
 
 - the resident application, the window (sidebar with search and coloured
   icons, rounded groups of rows), light and dark looks, keyboard control;
@@ -29,8 +30,6 @@ framework:
   apply-queue thread per backend;
 - `settings-open`, the hotkey entry point, with every fallback;
 - a sandbox installer and uninstaller.
-
-*Binds* is still a placeholder.
 
 ## Screen and sleep
 
@@ -116,6 +115,45 @@ window's status line.
 - History: `preset`, `override.<category>`, `speed.<category>`; a preset is one
   group with every category it reset.
 
+## Binds
+
+Hyprland's config is only read; every edit goes into one marked block of the
+window's own file, `~/.config/hypr/settings-hub.conf`
+(`# >>> settings-hub binds` ... `# <<< settings-hub binds`).
+
+- Reading (`settings_hub/binds/parser.py`): `hyprland.conf` and every
+  `source =` file in Hyprland's order (`~`, `$variables`, globs), all `bind`
+  flavours (`bindl`, `bindel`, `bindm`, `bindd`, ...), `unbind`, `submap`.
+  Each bind keeps its keyword, file and line. The result is checked against
+  `hyprctl binds -j`; a bind that differs in the live session gets a mark.
+- Names (`binds/names.py`, texts in `strings.py`): a `bindd` description, then
+  the comment at the end of the line, then the comment block above (shortened
+  to its first clause; not for a run of binds to the same dispatcher), then a
+  dictionary by dispatcher or command, else the command. Keys read as
+  "Super + Shift + N"; `code:49` is "Super + `".
+- Several binds on one combination (Alt+Tab) are one row, never a conflict.
+  Taking a combination that does something else asks "Replace / Cancel" with
+  the occupant's name.
+- Writing (`binds/writer.py`) assumes `unbind` removes every bind of a
+  combination: a rebind is `unbind` of the old one plus *all* its actions on
+  the new one, each with its own keyword (`bindl` stays `bindl`); disabling one
+  action of several is `unbind` plus the rest; "as it was" removes the block
+  lines of the combination (and of the one it was moved from). Every line ends
+  with its origin, `# hyprland.conf:138`. The order is atomic write,
+  `hyprctl reload`, `hyprctl configerrors`; new errors put the previous text
+  back and reload again. Writing what is already there does nothing. With
+  `~/.config/hypr/hyprland.lua` present the page is read-only.
+- History: one item per combination (its block lines before and after); a
+  rebind is one group of two items.
+- Key capture (`widgets/keycapture.py`): the window asks the compositor to
+  inhibit its shortcuts; if that is not granted within 300 ms, it writes a
+  random token to `$XDG_RUNTIME_DIR/settings-hub-capture`, switches Hyprland to
+  the empty submap `settings-hub-capture` and starts a watchdog through
+  `hyprctl dispatch exec` that resets the submap after 15 s if that token and
+  that submap are still current (`binds/capture.py`). The submap is used only
+  when Hyprland has it loaded (with its way out, Super+Ctrl+Alt+Esc). At
+  startup the app leaves that submap if a crash left Hyprland in it.
+
 ## How it works
 
 - `app.py --daemon` starts a `Gtk.Application` (`io.github.whyslab.SettingsHub`)
@@ -141,7 +179,8 @@ window's status line.
 app.py                  launcher (works from the repo and from the install)
 settings_hub/           app, window, theme, registry, strings, search,
                         history, loader, workers, widgets/, pages/, backends/,
-                        controllers/ (page logic without GTK), helpers/
+                        controllers/ (page logic without GTK), helpers/,
+                        binds/ (parser, names, conflicts, writer, capture)
 style/                  base.css, icons/*.svg
 bin/settings-open       hotkey entry point (POSIX sh)
 install.sh, uninstall.sh
@@ -180,7 +219,15 @@ activation, and stub `hyprctl` and friends:
 tools/shot.sh --scheme dark --page history out.png
 tools/shot.sh --hostile --page history out.png   # every gtk.css colour is #ff00ff
 tools/shot.sh --page screen-sleep --row night out.png   # scrolled to a row
+tools/shot.sh --page binds --row add out.png
 ```
+
+Binds tests use an anonymised copy of `hyprland.conf` and of Hyprland's live
+list (`tests/fixtures/hypr`) in a temporary `HOME`, with a stub `hyprctl`; the
+`live` tests also parse this machine's real config (read-only) and compare it
+with the real `hyprctl binds -j`. Key capture is tested on Xvfb by emitting
+the capture's own key controller signal with a keyval, the display's keycode
+and a modifier state - no synthetic input.
 
 ## Install
 

@@ -26,7 +26,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import APP_ID, PRGNAME  # noqa: E402
-from .backends import animations, screen_sleep, wallpaper  # noqa: E402
+from .backends import animations, binds, screen_sleep, wallpaper  # noqa: E402
 from .history import History  # noqa: E402
 from .theme import SCHEMES, Theme  # noqa: E402
 from .window import Window  # noqa: E402
@@ -111,6 +111,11 @@ class App(Gtk.Application):
         # The animations module itself is loaded on first use (page or undo).
         backends[animations.BACKEND] = animations.Backend(self.workers)
         animations.register(history, backends[animations.BACKEND])
+        backends[binds.BACKEND] = binds.Backend(self.workers)
+        binds.register(history, backends[binds.BACKEND])
+        # A window that crashed mid-capture may have left Hyprland in the capture
+        # submap; leave it (only if we are in it), on the worker, without waiting.
+        backends[binds.BACKEND].reset_submap()
         self.window = Window(self, history, self.workers, directory, backends)
 
         open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))

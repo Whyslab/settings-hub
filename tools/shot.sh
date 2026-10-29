@@ -22,6 +22,8 @@
 # (never the real cache), a stub wallpaper-theme that says "vivid".
 # Animations: a copy of tests/fixtures/rofi (rofi-launcher's module and data) with a
 # stub bin/anim-preview.sh; its preview pictures are drawn into $HOME/.cache.
+# Binds: tests/fixtures/hypr/hyprland.conf in $HOME/.config/hypr; the stub hyprctl
+# answers `binds -j` with tests/fixtures/hypr/binds.json and `submap` with default.
 #
 # screen-sleep's modules come from tests/fixtures (anonymised copies), with
 # their absolute /usr/bin/pkill and /usr/bin/pgrep pointed at the stubs; the
@@ -70,6 +72,8 @@ for name in hyprctl notify-send pkill pgrep systemctl systemd-inhibit wallpaper.
 done
 cat >>"$stubs/hyprctl" <<'STUB'
 [ "$1 $2 $#" = "hyprsunset temperature 2" ] && echo 4300
+[ "$1 $2" = "binds -j" ] && cat "$HOME/binds.json"
+[ "$1 $#" = "submap 1" ] && echo default
 exit 0
 STUB
 cat >>"$stubs/systemctl" <<'STUB'
@@ -119,6 +123,12 @@ if python3 -c 'import PIL' 2>/dev/null; then
     python3 -B "$ROOT/tests/fixtures/rofi/tools/render_preview.py" \
         --out "$tmp/.cache/rofi-launcher/anim-previews" >/dev/null
 fi
+
+# Binds: an anonymised copy of hyprland.conf (nothing is ever written to it), and
+# Hyprland's live list as the stub's answer to `hyprctl binds -j`.
+mkdir -p "$tmp/.config/hypr"
+cp "$ROOT/tests/fixtures/hypr/hyprland.conf" "$tmp/.config/hypr/hyprland.conf"
+cp "$ROOT/tests/fixtures/hypr/binds.json" "$tmp/binds.json"
 
 if [ "$hostile" -eq 1 ]; then
     mkdir -p "$tmp/.config/gtk-4.0"

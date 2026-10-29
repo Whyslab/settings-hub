@@ -628,3 +628,66 @@ popover listview > row:selected {
 popover listview > row image {
   color: inherit;
 }
+
+/* ---- binds ------------------------------------------------------------ */
+
+.sh-page-search {
+  margin: 10px 0 2px 0;
+}
+
+.sh-keys {
+  color: var(--sh-fg);
+  background-color: var(--sh-search);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 12px;
+  font-feature-settings: "tnum";
+}
+
+.sh-keys.sh-capturing {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-accent);
+}
+
+.sh-bind-warn {
+  color: #ffffff;
+  background-color: #ff9500;
+  border-radius: 99px;
+  min-width: 16px;
+  min-height: 16px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+menubutton.sh-bind-menu > button {
+  padding: 0 8px;
+  min-height: 22px;
+  color: var(--sh-fg-dim);
+  background-color: transparent;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+menubutton.sh-bind-menu > button:hover,
+menubutton.sh-bind-menu > button:checked {
+  color: var(--sh-fg);
+  background-color: var(--sh-hover);
+}
+
+button.sh-menu-item {
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+button.sh-menu-item:hover {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-accent);
+}
+
+list.sh-group > row.sh-bind-disabled label {
+  color: var(--sh-fg-dim);
+}
+
+list.sh-group > row.sh-bind-disabled .sh-keys {
+  text-decoration-line: line-through;
+}

@@ -10,6 +10,8 @@ Keys (handled in the capture phase, before any child sees them):
     Esc         swallowed on press, hides the window on release
     Ctrl+Z      undo the last change (one history group)
 
+While the Binds page captures a key combination, all of these step aside.
+
 Esc hides on *release*: hiding on press would hand the still-held key to the
 window underneath (Wayland passes held keys to the new focus owner).
 """
@@ -29,6 +31,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import pages, registry, strings  # noqa: E402
 from .history import History  # noqa: E402
+from .widgets import keycapture  # noqa: E402
 from .widgets.sidebar import Sidebar  # noqa: E402
 from .workers import Workers  # noqa: E402
 
@@ -245,6 +248,9 @@ class Window(Gtk.ApplicationWindow):
     # ---- keys -----------------------------------------------------------
 
     def _on_key_pressed(self, _ctl, keyval: int, _code: int, state: Gdk.ModifierType) -> bool:
+        if keycapture.is_capturing(self):
+            self._esc_armed = False
+            return False  # a key capture (Binds page) takes every key, Esc included
         ctrl = bool(state & Gdk.ModifierType.CONTROL_MASK)
         focus = self.get_focus()
         if keyval == Gdk.KEY_Escape:

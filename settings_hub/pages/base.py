@@ -12,7 +12,6 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Graphene", "1.0")
 from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
-from .. import strings  # noqa: E402
 from ..history import History  # noqa: E402
 from ..widgets.rows import Group, Row  # noqa: E402
 from ..workers import Workers  # noqa: E402
@@ -83,10 +82,3 @@ class Page:
             adj.set_value(min(top, adj.get_upper() - adj.get_page_size()))
         return False
 
-
-class PlaceholderPage(Page):
-    """A page whose settings arrive in a later version."""
-
-    def build(self) -> None:
-        group = self.add_group(Group(note=strings.PLACEHOLDER_NOTE))
-        group.add(Row(strings.PLACEHOLDER_TITLE))
