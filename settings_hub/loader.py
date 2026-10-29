@@ -16,6 +16,9 @@ and never call load_config() without a config file.
 The rofi hub is a real package with relative imports; it is imported as
 _rofi_live.rofi_hub from the installed directory.
 
+Loading never writes byte-code caches into the other project's directory:
+those files belong to that project, not to us.
+
 Paths come from arguments, else from environment variables (so tests and
 sandboxes can point at copies), else from the default install locations.
 """
@@ -94,6 +97,8 @@ def load_screen_sleep(directory: Path | str | None = None) -> ScreenSleep:
         del sys.modules[name]
     pkg = _package(SS_PACKAGE, [])
     loaded: dict[str, types.ModuleType] = {}
+    no_pyc = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         for name in SS_MODULES:
             full = f"{SS_PACKAGE}.{name}"
@@ -111,6 +116,7 @@ def load_screen_sleep(directory: Path | str | None = None) -> ScreenSleep:
     except Exception as exc:
         raise LoadError(f"{type(exc).__name__}: {exc}") from exc
     finally:
+        sys.dont_write_bytecode = no_pyc
         for name, previous in saved.items():
             if previous is None:
                 sys.modules.pop(name, None)
@@ -130,7 +136,11 @@ def load_rofi_module(dotted: str, directory: Path | str | None = None) -> types.
                      if m == ROFI_PACKAGE or m.startswith(ROFI_PACKAGE + ".")]:
             del sys.modules[name]
         _package(ROFI_PACKAGE, [str(directory)])
+    no_pyc = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         return importlib.import_module(f"{ROFI_PACKAGE}.{dotted}")
     except Exception as exc:
         raise LoadError(f"{type(exc).__name__}: {exc}") from exc
+    finally:
+        sys.dont_write_bytecode = no_pyc

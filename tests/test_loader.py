@@ -83,6 +83,17 @@ def test_missing_or_broken_module_is_a_load_error(home, tmp_path):
     assert "common" not in sys.modules and "idle" not in sys.modules
 
 
+def test_loading_writes_no_bytecode_into_the_other_project(home, tmp_path):
+    copy = tmp_path / "ss"
+    shutil.copytree(SS, copy)
+    loader.load_screen_sleep(copy)
+    hub = make_hub(tmp_path / "hub2")
+    loader.load_rofi_module("rofi_hub.sections.animations", hub)
+    assert list(copy.rglob("__pycache__")) == []
+    assert list(hub.rglob("__pycache__")) == []
+    assert sys.dont_write_bytecode is False
+
+
 def make_hub(root):
     pkg = root / "rofi_hub"
     (pkg / "sections").mkdir(parents=True)
