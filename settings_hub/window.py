@@ -247,11 +247,14 @@ class Window(Gtk.ApplicationWindow):
 
     # ---- keys -----------------------------------------------------------
 
-    def _on_key_pressed(self, _ctl, keyval: int, _code: int, state: Gdk.ModifierType) -> bool:
+    def _on_key_pressed(self, _ctl, keyval: int, code: int, state: Gdk.ModifierType) -> bool:
         if keycapture.is_capturing(self):
             self._esc_armed = False
             return False  # a key capture (Binds page) takes every key, Esc included
         ctrl = bool(state & Gdk.ModifierType.CONTROL_MASK)
+        # Letters by the key's place on the first layout: in the Russian
+        # layout Ctrl+F arrives as Ctrl+Cyrillic_a.
+        letter = keycapture.hypr_key(keyval, code, self.get_display()) if ctrl else ""
         focus = self.get_focus()
         if keyval == Gdk.KEY_Escape:
             if self.sidebar.contains_focus(focus) and self.sidebar.clear_search():
@@ -259,10 +262,10 @@ class Window(Gtk.ApplicationWindow):
                 return True
             self._esc_armed = True
             return True  # swallowed; the window hides on release
-        if ctrl and keyval in (Gdk.KEY_f, Gdk.KEY_F):
+        if letter == "F":
             self.sidebar.focus_search()
             return True
-        if ctrl and keyval in (Gdk.KEY_z, Gdk.KEY_Z):
+        if letter == "Z":
             self.undo_last()
             return True
         if keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab):

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from binds_env import World
+from conftest import before_install
 
 from settings_hub.binds import conflicts, names, parser
 from settings_hub.binds.parser import Combo, modmask
@@ -32,7 +33,9 @@ def real_live() -> list:
 def test_real_config_parses_like_hyprland_sees_it():
     cfg = parser.parse(REAL / "hyprland.conf", REAL / "settings-hub.conf")
     live = real_live()
-    assert len(cfg.binds) == len(live) == 66
+    real = (REAL / "hyprland.conf").read_bytes()
+    # 66 before install; ours replaces N and W and adds Super+I and the capture bind.
+    assert len(cfg.binds) == len(live) == (66 if before_install(real) == real else 68)
     assert all(b.keyword and b.file.exists() and b.line > 0 for b in cfg.binds)
     found, extra = parser.reconcile(cfg.binds, live)
     assert all(found) and extra == []
@@ -46,8 +49,10 @@ def test_real_config_parses_like_hyprland_sees_it():
 def test_writing_on_a_copy_of_the_real_config(tmp_path, monkeypatch):
     real_conf = REAL / "hyprland.conf"
     before = real_conf.read_bytes()
+    own = REAL / "settings-hub.conf"
+    own_before = own.read_bytes() if own.exists() else None
     copy = tmp_path / "real.conf"
-    copy.write_bytes(before)
+    copy.write_bytes(before_install(before))
     live = tmp_path / "live.json"
     live.write_text(json.dumps(real_live()))
     w = World(tmp_path / "w", monkeypatch, conf=copy, live=live)
@@ -67,4 +72,4 @@ def test_writing_on_a_copy_of_the_real_config(tmp_path, monkeypatch):
     finally:
         w.close()
     assert real_conf.read_bytes() == before
-    assert not (REAL / "settings-hub.conf").exists()
+    assert (own.read_bytes() if own.exists() else None) == own_before

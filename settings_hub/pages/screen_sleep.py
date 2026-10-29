@@ -14,8 +14,7 @@ from typing import Any
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
 from .. import strings  # noqa: E402
 from ..backends import screen_sleep as ss_backend  # noqa: E402
@@ -196,16 +195,13 @@ class ScreenSleepPage(Page):
         self.scale.connect("value-changed", self._on_scale)
         # GTK4's Scale has no "released" signal. The plan's GestureClick is
         # here; its press may be denied once the Range's own drag gesture
-        # claims the pointer, so a legacy controller watches the raw release
-        # too (both end the series; ending it twice does nothing).
+        # claims the pointer, so the controller's 600 ms stillness timer and
+        # focus-leave end the series too (ending it twice does nothing).
+        # (An EventControllerLegacy got event=None from PyGObject 3.58.)
         click = Gtk.GestureClick()
         click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         click.connect("released", lambda *_: self.controller.slider_done())
         self.scale.add_controller(click)
-        raw = Gtk.EventControllerLegacy()
-        raw.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
-        raw.connect("event", self._on_scale_event)
-        self.scale.add_controller(raw)
         focus = Gtk.EventControllerFocus()
         focus.connect("leave", lambda *_: self.controller.slider_done())
         self.scale.add_controller(focus)
@@ -317,11 +313,6 @@ class ScreenSleepPage(Page):
         self.temp_label.set_label(strings.SS_KELVIN.format(value=value))
         if not self._quiet_depth:
             self.controller.slider_moved(value)
-
-    def _on_scale_event(self, _ctl, event: Gdk.Event) -> bool:
-        if event.get_event_type() in (Gdk.EventType.BUTTON_RELEASE, Gdk.EventType.TOUCH_END):
-            self.controller.slider_done()
-        return False  # never swallow: the Scale still needs the event
 
     def _open_old_window(self) -> None:
         gui = self.backend.old_window()

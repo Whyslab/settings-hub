@@ -10,12 +10,12 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from conftest import FIXTURES, ROOT
+from conftest import FIXTURES, OUR_SOURCE_LINE, ROOT, before_install
 
 from settings_hub.binds import parser
 
 REAL_CONF = Path.home() / ".config/hypr/hyprland.conf"
-LINE = "source = ~/.config/hypr/settings-hub.conf  # settings-hub"
+LINE = OUR_SOURCE_LINE
 DESKTOP = """[Desktop Entry]
 Type=Application
 Name=Screen and sleep
@@ -73,7 +73,7 @@ class Live:
             stub.chmod(0o755)
         self.conf = self.home / ".config/hypr/hyprland.conf"
         self.conf.parent.mkdir(parents=True)
-        self.conf.write_bytes(conf_source.read_bytes())
+        self.conf.write_bytes(before_install(conf_source.read_bytes()))  # live: real-copy
         self.conf.chmod(0o640)
         self.desktop = self.home / ".local/share/applications/screen-sleep.desktop"
         self.desktop.parent.mkdir(parents=True)
