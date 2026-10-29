@@ -42,14 +42,15 @@ CLASS_MATCH = r"class:^(settings-hub|io\.github\.whyslab\.SettingsHub)$"
 
 class Window(Gtk.ApplicationWindow):
     def __init__(self, app: Gtk.Application, history: History, workers: Workers,
-                 state_dir: Path) -> None:
+                 state_dir: Path, backends: dict | None = None) -> None:
         super().__init__(application=app, title=strings.APP_TITLE)
         self.set_default_size(WIDTH, HEIGHT)
         self.set_hide_on_close(True)
         self.set_decorated(False)
         self.history = history
         self.state_dir = state_dir
-        self.ctx = pages.Context(history, workers, self.show_status, self.undo_last)
+        self.ctx = pages.Context(history, workers, self.show_status, self.undo_last,
+                                 dict(backends or {}))
         self._pages: dict[str, pages.Page] = {}
         self.current: str | None = None
         self._esc_armed = False
@@ -140,8 +141,12 @@ class Window(Gtk.ApplicationWindow):
     # ---- showing --------------------------------------------------------
 
     def open_page(self, page_id: str = "") -> None:
-        """The `open` action: show the window on a page (empty = keep the page)."""
-        self.show_page(page_id)
+        """The `open` action: show the window on a page (empty = keep the page).
+
+        "page#row" also scrolls to that row and tints it, like a search result.
+        """
+        page_id, _, row_id = page_id.partition("#")
+        self.show_page(page_id, row_id)
         was_visible = self.get_visible()
         self.present()
         if was_visible and not self.is_active() and os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):

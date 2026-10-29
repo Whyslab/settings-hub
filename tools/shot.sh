@@ -2,7 +2,7 @@
 # tools/shot.sh - screenshot the window in an isolated session, never on your screen.
 #
 #   tools/shot.sh [--scheme light|dark] [--page ID] [--hostile] [--cold]
-#                 [--history FILE] [--settle S] OUT.png
+#                 [--history FILE] [--settle S] [--no-ss-config] [--row ROW] OUT.png
 #
 # Isolation (plan section 4): a private Xvfb display numbered :99 or higher
 # (a bare Xvfb would take :1 and break the desktop), a temporary HOME and XDG
@@ -14,6 +14,13 @@
 #              painting everything #ff00ff) and gtk-theme-name=Monochrome-Vivid
 #   --cold     do not pre-start the app; settings-open has to start it
 #   --settle   seconds to wait after opening before the screenshot (default 2)
+#   --no-ss-config  no screen-sleep config.json (the page offers the old window)
+#   --row      then scroll the page to this row (the window's "page#row" open)
+#
+# screen-sleep's modules come from tests/fixtures (anonymised copies), with
+# their absolute /usr/bin/pkill and /usr/bin/pgrep pointed at the stubs; the
+# stub hyprctl answers "hyprsunset temperature" with 4300 and the stub
+# systemctl says the daemon is active.
 #
 # The screen is exactly the window size, so the root window is the window.
 # Prints the temporary directory (calls.log, open.log, app.log) on exit.
@@ -27,6 +34,8 @@ hostile=0
 cold=0
 history_file=""
 settle=2
+ss_config=1
+row=""
 while [ $# -gt 1 ]; do
     case $1 in
         --scheme) scheme=$2; shift 2 ;;
@@ -35,6 +44,8 @@ while [ $# -gt 1 ]; do
         --cold) cold=1; shift ;;
         --history) history_file=$2; shift 2 ;;
         --settle) settle=$2; shift 2 ;;
+        --no-ss-config) ss_config=0; shift ;;
+        --row) row=$2; shift 2 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -46,10 +57,34 @@ tmp=$(mktemp -d)
 stubs=$tmp/stubs
 mkdir -p "$stubs" "$tmp/.config" "$tmp/.local/state" "$tmp/.local/share" "$tmp/.cache" "$tmp/run"
 chmod 700 "$tmp/run"
-for name in hyprctl notify-send pkill pgrep systemd-inhibit wallpaper.sh wallpaper-theme; do
+for name in hyprctl notify-send pkill pgrep systemctl systemd-inhibit wallpaper.sh \
+    wallpaper-theme; do
     printf '#!/bin/sh\necho "%s $*" >>"%s/calls.log"\n' "$name" "$tmp" >"$stubs/$name"
     chmod +x "$stubs/$name"
 done
+cat >>"$stubs/hyprctl" <<'STUB'
+[ "$1 $2 $#" = "hyprsunset temperature 2" ] && echo 4300
+exit 0
+STUB
+cat >>"$stubs/systemctl" <<'STUB'
+case " $* " in *" is-active "*) echo active ;; esac
+exit 0
+STUB
+
+ss_dir=$tmp/.local/share/screen-sleep
+mkdir -p "$ss_dir"
+for m in common idle night; do
+    sed -e "s#/usr/bin/pkill#$stubs/pkill#g" -e "s#/usr/bin/pgrep#$stubs/pgrep#g" \
+        "$ROOT/tests/fixtures/screen_sleep/$m.py" >"$ss_dir/$m.py"
+done
+if grep -q '/usr/bin/p' "$ss_dir"/*.py; then
+    echo "screen-sleep copies still call /usr/bin programs" >&2
+    exit 1
+fi
+if [ "$ss_config" -eq 1 ]; then
+    mkdir -p "$tmp/.config/screen-sleep"
+    cp "$ROOT/tests/fixtures/screen_sleep/config.json" "$tmp/.config/screen-sleep/config.json"
+fi
 
 if [ "$hostile" -eq 1 ]; then
     mkdir -p "$tmp/.config/gtk-4.0"
@@ -125,7 +160,7 @@ env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
     PATH="$stubs:$PATH" DISPLAY=":$display" GDK_BACKEND=x11 GSK_RENDERER="$renderer" NO_AT_BRIDGE=1 GTK_A11Y=none \
     SETTINGS_HUB_APP="$ROOT/app.py" \
     COLD="$cold" SCHEME_ARG="$scheme_arg" PAGE="$page" OUT="$out" SETTLE="$settle" \
-    OPEN="$ROOT/bin/settings-open" \
+    OPEN="$ROOT/bin/settings-open" ROW="$row" \
     dbus-run-session --config-file="$tmp/bus.conf" -- sh -c '
         if [ "$COLD" -eq 0 ]; then
             # shellcheck disable=SC2086
@@ -140,6 +175,12 @@ env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
             done
         fi
         "$OPEN" "$PAGE" || echo "settings-open exited $?" >&2
+        if [ -n "$ROW" ]; then
+            sleep 0.5
+            gdbus call --session --dest io.github.whyslab.SettingsHub \
+                --object-path /io/github/whyslab/SettingsHub \
+                --method org.gtk.Actions.Activate open "[<\"$PAGE#$ROW\">]" "{}" >/dev/null
+        fi
         sleep "$SETTLE"
         # The window logs its map event; no map, no window to photograph.
         grep -q "^map " "$XDG_STATE_HOME/settings-hub/open.log" ||

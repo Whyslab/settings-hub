@@ -1,0 +1,48 @@
+{
+  "night": {
+    "target_temp": 2700,
+    "on_hour": 21,
+    "on_minute": 0,
+    "off_hour": 7,
+    "off_minute": 0,
+    "manual_override": false
+  },
+  "idle": {
+    "ac": {
+      "dim": {
+        "enabled": true,
+        "minutes": 60
+      },
+      "lock": {
+        "enabled": true,
+        "minutes": 70
+      },
+      "dpms": {
+        "enabled": true,
+        "minutes": 80
+      },
+      "suspend": {
+        "enabled": false,
+        "minutes": 120
+      }
+    },
+    "battery": {
+      "dim": {
+        "enabled": true,
+        "minutes": 5
+      },
+      "lock": {
+        "enabled": true,
+        "minutes": 7
+      },
+      "dpms": {
+        "enabled": true,
+        "minutes": 8
+      },
+      "suspend": {
+        "enabled": true,
+        "minutes": 20
+      }
+    }
+  }
+}

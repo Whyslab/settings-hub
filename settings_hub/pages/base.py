@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk  # noqa: E402
+gi.require_version("Graphene", "1.0")
+from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
 from .. import strings  # noqa: E402
 from ..history import History  # noqa: E402
@@ -24,6 +26,7 @@ class Context:
     workers: Workers
     status: Callable[[str], None]  # one line at the bottom of the window
     undo_last: Callable[[], None]
+    backends: dict[str, Any] = field(default_factory=dict)  # by History backend name
 
 
 class Page:
@@ -69,6 +72,16 @@ class Page:
             return
         row.grab_focus()  # the viewport scrolls to the focused child
         row.highlight()
+        GLib.idle_add(self._scroll_to, row)
+
+    def _scroll_to(self, row: Gtk.Widget) -> bool:
+        """Put the row near the top, with its group heading still visible."""
+        ok, point = row.compute_point(self._box, Graphene.Point())
+        if ok:
+            adj = self.widget.get_vadjustment()
+            top = max(0.0, point.y - 40)
+            adj.set_value(min(top, adj.get_upper() - adj.get_page_size()))
+        return False
 
 
 class PlaceholderPage(Page):

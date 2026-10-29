@@ -83,6 +83,16 @@
       "query": "jnvtybnm",
       "page": "history",
       "row": "undo"
+    },
+    {
+      "query": "не засыпать",
+      "page": "screen-sleep",
+      "row": "caffeine"
+    },
+    {
+      "query": "расписание",
+      "page": "screen-sleep",
+      "row": "schedule"
     }
   ],
   "nothing": [
@@ -112,5 +122,47 @@
     "with": "Ёлка тёплая",
     "without": "елка теплая"
   },
-  "broad": "а"
+  "broad": "а",
+  "top_row": [
+    {
+      "query": "сон",
+      "page": "screen-sleep",
+      "row": "ac"
+    },
+    {
+      "query": "ночной",
+      "page": "screen-sleep",
+      "row": "night"
+    },
+    {
+      "query": "не засыпать",
+      "page": "screen-sleep",
+      "row": "caffeine"
+    },
+    {
+      "query": "расписание",
+      "page": "screen-sleep",
+      "row": "schedule"
+    },
+    {
+      "query": "батарея",
+      "page": "screen-sleep",
+      "row": "battery"
+    },
+    {
+      "query": "цель",
+      "page": "screen-sleep",
+      "row": "target"
+    },
+    {
+      "query": "cjy",
+      "page": "screen-sleep",
+      "row": "ac"
+    },
+    {
+      "query": "cnfnec",
+      "page": "screen-sleep",
+      "row": "now"
+    }
+  ]
 }

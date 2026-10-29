@@ -26,6 +26,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import APP_ID, PRGNAME  # noqa: E402
+from .backends import screen_sleep  # noqa: E402
 from .history import History  # noqa: E402
 from .theme import SCHEMES, Theme  # noqa: E402
 from .window import Window  # noqa: E402
@@ -101,7 +102,11 @@ class App(Gtk.Application):
         setup_logging(directory)
         Theme(Gdk.Display.get_default(), self.forced_scheme)
         self.workers = Workers()
-        self.window = Window(self, History(), self.workers, directory)
+        history = History()
+        # Appliers are registered at start, so undo works before a page is opened.
+        backends = {screen_sleep.BACKEND: screen_sleep.Backend(self.workers)}
+        screen_sleep.register(history, backends[screen_sleep.BACKEND])
+        self.window = Window(self, history, self.workers, directory, backends)
 
         open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))
         open_action.connect("activate", lambda _a, v: self.window.open_page(v.get_string()))

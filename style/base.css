@@ -276,8 +276,20 @@ text placeholder {
 spinbutton > button {
   border: none;
   background-color: transparent;
-  min-width: 20px;
-  padding: 0 4px;
+  color: var(--sh-fg-dim);
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0 2px;
+  border-radius: 5px;
+}
+
+spinbutton > button:hover {
+  color: var(--sh-fg);
+  background-color: var(--sh-hover);
+}
+
+spinbutton > text {
+  min-width: 0;
 }
 
 button {
@@ -351,6 +363,9 @@ scale > trough > highlight {
   background-color: var(--sh-accent);
   border: none;
   border-radius: 99px;
+  margin: 0;
+  min-width: 0;
+  min-height: 4px;
 }
 
 scale > trough > slider {
@@ -450,4 +465,65 @@ tooltip {
 window.dialog,
 window.message {
   background-color: var(--sh-card);
+}
+
+/* ---- status dots, values, warnings (Screen and sleep) --------------- */
+
+.sh-dot {
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: 99px;
+  background-color: var(--sh-fg-dim);
+}
+
+.sh-dot.ok {
+  background-color: #34c759;
+}
+
+.sh-dot.bad {
+  background-color: #ff3b30;
+}
+
+.sh-value {
+  color: var(--sh-fg-dim);
+  font-feature-settings: "tnum";
+}
+
+.sh-group-note.sh-warning {
+  color: #c93400;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sh-group-note.sh-warning {
+    color: #ff9f0a;
+  }
+}
+
+/* A segmented control: buttons joined into one rounded strip. */
+.sh-segmented > button {
+  border-radius: 0;
+  border-right-width: 0;
+  padding: 2px 12px;
+}
+
+.sh-segmented > button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.sh-segmented > button:last-child {
+  border-radius: 0 6px 6px 0;
+  border-right-width: 1px;
+}
+
+scale marks mark label {
+  color: var(--sh-fg-dim);
+  font-size: 11px;
+}
+
+scale {
+  padding: 4px 2px 0 2px;
+}
+
+.sh-untitled {
+  margin-top: 18px;
 }

@@ -20,12 +20,12 @@ HIGHLIGHT_MS = 1500
 class Row(Gtk.ListBoxRow):
     def __init__(self, title: str, subtitle: str | None = None,
                  suffix: Gtk.Widget | None = None, row_id: str | None = None,
-                 activatable: bool = False) -> None:
+                 activatable: bool = False, below: Gtk.Widget | None = None) -> None:
+        """below: a full-width widget under the title line (a slider)."""
         super().__init__()
         self.row_id = row_id
         self.set_activatable(activatable)
         inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        inner.add_css_class("sh-row-inner")
         texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2,
                         valign=Gtk.Align.CENTER, hexpand=True)
         self.title_label = Gtk.Label(label=title, xalign=0, wrap=True)
@@ -39,7 +39,15 @@ class Row(Gtk.ListBoxRow):
         if suffix is not None:
             suffix.set_valign(Gtk.Align.CENTER)
             inner.append(suffix)
-        self.set_child(inner)
+        if below is None:
+            inner.add_css_class("sh-row-inner")
+            self.set_child(inner)
+        else:
+            outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            outer.add_css_class("sh-row-inner")
+            outer.append(inner)
+            outer.append(below)
+            self.set_child(outer)
         self._highlight_source = 0
 
     def highlight(self) -> None:
@@ -59,10 +67,13 @@ class Row(Gtk.ListBoxRow):
 class Group(Gtk.Box):
     def __init__(self, title: str | None = None, note: str | None = None) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.heading: Gtk.Label | None = None
+        if not title:
+            self.add_css_class("sh-untitled")
         if title:
-            heading = Gtk.Label(label=title, xalign=0)
-            heading.add_css_class("sh-group-title")
-            self.append(heading)
+            self.heading = Gtk.Label(label=title, xalign=0)
+            self.heading.add_css_class("sh-group-title")
+            self.append(self.heading)
         self.list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         self.list.add_css_class("sh-group")
         self.list.set_overflow(Gtk.Overflow.HIDDEN)

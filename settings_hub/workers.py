@@ -109,6 +109,12 @@ class Workers:
                key: Any = None) -> None:
         self.get(backend).submit(fn, on_done, key)
 
+    def wait_idle(self, timeout: float | None = None) -> bool:
+        """Wait until no worker has a job queued or running."""
+        with self._lock:
+            workers = list(self._workers.values())
+        return all(w.wait_idle(timeout) for w in workers)
+
     def stop_all(self, timeout: float | None = None) -> None:
         with self._lock:
             workers = list(self._workers.values())
