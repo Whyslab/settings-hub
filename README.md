@@ -12,11 +12,14 @@ The interface is in Russian; all user-facing text lives in
 |---|---|
 | ![light](docs/screenshots/step2-screen-sleep-light.png) | ![dark](docs/screenshots/step2-screen-sleep-dark.png) |
 | ![light](docs/screenshots/step2-night-light.png) | ![dark](docs/screenshots/step2-night-dark.png) |
+| ![light](docs/screenshots/step3-wallpaper-light.png) | ![dark](docs/screenshots/step3-wallpaper-dark.png) |
+| ![light](docs/screenshots/step3-animations-light.png) | ![dark](docs/screenshots/step3-animations-dark.png) |
 
 ## Status
 
 Version 1 is being built step by step. Done so far: the **framework** and the
-**Screen and sleep** page. The framework:
+pages **Screen and sleep**, **Wallpaper and theme** and **Animations**. The
+framework:
 
 - the resident application, the window (sidebar with search and coloured
   icons, rounded groups of rows), light and dark looks, keyboard control;
@@ -27,8 +30,7 @@ Version 1 is being built step by step. Done so far: the **framework** and the
 - `settings-open`, the hotkey entry point, with every fallback;
 - a sandbox installer and uninstaller.
 
-*Screen and sleep* and *History* work; *Wallpaper and theme*, *Animations*
-and *Binds* are placeholders.
+*Binds* is still a placeholder.
 
 ## Screen and sleep
 
@@ -72,6 +74,48 @@ checks this table against them, and the GUI test checks the page builds each):
 | 5 | Moving the slider switches to manual mode | `night.slider` `night.schedule` |
 | 6 | hyprsunset / hypridle / daemon checks; warning when steps are not in ascending order | `status.hyprsunset` `status.hypridle` `status.daemon` `status.power` `idle.ac.order-warning` `idle.battery.order-warning` |
 
+## Wallpaper and theme
+
+Only the existing command-line tools are called (on worker threads):
+`~/.config/hypr/scripts/wallpaper.sh set <desktop|lock|sddm|all> FILE`,
+`wallpaper.sh random <target> on|off`, `wallpaper.sh pick` (the old rofi grid),
+`wallpaper-theme mode off|vivid|tinted` and `wallpaper-theme status`. What is on
+each target is read from `~/.local/state/hypr-wallpaper/<target>.path` and
+`random.conf`.
+
+- A target switch (desktop / lock screen / login screen / all three), then a
+  grid of the library `~/.config/hypr/wallpapers/`; a click applies at once.
+- Thumbnails share the rofi picker's cache `~/.cache/wallpaper-thumbs` (same
+  key, `sha1(path|mtime)[:16]`, 480 px); missing ones are made by `magick` on a
+  worker, and decoded off the GTK thread.
+- Random wallpapers per target; the wallpaper-driven theme off / vivid / tinted.
+- History: `wallpaper.<target>` (a path), `random.<target>`, `theme.mode`.
+  Choosing a picture also logs random mode it switched off, in the same group.
+  Undo restores the picture first, then random mode. Restoring "random on"
+  makes the script show a new random picture: that is what random mode does.
+
+## Animations
+
+The page drives rofi-launcher's own animations module (the installed
+`rofi_hub/sections/animations.py`, loaded by file path under a private name),
+with its language forced to Russian and its `notify-send` replaced by the
+window's status line.
+
+- Presets as picture tiles (pictures from `~/.cache/rofi-launcher/anim-previews`;
+  a lettered tile when a picture is missing). A preset applies everything at
+  once and resets the categories, as in the rofi grid.
+- Four categories (window open, window close, workspaces, menus and
+  notifications): a variant and a speed each.
+- Applying is the module's own path: `save_tuning`, the active preset,
+  `hyprconf.write(compose(preset, tuning))`, `hyprctl reload`, on one worker.
+  The tests check the written `animations.conf` against `compose` run in a
+  separate process.
+- *Look* hides the window, runs `bin/anim-preview.sh` with
+  `ANIM_PREVIEW_REOPEN=0` (the preview undoes itself and does not reopen the
+  rofi grid) and shows the window again.
+- History: `preset`, `override.<category>`, `speed.<category>`; a preset is one
+  group with every category it reset.
+
 ## How it works
 
 - `app.py --daemon` starts a `Gtk.Application` (`io.github.whyslab.SettingsHub`)
@@ -113,6 +157,12 @@ pytest tests/ -q              # what CI runs; `live` tests are deselected
 pytest tests/ -q -m live      # also this machine's installed modules, and
                               # the GTK page on a private Xvfb (:99 or higher)
 ```
+
+Wallpaper and animation tests run in a temporary `HOME` with a stub
+`wallpaper.sh`, stub `wallpaper-theme`, `magick`, `hyprctl` and
+`anim-preview.sh`, and a copy of rofi-launcher's module
+(`tests/fixtures/rofi`); the backends' `subprocess` refuses any program that
+is not a stub or inside the temporary directory.
 
 Tests that touch screen-sleep run on copies of its modules in a temporary
 `HOME`, with stub `hyprctl`, `pkill`, `pgrep`, `systemctl` and

@@ -1,0 +1,28 @@
+{
+  "id": "rise",
+  "category": "open",
+  "order": 50,
+  "name": {
+    "ru": "Снизу",
+    "en": "Rise"
+  },
+  "description": {
+    "ru": "Окно поднимается снизу.",
+    "en": "The window rises from below."
+  },
+  "beziers": {
+    "o_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 4, o_ease, slide bottom",
+    "fadeIn": "1, 3, o_ease"
+  },
+  "preview": {
+    "motion": "slidevert"
+  }
+}

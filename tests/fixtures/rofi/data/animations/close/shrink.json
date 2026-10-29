@@ -1,0 +1,31 @@
+{
+  "id": "shrink",
+  "category": "close",
+  "order": 55,
+  "name": {
+    "ru": "Схлопывание",
+    "en": "Shrink"
+  },
+  "description": {
+    "ru": "Быстро и чётко: окно сжимается и исчезает.",
+    "en": "Quick and crisp: the window shrinks away."
+  },
+  "beziers": {
+    "c_snap": [
+      0.2,
+      0.9,
+      0.1,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsOut": "1, 3, c_snap, popin 70%",
+    "fadeOut": "1, 3, c_snap"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "pop"
+  }
+}

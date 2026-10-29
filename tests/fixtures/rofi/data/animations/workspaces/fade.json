@@ -1,0 +1,28 @@
+{
+  "id": "fade",
+  "category": "workspaces",
+  "order": 50,
+  "name": {
+    "ru": "Растворение",
+    "en": "Fade"
+  },
+  "description": {
+    "ru": "Один стол тает, другой проявляется на месте.",
+    "en": "One workspace fades out as the other fades in."
+  },
+  "beziers": {
+    "w_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 5, w_ease, fade",
+    "specialWorkspace": "1, 5, w_ease, fade"
+  },
+  "preview": {
+    "motion": "fade"
+  }
+}

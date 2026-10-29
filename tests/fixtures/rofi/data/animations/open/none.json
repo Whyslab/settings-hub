@@ -1,0 +1,21 @@
+{
+  "id": "none",
+  "category": "open",
+  "order": 99,
+  "name": {
+    "ru": "Без анимации",
+    "en": "None"
+  },
+  "description": {
+    "ru": "Окно появляется сразу.",
+    "en": "The window appears instantly."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsIn": "0",
+    "fadeIn": "0"
+  },
+  "preview": {
+    "motion": "none"
+  }
+}

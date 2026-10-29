@@ -1,0 +1,28 @@
+{
+  "id": "dissolve",
+  "name": {"ru": "Распад", "en": "Dissolve"},
+  "description": {
+    "ru": "Окно рассыпается на пиксели. Текущее поведение системы.",
+    "en": "The window falls apart into pixels. The system's current behaviour."
+  },
+  "order": 10,
+  "beziers": {},
+  "animations": {
+    "fadeOut": "1, 20, default",
+    "windowsOut": "1, 20, default, popin 100%",
+    "fadeLayersOut": "1, 20, default",
+    "layersOut": "1, 20, default, popin 100%"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 4,
+    "drift": 0.35,
+    "spread": 0.55,
+    "wave": 0.55,
+    "rise": 200,
+    "lead": 1.15,
+    "dust_life": 0.35,
+    "layers": 1
+  },
+  "preview": {"motion": "dissolve", "phases": 5}
+}

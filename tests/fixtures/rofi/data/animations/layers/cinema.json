@@ -1,0 +1,31 @@
+{
+  "id": "cinema",
+  "category": "layers",
+  "order": 80,
+  "name": {
+    "ru": "Кино",
+    "en": "Cinema"
+  },
+  "description": {
+    "ru": "Неспешное появление и угасание.",
+    "en": "An unhurried fade in and out."
+  },
+  "beziers": {
+    "l_soft": [
+      0.45,
+      0.0,
+      0.2,
+      1.0
+    ]
+  },
+  "animations": {
+    "layersIn": "1, 7, l_soft, popin 95%",
+    "layersOut": "1, 6, l_soft, popin 95%",
+    "fadeLayersIn": "1, 7, l_soft",
+    "fadeLayersOut": "1, 6, l_soft"
+  },
+  "layers_dissolve": false,
+  "preview": {
+    "motion": "slowfade"
+  }
+}

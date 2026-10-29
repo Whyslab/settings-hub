@@ -1,0 +1,28 @@
+{
+  "id": "cinema",
+  "category": "open",
+  "order": 80,
+  "name": {
+    "ru": "Кино",
+    "en": "Cinema"
+  },
+  "description": {
+    "ru": "Долгое мягкое проявление — красиво, но не быстро.",
+    "en": "A long soft fade — pretty, not quick."
+  },
+  "beziers": {
+    "o_soft": [
+      0.45,
+      0.0,
+      0.2,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 9, o_soft, popin 90%",
+    "fadeIn": "1, 9, o_soft"
+  },
+  "preview": {
+    "motion": "slowfade"
+  }
+}

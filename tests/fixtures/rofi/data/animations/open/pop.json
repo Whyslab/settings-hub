@@ -1,0 +1,28 @@
+{
+  "id": "pop",
+  "category": "open",
+  "order": 10,
+  "name": {
+    "ru": "Выскакивание",
+    "en": "Pop"
+  },
+  "description": {
+    "ru": "Быстро и чётко: окно появляется с лёгким увеличением.",
+    "en": "Quick and crisp: the window pops in with a slight grow."
+  },
+  "beziers": {
+    "o_snap": [
+      0.2,
+      0.9,
+      0.1,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 3, o_snap, popin 85%",
+    "fadeIn": "1, 3, o_snap"
+  },
+  "preview": {
+    "motion": "pop"
+  }
+}

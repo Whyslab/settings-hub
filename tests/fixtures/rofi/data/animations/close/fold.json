@@ -1,0 +1,31 @@
+{
+  "id": "fold",
+  "category": "close",
+  "order": 70,
+  "name": {
+    "ru": "Сворачивание",
+    "en": "Fold"
+  },
+  "description": {
+    "ru": "Окно складывается в горизонтальную линию, как в GNOME.",
+    "en": "The window folds into a horizontal line, GNOME style."
+  },
+  "beziers": {
+    "c_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsOut": "1, 4, c_ease, gnomed",
+    "fadeOut": "1, 4, c_ease"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "unfold"
+  }
+}

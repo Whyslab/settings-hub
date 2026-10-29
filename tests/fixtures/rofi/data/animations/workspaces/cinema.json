@@ -1,0 +1,28 @@
+{
+  "id": "cinema",
+  "category": "workspaces",
+  "order": 80,
+  "name": {
+    "ru": "Кино",
+    "en": "Cinema"
+  },
+  "description": {
+    "ru": "Неспешный сдвиг с растворением.",
+    "en": "An unhurried slide and fade."
+  },
+  "beziers": {
+    "w_soft": [
+      0.45,
+      0.0,
+      0.2,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 10, w_soft, slidefade 40%",
+    "specialWorkspace": "1, 10, w_soft, fade"
+  },
+  "preview": {
+    "motion": "slowfade"
+  }
+}

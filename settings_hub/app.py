@@ -26,7 +26,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import APP_ID, PRGNAME  # noqa: E402
-from .backends import screen_sleep  # noqa: E402
+from .backends import animations, screen_sleep, wallpaper  # noqa: E402
 from .history import History  # noqa: E402
 from .theme import SCHEMES, Theme  # noqa: E402
 from .window import Window  # noqa: E402
@@ -106,6 +106,11 @@ class App(Gtk.Application):
         # Appliers are registered at start, so undo works before a page is opened.
         backends = {screen_sleep.BACKEND: screen_sleep.Backend(self.workers)}
         screen_sleep.register(history, backends[screen_sleep.BACKEND])
+        backends[wallpaper.BACKEND] = backends[wallpaper.THEME] = wallpaper.Backend(self.workers)
+        wallpaper.register(history, backends[wallpaper.BACKEND])
+        # The animations module itself is loaded on first use (page or undo).
+        backends[animations.BACKEND] = animations.Backend(self.workers)
+        animations.register(history, backends[animations.BACKEND])
         self.window = Window(self, history, self.workers, directory, backends)
 
         open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))

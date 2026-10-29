@@ -1,0 +1,28 @@
+{
+  "id": "slide",
+  "category": "workspaces",
+  "order": 10,
+  "name": {
+    "ru": "Сдвиг",
+    "en": "Slide"
+  },
+  "description": {
+    "ru": "Столы уезжают вбок лентой.",
+    "en": "Workspaces slide sideways like a strip."
+  },
+  "beziers": {
+    "w_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 5, w_ease, slide",
+    "specialWorkspace": "1, 5, w_ease, slidevert"
+  },
+  "preview": {
+    "motion": "slide"
+  }
+}

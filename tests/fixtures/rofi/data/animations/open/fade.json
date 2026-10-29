@@ -1,0 +1,28 @@
+{
+  "id": "fade",
+  "category": "open",
+  "order": 20,
+  "name": {
+    "ru": "Проявление",
+    "en": "Fade in"
+  },
+  "description": {
+    "ru": "Окно спокойно проявляется на месте.",
+    "en": "The window quietly fades in where it is."
+  },
+  "beziers": {
+    "o_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 4, o_ease, popin 98%",
+    "fadeIn": "1, 4, o_ease"
+  },
+  "preview": {
+    "motion": "fade"
+  }
+}

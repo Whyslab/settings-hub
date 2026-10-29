@@ -1,0 +1,24 @@
+{
+  "id": "none",
+  "category": "close",
+  "order": 99,
+  "name": {
+    "ru": "Без анимации",
+    "en": "None"
+  },
+  "description": {
+    "ru": "Окно исчезает сразу.",
+    "en": "The window disappears instantly."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "0",
+    "fadeOut": "0"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "none"
+  }
+}

@@ -62,12 +62,29 @@ PAGES = {
             "обои", "фон", "картинка", "тема", "цвета", "яркий",
             "приглушённый", "sddm", "блокировка",
         ],
-        "rows": {},
+        "rows": {
+            "target": ("Куда ставить", [
+                "рабочий стол", "экран блокировки", "экран входа", "все три", "цель",
+            ]),
+            "grid": ("Картинки", ["картинка", "фон", "миниатюры", "выбрать обои"]),
+            "rofi": ("Открыть сетку rofi", ["rofi", "сетка", "пикер"]),
+            "random": ("Случайные обои", ["случайные", "случайно", "перемешать", "каждый вход"]),
+            "theme": ("Интерфейс под обои", [
+                "тема", "цвета", "яркий", "приглушённый", "оттенок", "wallpaper-theme",
+                "панель", "перекрасить",
+            ]),
+        },
     },
     "animations": {
         "title": "Анимации",
         "keywords": ["анимация", "пресет", "распад", "скорость", "движение", "эффекты"],
-        "rows": {},
+        "rows": {
+            "presets": ("Готовые наборы", ["набор", "пресет", "распад", "превью"]),
+            "open": ("Открытие окон", ["открытие", "появление", "окно"]),
+            "close": ("Закрытие окон", ["закрытие", "исчезновение", "распад", "окно"]),
+            "workspaces": ("Переключение столов", ["стол", "рабочий стол", "переключение"]),
+            "layers": ("Меню и уведомления", ["меню", "уведомления", "панель"]),
+        },
     },
     "binds": {
         "title": "Бинды",
@@ -202,3 +219,96 @@ SS_SETUP_MISSING = "Экран и сон не настроен — открой�
 SS_SETUP_MISSING_HINT = "Оно создаст файл настроек; потом всё настраивается здесь."
 SS_SETUP_ERROR = "Не удалось загрузить модули «Экран и сон»"
 SS_OPEN_OLD = "Открыть старое окно"
+
+# ---- Wallpaper and theme page ----------------------------------------------
+
+WP_ROWS = PAGES["wallpaper"]["rows"]
+# Target ids are wallpaper.sh's: desktop, lock, sddm, all.
+WP_TARGETS = {
+    "desktop": "Рабочий стол",
+    "lock": "Блокировка",
+    "sddm": "Экран входа",
+    "all": "Все три",
+}
+WP_TARGET_NAMES = {
+    "desktop": "рабочий стол",
+    "lock": "экран блокировки",
+    "sddm": "экран входа",
+    "all": "все три фона",
+}
+WP_TARGET_ROW = WP_ROWS["target"][0]
+WP_NOW = "Сейчас: {name}"
+WP_NOW_RANDOM = "Сейчас: случайные обои"
+WP_NOW_MIXED = "Сейчас на целях разные картинки"
+WP_NONE = "не задано"
+WP_GRID_ROW = WP_ROWS["grid"][0]
+WP_GRID_HINT = "Нажмите на картинку, чтобы поставить её. Синяя рамка — то, что стоит сейчас."
+WP_EMPTY = "В папке {folder} нет картинок"
+WP_RANDOM_WARNING = "Выбор картинки выключит случайные обои на этой цели"
+WP_ROFI = WP_ROWS["rofi"][0]
+WP_ROFI_HINT = "Прежний выбор обоев: сетка во весь экран"
+WP_ROFI_BUTTON = "Открыть"
+WP_RANDOM_GROUP = WP_ROWS["random"][0]
+WP_RANDOM_TARGETS = {
+    "desktop": "Рабочий стол",
+    "lock": "Экран блокировки",
+    "sddm": "Экран входа",
+}
+WP_RANDOM_NOTE = ("Новая картинка при каждом входе в систему, у блокировки — при каждой "
+                  "блокировке. Включение сразу ставит случайную картинку.")
+WP_THEME_GROUP = WP_ROWS["theme"][0]
+WP_THEME_ROW = "Цвета интерфейса"
+# Mode ids are wallpaper-theme's: off, vivid, tinted.
+WP_THEME_MODES = {"off": "Выключен", "vivid": "Яркий", "tinted": "Приглушённый"}
+WP_THEME_HINTS = {
+    "off": "Обычная тема Monochrome Vivid",
+    "vivid": "Цвета берутся из обоев",
+    "tinted": "Чёрно-белое с оттенком обоев",
+}
+WP_THEME_UNKNOWN = "Не удалось узнать режим"
+WP_THEME_MISSING = "wallpaper-theme не установлен"
+WP_THEME_NOTE = ("Панель перекрасится за несколько секунд, rofi — при следующем открытии, "
+                 "программы на GTK — после перезапуска.")
+WP_SETUP_GROUP = "Обои"
+WP_SETUP_MISSING = "Не найден скрипт обоев"
+WP_SETUP_MISSING_HINT = "Ожидается {path}"
+
+WP_LABEL_SET = "Обои: {target}"
+WP_LABEL_RANDOM = "Случайные обои: {target}"
+WP_LABEL_THEME = "Интерфейс под обои"
+WP_APPLYING = "Ставлю обои…"
+WP_SET_DONE = "{target}: {name}"
+WP_RANDOM_ON = "Случайные обои включены: {target}"
+WP_RANDOM_OFF = "Случайные обои выключены: {target}"
+WP_THEME_APPLYING = "Перекрашиваю интерфейс…"
+WP_THEME_DONE = "Интерфейс под обои: {mode}"
+WP_FAILED = "Не удалось: {error}"
+WP_THUMBS = "Готовлю миниатюры: {n}"
+
+# ---- Animations page -------------------------------------------------------
+# Category, variant, speed and preset names come from rofi-launcher's own
+# Russian strings (the animations module, with its language set to Russian).
+
+AN_ROWS = PAGES["animations"]["rows"]
+AN_PRESETS_GROUP = AN_ROWS["presets"][0]
+AN_PRESET_ROW = "Набор"
+AN_PRESET_NOW = "Сейчас: {name}"
+AN_PRESET_NONE = "Набор не выбран"
+AN_PRESETS_NOTE = ("Набор меняет всё сразу и сбрасывает донастройку ниже. "
+                   "«Посмотреть» на несколько секунд прячет окно и показывает анимацию вживую, "
+                   "ничего не сохраняя.")
+AN_VARIANT_ROW = "Вариант"
+AN_SPEED_ROW = "Скорость"
+AN_PREVIEW = "Посмотреть"
+AN_PREVIEW_HINT = "Показать вживую: окно спрячется на несколько секунд"
+AN_SETUP_GROUP = "Анимации"
+AN_SETUP_ERROR = "Не удалось загрузить модуль анимаций rofi-launcher"
+
+AN_LABEL_PRESET = "Анимации: набор"
+AN_LABEL_PRESET_NAMED = "Анимации: набор «{name}»"
+AN_LABEL_OVERRIDE = "Анимации: {category}"
+AN_LABEL_SPEED = "Анимации: {category}, скорость"
+AN_APPLYING = "Применяю…"
+AN_PREVIEWING = "Показываю…"
+AN_PREVIEW_FAILED = "Не удалось показать: {error}"
+AN_FAILED = "Не удалось применить: {error}"

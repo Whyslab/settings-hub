@@ -1,0 +1,28 @@
+{
+  "id": "slidefade",
+  "category": "workspaces",
+  "order": 20,
+  "name": {
+    "ru": "Сдвиг с растворением",
+    "en": "Slide and fade"
+  },
+  "description": {
+    "ru": "Короткий сдвиг, пока старый стол тает.",
+    "en": "A short slide while the old workspace fades out."
+  },
+  "beziers": {
+    "w_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 5, w_ease, slidefade 20%",
+    "specialWorkspace": "1, 5, w_ease, slidefadevert 20%"
+  },
+  "preview": {
+    "motion": "slidefade"
+  }
+}

@@ -17,6 +17,12 @@
 #   --no-ss-config  no screen-sleep config.json (the page offers the old window)
 #   --row      then scroll the page to this row (the window's "page#row" open)
 #
+# Wallpaper: the pictures of tests/fixtures/wallpapers in $HOME/.config/hypr/wallpapers,
+# a stub wallpaper.sh that only logs, thumbnails made by magick into $HOME/.cache
+# (never the real cache), a stub wallpaper-theme that says "vivid".
+# Animations: a copy of tests/fixtures/rofi (rofi-launcher's module and data) with a
+# stub bin/anim-preview.sh; its preview pictures are drawn into $HOME/.cache.
+#
 # screen-sleep's modules come from tests/fixtures (anonymised copies), with
 # their absolute /usr/bin/pkill and /usr/bin/pgrep pointed at the stubs; the
 # stub hyprctl answers "hyprsunset temperature" with 4300 and the stub
@@ -84,6 +90,34 @@ fi
 if [ "$ss_config" -eq 1 ]; then
     mkdir -p "$tmp/.config/screen-sleep"
     cp "$ROOT/tests/fixtures/screen_sleep/config.json" "$tmp/.config/screen-sleep/config.json"
+fi
+
+# Wallpaper and theme.
+wp=$tmp/.config/hypr/wallpapers
+mkdir -p "$wp" "$tmp/.config/hypr/scripts" "$tmp/.local/state/hypr-wallpaper"
+cp "$ROOT"/tests/fixtures/wallpapers/* "$wp/"
+printf '#!/bin/sh\necho "wallpaper.sh $*" >>"%s/calls.log"\n' "$tmp" \
+    >"$tmp/.config/hypr/scripts/wallpaper.sh"
+chmod +x "$tmp/.config/hypr/scripts/wallpaper.sh"
+for t in desktop sddm; do echo "$wp/blue-dusk.jpg" >"$tmp/.local/state/hypr-wallpaper/$t.path"; done
+echo "$wp/forest.png" >"$tmp/.local/state/hypr-wallpaper/lock.path"
+printf 'desktop=off\nlock=on\nsddm=off\n' >"$tmp/.local/state/hypr-wallpaper/random.conf"
+sed 's/MODE/vivid/' "$ROOT/tests/fixtures/wallpaper_theme_status.txt" >"$tmp/theme-status"
+cat >>"$stubs/wallpaper-theme" <<STUB
+[ "\$1" = status ] && cat "$tmp/theme-status"
+exit 0
+STUB
+
+# Animations.
+mkdir -p "$tmp/rofi/bin" "$tmp/.config/rofi-launcher"
+cp -r "$ROOT/tests/fixtures/rofi/rofi_hub" "$ROOT/tests/fixtures/rofi/data" "$tmp/rofi/"
+printf '#!/bin/sh\necho "anim-preview.sh $* REOPEN=$ANIM_PREVIEW_REOPEN" >>"%s/calls.log"\n' \
+    "$tmp" >"$tmp/rofi/bin/anim-preview.sh"
+chmod +x "$tmp/rofi/bin/anim-preview.sh"
+cp "$ROOT"/tests/fixtures/animations/* "$tmp/.config/rofi-launcher/"
+if python3 -c 'import PIL' 2>/dev/null; then
+    python3 -B "$ROOT/tests/fixtures/rofi/tools/render_preview.py" \
+        --out "$tmp/.cache/rofi-launcher/anim-previews" >/dev/null
 fi
 
 if [ "$hostile" -eq 1 ]; then
@@ -158,7 +192,7 @@ env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
     HOME="$tmp" XDG_CONFIG_HOME="$tmp/.config" XDG_STATE_HOME="$tmp/.local/state" \
     XDG_DATA_HOME="$tmp/.local/share" XDG_CACHE_HOME="$tmp/.cache" XDG_RUNTIME_DIR="$tmp/run" \
     PATH="$stubs:$PATH" DISPLAY=":$display" GDK_BACKEND=x11 GSK_RENDERER="$renderer" NO_AT_BRIDGE=1 GTK_A11Y=none \
-    SETTINGS_HUB_APP="$ROOT/app.py" \
+    SETTINGS_HUB_APP="$ROOT/app.py" SETTINGS_HUB_ROFI_DIR="$tmp/rofi" PYTHONDONTWRITEBYTECODE=1 \
     COLD="$cold" SCHEME_ARG="$scheme_arg" PAGE="$page" OUT="$out" SETTLE="$settle" \
     OPEN="$ROOT/bin/settings-open" ROW="$row" \
     dbus-run-session --config-file="$tmp/bus.conf" -- sh -c '

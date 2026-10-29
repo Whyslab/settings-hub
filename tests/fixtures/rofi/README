@@ -1,0 +1,5 @@
+Copies of rofi-launcher's animations module (rofi_hub/: __init__, hyprconf, rows,
+strings, sections/animations), its preset and variant data (data/) and its
+preview renderer (tools/render_preview.py, used by tools/shot.sh), used by the
+tests in place of the installed hub. MIT, (c) Whyslab. Refresh with the files
+of the same names from the rofi-launcher repository.

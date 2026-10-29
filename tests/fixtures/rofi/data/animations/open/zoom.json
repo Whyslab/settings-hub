@@ -1,0 +1,28 @@
+{
+  "id": "zoom",
+  "category": "open",
+  "order": 30,
+  "name": {
+    "ru": "Из центра",
+    "en": "Zoom"
+  },
+  "description": {
+    "ru": "Окно вырастает из маленькой точки в центре.",
+    "en": "The window grows out of a small point at its centre."
+  },
+  "beziers": {
+    "o_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 5, o_ease, popin 20%",
+    "fadeIn": "1, 4, o_ease"
+  },
+  "preview": {
+    "motion": "zoom"
+  }
+}

@@ -527,3 +527,104 @@ scale {
 .sh-untitled {
   margin-top: 18px;
 }
+
+/* ---- picture tiles (Wallpaper, Animations) -------------------------- */
+
+flowbox.sh-tiles {
+  margin: 4px 0 2px 0;
+}
+
+flowbox.sh-tiles > flowboxchild,
+flowbox.sh-tiles > flowboxchild:hover,
+flowbox.sh-tiles > flowboxchild:selected {
+  background-color: transparent;
+  padding: 3px;
+  outline-offset: 1px;
+  outline-color: var(--sh-focus);
+}
+
+.sh-thumb {
+  border-radius: 8px;
+  background-color: var(--sh-trough);
+  box-shadow: 0 0 0 1px var(--sh-card-border);
+}
+
+flowbox.sh-tiles > flowboxchild:hover .sh-thumb {
+  box-shadow: 0 0 0 1px var(--sh-card-border), 0 2px 6px var(--sh-shadow);
+}
+
+/* What is on now: the macOS ring, a gap of the card colour then the accent. */
+flowbox.sh-tiles > flowboxchild.sh-current .sh-thumb {
+  box-shadow: 0 0 0 2px var(--sh-card), 0 0 0 5px var(--sh-accent);
+}
+
+.sh-tile-name {
+  color: var(--sh-fg-dim);
+  font-size: 11px;
+}
+
+flowbox.sh-tiles > flowboxchild.sh-current .sh-tile-name {
+  color: var(--sh-fg);
+  font-weight: 600;
+}
+
+.sh-anim-thumb {
+  background-image: linear-gradient(135deg, #5e5ce6, #af52de);
+}
+
+.sh-anim-letter {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* Segmented control: the chosen segment is filled with the accent. */
+.sh-segmented > button:checked {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-accent);
+  border-color: var(--sh-accent);
+}
+
+.sh-segmented > button:checked + button {
+  border-left-color: var(--sh-accent);
+}
+
+.sh-segmented:disabled > button,
+.sh-segmented > button:disabled {
+  color: var(--sh-fg-dim);
+}
+
+/* Drop-down: a button with a chevron; its list is a popover. */
+dropdown > button {
+  padding: 2px 8px 2px 12px;
+  min-width: 150px;
+}
+
+dropdown > button > box > arrow,
+dropdown arrow {
+  color: var(--sh-fg-dim);
+  min-width: 16px;
+  min-height: 16px;
+  -gtk-icon-source: -gtk-icontheme("pan-down-symbolic");
+}
+
+popover listview {
+  background-color: transparent;
+}
+
+popover listview > row {
+  color: var(--sh-fg);
+  border-radius: 6px;
+  padding: 4px 10px;
+  min-height: 22px;
+}
+
+popover listview > row:hover,
+popover listview > row:selected {
+  background-color: var(--sh-accent);
+  color: var(--sh-accent-fg);
+}
+
+popover listview > row image {
+  color: inherit;
+}

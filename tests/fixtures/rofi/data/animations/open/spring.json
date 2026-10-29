@@ -1,0 +1,34 @@
+{
+  "id": "spring",
+  "category": "open",
+  "order": 60,
+  "name": {
+    "ru": "Пружина",
+    "en": "Spring"
+  },
+  "description": {
+    "ru": "Упруго: окно выскакивает с перелётом и отыгрывает назад.",
+    "en": "Springy: the window overshoots its size and settles back."
+  },
+  "beziers": {
+    "o_spring": [
+      0.34,
+      1.56,
+      0.64,
+      1.0
+    ],
+    "o_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 5, o_spring, popin 60%",
+    "fadeIn": "1, 4, o_ease"
+  },
+  "preview": {
+    "motion": "bounce"
+  }
+}

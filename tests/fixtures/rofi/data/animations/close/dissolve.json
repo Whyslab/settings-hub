@@ -1,0 +1,31 @@
+{
+  "id": "dissolve",
+  "category": "close",
+  "order": 10,
+  "name": {
+    "ru": "Распад",
+    "en": "Dissolve"
+  },
+  "description": {
+    "ru": "Окно рассыпается на пиксели, которые улетают вверх.",
+    "en": "The window falls apart into pixels that drift upwards."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "1, 20, default, popin 100%",
+    "fadeOut": "1, 20, default"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 4,
+    "drift": 0.35,
+    "spread": 0.55,
+    "wave": 0.55,
+    "rise": 200,
+    "lead": 1.15,
+    "dust_life": 0.35
+  },
+  "preview": {
+    "motion": "dissolve"
+  }
+}

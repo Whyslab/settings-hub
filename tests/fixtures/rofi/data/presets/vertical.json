@@ -1,0 +1,22 @@
+{
+  "id": "vertical",
+  "name": {"ru": "Вертикаль", "en": "Vertical"},
+  "description": {
+    "ru": "Всё ездит сверху вниз, а не вбок. Столы — вертикальной лентой.",
+    "en": "Everything moves up and down instead of sideways."
+  },
+  "order": 65,
+  "beziers": {"drop": [0.3, 0.0, 0.2, 1.0]},
+  "animations": {
+    "windowsIn": "1, 5, drop, slidevert",
+    "windowsOut": "1, 4, drop, slidevert",
+    "fadeIn": "1, 5, drop",
+    "fadeOut": "1, 4, drop",
+    "layersIn": "1, 4, drop, slidevert",
+    "layersOut": "1, 3, drop, slidevert",
+    "workspaces": "1, 6, drop, slidefadevert",
+    "specialWorkspace": "1, 5, drop, slidevert"
+  },
+  "dissolve": {"enabled": 0},
+  "preview": {"motion": "slidevert", "phases": 5}
+}

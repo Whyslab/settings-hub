@@ -1,0 +1,9 @@
+{
+  "overrides": {
+    "close": "mosaic",
+    "open": "zoom"
+  },
+  "speed": {
+    "layers": "slow"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "dust",
+  "category": "close",
+  "order": 15,
+  "name": {
+    "ru": "Пыль",
+    "en": "Dust"
+  },
+  "description": {
+    "ru": "Мелкие частицы, медленный разлёт.",
+    "en": "Fine particles drifting slowly apart."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "1, 25, default, popin 100%",
+    "fadeOut": "1, 25, default"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 2,
+    "drift": 0.6,
+    "spread": 0.7,
+    "wave": 0.3,
+    "rise": 150,
+    "lead": 1.4,
+    "dust_life": 0.55
+  },
+  "preview": {
+    "motion": "dissolve"
+  }
+}

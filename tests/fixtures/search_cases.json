@@ -93,6 +93,36 @@
       "query": "расписание",
       "page": "screen-sleep",
       "row": "schedule"
+    },
+    {
+      "query": "случайные",
+      "page": "wallpaper",
+      "row": "random"
+    },
+    {
+      "query": "яркий",
+      "page": "wallpaper",
+      "row": "theme"
+    },
+    {
+      "query": "экран входа",
+      "page": "wallpaper",
+      "row": "target"
+    },
+    {
+      "query": "набор",
+      "page": "animations",
+      "row": "presets"
+    },
+    {
+      "query": "закрытие",
+      "page": "animations",
+      "row": "close"
+    },
+    {
+      "query": "уведомления",
+      "page": "animations",
+      "row": "layers"
     }
   ],
   "nothing": [

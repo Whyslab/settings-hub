@@ -1,0 +1,24 @@
+{
+  "id": "smooth",
+  "name": {"ru": "Плавно", "en": "Smooth"},
+  "description": {
+    "ru": "Без распада. Всё проявляется и тает, ничего не двигается рывком.",
+    "en": "No dissolve. Everything fades in and out; nothing jerks."
+  },
+  "order": 45,
+  "beziers": {"gentle": [0.25, 0.46, 0.45, 0.94]},
+  "animations": {
+    "windowsIn": "1, 6, gentle, popin 92%",
+    "windowsOut": "1, 6, gentle, popin 92%",
+    "fadeIn": "1, 6, gentle",
+    "fadeOut": "1, 6, gentle",
+    "layersIn": "1, 5, gentle, fade",
+    "layersOut": "1, 5, gentle, fade",
+    "fadeLayersIn": "1, 5, gentle",
+    "fadeLayersOut": "1, 5, gentle",
+    "workspaces": "1, 7, gentle, fade",
+    "specialWorkspace": "1, 6, gentle, fade"
+  },
+  "dissolve": {"enabled": 0},
+  "preview": {"motion": "fade", "phases": 5}
+}

@@ -1,0 +1,31 @@
+{
+  "id": "blast",
+  "name": {"ru": "Взрыв", "en": "Blast"},
+  "description": {
+    "ru": "Крупные осколки, резкий разлёт в стороны. Всё быстрое.",
+    "en": "Big shards thrown outwards. Everything is fast."
+  },
+  "order": 30,
+  "beziers": {"snap": [0.2, 1.0, 0.3, 1.0]},
+  "animations": {
+    "windowsIn": "1, 3, snap, popin 70%",
+    "fadeIn": "1, 3, snap",
+    "fadeOut": "1, 10, snap",
+    "windowsOut": "1, 10, snap, popin 100%",
+    "fadeLayersOut": "1, 10, snap",
+    "layersOut": "1, 10, snap, popin 100%",
+    "workspaces": "1, 4, snap, slide"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 8,
+    "drift": 0.15,
+    "spread": 1.6,
+    "wave": 0.8,
+    "rise": 320,
+    "lead": 0.7,
+    "dust_life": 0.2,
+    "layers": 1
+  },
+  "preview": {"motion": "dissolve", "phases": 5}
+}

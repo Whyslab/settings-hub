@@ -1,0 +1,28 @@
+{
+  "id": "fast",
+  "category": "workspaces",
+  "order": 40,
+  "name": {
+    "ru": "Мгновенный сдвиг",
+    "en": "Snap slide"
+  },
+  "description": {
+    "ru": "Быстро и чётко: резкий сдвиг без раскачки.",
+    "en": "Quick and crisp: a sharp slide with no wind-up."
+  },
+  "beziers": {
+    "w_snap": [
+      0.2,
+      0.9,
+      0.1,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 3, w_snap, slide",
+    "specialWorkspace": "1, 3, w_snap, slidevert"
+  },
+  "preview": {
+    "motion": "snapslide"
+  }
+}

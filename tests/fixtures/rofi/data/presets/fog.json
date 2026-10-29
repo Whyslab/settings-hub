@@ -1,0 +1,44 @@
+{
+  "id": "fog",
+  "name": {
+    "ru": "Туман",
+    "en": "Fog"
+  },
+  "description": {
+    "ru": "Распад в мельчайшую взвесь, которая долго висит и медленно тает.",
+    "en": "Dissolve into a fine haze that lingers and drifts away."
+  },
+  "order": 25,
+  "beziers": {
+    "haze": [
+      0.1,
+      0.7,
+      0.2,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 6, haze, popin 95%",
+    "fadeIn": "1, 6, haze",
+    "fadeOut": "1, 34, haze",
+    "windowsOut": "1, 34, haze, popin 100%",
+    "fadeLayersOut": "1, 34, haze",
+    "layersOut": "1, 34, haze, popin 100%",
+    "workspaces": "1, 8, haze, fade"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 1,
+    "drift": 1.1,
+    "spread": 0.12,
+    "wave": 0.1,
+    "rise": 15,
+    "lead": 2.2,
+    "dust_life": 2.4,
+    "layers": 1
+  },
+  "preview": {
+    "motion": "dissolve",
+    "phases": 6
+  }
+}

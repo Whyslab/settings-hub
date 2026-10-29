@@ -1,0 +1,4 @@
+режим: MODE
+  подключено ~/.config/hypr/hyprland.conf
+  подключено ~/.config/hypr/hyprlock.conf
+  НЕТ        ~/.config/kitty/kitty.conf

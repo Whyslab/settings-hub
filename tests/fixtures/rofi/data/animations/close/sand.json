@@ -1,0 +1,31 @@
+{
+  "id": "sand",
+  "category": "close",
+  "order": 35,
+  "name": {
+    "ru": "Песок",
+    "en": "Sand"
+  },
+  "description": {
+    "ru": "Окно осыпается ровным фронтом сверху вниз.",
+    "en": "The window crumbles away in a clean front, top to bottom."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "1, 22, default, popin 100%",
+    "fadeOut": "1, 22, default"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 3,
+    "drift": 0.15,
+    "spread": 0.4,
+    "wave": 1.0,
+    "rise": 120,
+    "lead": 1.2,
+    "dust_life": 0.25
+  },
+  "preview": {
+    "motion": "dissolve"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "dissolve",
+  "category": "layers",
+  "order": 50,
+  "name": {
+    "ru": "Распад",
+    "en": "Dissolve"
+  },
+  "description": {
+    "ru": "Меню rofi рассыпается так же, как окна (уведомления просто тают). Работает, только когда окна закрываются распадом.",
+    "en": "rofi menus fall apart like windows (notifications just fade). Only works while windows close with a dissolve."
+  },
+  "beziers": {
+    "l_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "layersIn": "1, 3, l_ease, popin 90%",
+    "layersOut": "1, 20, default, popin 100%",
+    "fadeLayersIn": "1, 3, l_ease",
+    "fadeLayersOut": "1, 20, default"
+  },
+  "layers_dissolve": true,
+  "preview": {
+    "motion": "dissolve"
+  }
+}

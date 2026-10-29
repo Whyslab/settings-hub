@@ -1,0 +1,31 @@
+{
+  "id": "sparks",
+  "category": "close",
+  "order": 40,
+  "name": {
+    "ru": "Искры",
+    "en": "Sparks"
+  },
+  "description": {
+    "ru": "Крошечные искры быстро взлетают высоко вверх.",
+    "en": "Tiny sparks shooting high up, fast."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "1, 16, default, popin 100%",
+    "fadeOut": "1, 16, default"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 2,
+    "drift": 0.6,
+    "spread": 0.9,
+    "wave": 0.3,
+    "rise": 320,
+    "lead": 1.0,
+    "dust_life": 0.12
+  },
+  "preview": {
+    "motion": "dissolve"
+  }
+}

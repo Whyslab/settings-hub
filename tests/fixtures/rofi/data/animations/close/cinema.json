@@ -1,0 +1,31 @@
+{
+  "id": "cinema",
+  "category": "close",
+  "order": 80,
+  "name": {
+    "ru": "Кино",
+    "en": "Cinema"
+  },
+  "description": {
+    "ru": "Долгое мягкое угасание.",
+    "en": "A long soft fade-out."
+  },
+  "beziers": {
+    "c_soft": [
+      0.45,
+      0.0,
+      0.2,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsOut": "1, 9, c_soft, popin 90%",
+    "fadeOut": "1, 9, c_soft"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "slowfade"
+  }
+}

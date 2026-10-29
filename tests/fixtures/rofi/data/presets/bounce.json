@@ -1,0 +1,36 @@
+{
+  "id": "bounce",
+  "name": {
+    "ru": "Пузырь",
+    "en": "Bounce"
+  },
+  "description": {
+    "ru": "Окно выскакивает с перелётом и слегка отыгрывает назад.",
+    "en": "Windows pop out past their size and settle back."
+  },
+  "order": 55,
+  "beziers": {
+    "pop": [
+      0.18,
+      1.62,
+      0.4,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 5, pop, popin 25%",
+    "windowsOut": "1, 4, pop, popin 25%",
+    "fadeIn": "1, 4, pop",
+    "fadeOut": "1, 4, pop",
+    "layersIn": "1, 4, pop, popin 55%",
+    "layersOut": "1, 3, pop, popin 55%",
+    "workspaces": "1, 5, pop, slidefade"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "bounce",
+    "phases": 5
+  }
+}

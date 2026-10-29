@@ -1,0 +1,31 @@
+{
+  "id": "fade",
+  "category": "close",
+  "order": 50,
+  "name": {
+    "ru": "Растворение",
+    "en": "Fade out"
+  },
+  "description": {
+    "ru": "Окно спокойно тает на месте, без частиц.",
+    "en": "The window quietly fades out where it is, no particles."
+  },
+  "beziers": {
+    "c_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsOut": "1, 4, c_ease, popin 98%",
+    "fadeOut": "1, 4, c_ease"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "fade"
+  }
+}

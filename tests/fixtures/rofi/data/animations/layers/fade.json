@@ -1,0 +1,31 @@
+{
+  "id": "fade",
+  "category": "layers",
+  "order": 10,
+  "name": {
+    "ru": "Растворение",
+    "en": "Fade"
+  },
+  "description": {
+    "ru": "Меню и уведомления мягко появляются и тают.",
+    "en": "Menus and notifications softly fade in and out."
+  },
+  "beziers": {
+    "l_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "layersIn": "1, 3, l_ease, fade",
+    "layersOut": "1, 3, l_ease, fade",
+    "fadeLayersIn": "1, 3, l_ease",
+    "fadeLayersOut": "1, 3, l_ease"
+  },
+  "layers_dissolve": false,
+  "preview": {
+    "motion": "fade"
+  }
+}

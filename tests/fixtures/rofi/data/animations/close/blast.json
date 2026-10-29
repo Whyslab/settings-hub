@@ -1,0 +1,31 @@
+{
+  "id": "blast",
+  "category": "close",
+  "order": 25,
+  "name": {
+    "ru": "Взрыв",
+    "en": "Blast"
+  },
+  "description": {
+    "ru": "Крупные осколки резко разлетаются в стороны.",
+    "en": "Big shards thrown hard to the sides."
+  },
+  "beziers": {},
+  "animations": {
+    "windowsOut": "1, 10, default, popin 100%",
+    "fadeOut": "1, 10, default"
+  },
+  "dissolve": {
+    "enabled": 1,
+    "block_size": 8,
+    "drift": 0.15,
+    "spread": 1.6,
+    "wave": 0.8,
+    "rise": 320,
+    "lead": 0.7,
+    "dust_life": 0.2
+  },
+  "preview": {
+    "motion": "dissolve"
+  }
+}

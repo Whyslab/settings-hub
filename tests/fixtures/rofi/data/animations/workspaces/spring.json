@@ -1,0 +1,28 @@
+{
+  "id": "spring",
+  "category": "workspaces",
+  "order": 60,
+  "name": {
+    "ru": "Пружина",
+    "en": "Spring"
+  },
+  "description": {
+    "ru": "Упруго: стол проскакивает дальше и возвращается.",
+    "en": "Springy: the workspace overshoots and comes back."
+  },
+  "beziers": {
+    "w_gentle_spring": [
+      0.3,
+      1.25,
+      0.6,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 6, w_gentle_spring, slide",
+    "specialWorkspace": "1, 6, w_gentle_spring, slidevert"
+  },
+  "preview": {
+    "motion": "bounce"
+  }
+}

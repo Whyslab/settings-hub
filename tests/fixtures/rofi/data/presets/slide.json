@@ -1,0 +1,24 @@
+{
+  "id": "slide",
+  "name": {"ru": "Сдвиг", "en": "Slide"},
+  "description": {
+    "ru": "Без распада. Окна и столы уезжают вбок, быстро и чисто.",
+    "en": "No dissolve. Windows and workspaces slide aside, fast and clean."
+  },
+  "order": 40,
+  "beziers": {"ease": [0.25, 0.1, 0.25, 1.0]},
+  "animations": {
+    "windowsIn": "1, 4, ease, slide",
+    "windowsOut": "1, 4, ease, slide",
+    "fadeIn": "1, 4, ease",
+    "fadeOut": "1, 4, ease",
+    "layersIn": "1, 3, ease, slide",
+    "layersOut": "1, 3, ease, slide",
+    "fadeLayersIn": "1, 3, ease",
+    "fadeLayersOut": "1, 3, ease",
+    "workspaces": "1, 5, ease, slide",
+    "specialWorkspace": "1, 5, ease, slidevert"
+  },
+  "dissolve": {"enabled": 0},
+  "preview": {"motion": "slide", "phases": 5}
+}

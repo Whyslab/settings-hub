@@ -1,0 +1,37 @@
+{
+  "id": "drop",
+  "category": "close",
+  "order": 65,
+  "name": {
+    "ru": "Падение",
+    "en": "Drop"
+  },
+  "description": {
+    "ru": "Окно чуть приподнимается и падает вниз.",
+    "en": "The window lifts a touch, then drops away."
+  },
+  "beziers": {
+    "c_back": [
+      0.36,
+      0.0,
+      0.66,
+      -0.56
+    ],
+    "c_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsOut": "1, 5, c_back, slide bottom",
+    "fadeOut": "1, 5, c_ease"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "drop"
+  }
+}

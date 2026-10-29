@@ -1,0 +1,28 @@
+{
+  "id": "unfold",
+  "category": "open",
+  "order": 70,
+  "name": {
+    "ru": "Раскрытие",
+    "en": "Unfold"
+  },
+  "description": {
+    "ru": "Окно раскрывается от горизонтальной линии, как в GNOME.",
+    "en": "The window unfolds from a horizontal line, GNOME style."
+  },
+  "beziers": {
+    "o_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "windowsIn": "1, 5, o_ease, gnomed",
+    "fadeIn": "1, 4, o_ease"
+  },
+  "preview": {
+    "motion": "unfold"
+  }
+}

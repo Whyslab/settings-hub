@@ -1,0 +1,23 @@
+{
+  "id": "instant",
+  "name": {
+    "ru": "Без анимаций",
+    "en": "Instant"
+  },
+  "description": {
+    "ru": "Всё выключено. Для отладки и когда батарея на исходе.",
+    "en": "Everything off. For debugging and for a dying battery."
+  },
+  "order": 99,
+  "beziers": {},
+  "animations": {
+    "global": "0"
+  },
+  "dissolve": {
+    "enabled": 0
+  },
+  "preview": {
+    "motion": "none",
+    "phases": 1
+  }
+}

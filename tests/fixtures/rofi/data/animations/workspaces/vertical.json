@@ -1,0 +1,28 @@
+{
+  "id": "vertical",
+  "category": "workspaces",
+  "order": 30,
+  "name": {
+    "ru": "Вертикально",
+    "en": "Vertical"
+  },
+  "description": {
+    "ru": "Столы едут сверху вниз.",
+    "en": "Workspaces move up and down."
+  },
+  "beziers": {
+    "w_ease": [
+      0.25,
+      0.1,
+      0.25,
+      1.0
+    ]
+  },
+  "animations": {
+    "workspaces": "1, 5, w_ease, slidevert",
+    "specialWorkspace": "1, 5, w_ease, slidevert"
+  },
+  "preview": {
+    "motion": "slidevert"
+  }
+}

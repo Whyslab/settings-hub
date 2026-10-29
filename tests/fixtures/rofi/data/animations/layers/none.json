@@ -1,0 +1,24 @@
+{
+  "id": "none",
+  "category": "layers",
+  "order": 99,
+  "name": {
+    "ru": "Без анимации",
+    "en": "None"
+  },
+  "description": {
+    "ru": "Меню появляются и исчезают сразу.",
+    "en": "Menus appear and disappear instantly."
+  },
+  "beziers": {},
+  "animations": {
+    "layersIn": "0",
+    "layersOut": "0",
+    "fadeLayersIn": "0",
+    "fadeLayersOut": "0"
+  },
+  "layers_dissolve": false,
+  "preview": {
+    "motion": "none"
+  }
+}
