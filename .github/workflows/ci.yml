@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff pytest
+      - run: ruff check .
+      # Tests marked `live` read this machine's real modules; pyproject.toml
+      # deselects them (addopts = -m 'not live').
+      - run: pytest tests/ -q
+
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: |
+          set -eu
+          for f in $(git ls-files '*.sh') bin/settings-open; do sh -n "$f"; done
+      - name: shellcheck
+        run: |
+          pip install shellcheck-py
+          shellcheck -S warning $(git ls-files '*.sh') bin/settings-open
+
+  install:
+    name: Sandbox install and uninstall
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install into a sandbox, check, remove it
+        run: |
+          set -eu
+          SB=$(mktemp -d)
+          STUBS=$(mktemp -d)
+          CALLED=$(mktemp -u)
+          # A sandbox install must never talk to Hyprland or D-Bus.
+          for s in hyprctl gdbus; do
+            printf '#!/bin/sh\necho "%s $*" >>"%s"\nexit 97\n' "$s" "$CALLED" >"$STUBS/$s"
+            chmod +x "$STUBS/$s"
+          done
+          PATH="$STUBS:$PATH" ./install.sh --prefix "$SB"
+          for f in .local/share/settings-hub/app.py \
+                   .local/share/settings-hub/settings_hub/window.py \
+                   .local/share/settings-hub/style/base.css \
+                   .local/share/settings-hub/pages.json \
+                   .local/share/applications/settings-hub.desktop \
+                   .local/bin/settings-open \
+                   .local/bin/settings-hub-uninstall \
+                   .config/hypr/settings-hub.conf \
+                   .local/state/settings-hub/install-manifest; do
+            test -f "$SB$HOME/$f" || { echo "::error::missing $f"; exit 1; }
+          done
+          python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
+            "$SB$HOME/.local/share/settings-hub/pages.json"
+          PATH="$STUBS:$PATH" ./uninstall.sh --prefix "$SB" --purge
+          left=$(find "$SB" -type f | wc -l)
+          [ "$left" -eq 0 ] || { echo "::error::$left files left behind"; exit 1; }
+          if [ -e "$CALLED" ]; then echo "::error::called: $(cat "$CALLED")"; exit 1; fi
+
+  privacy:
+    name: Nothing personal shipped
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No personal identifiers, addresses or home paths; Cyrillic only where allowed
+        run: |
+          set -eu
+          status=0
+          files=$(git ls-files | grep -v '^\.github/workflows/ci\.yml$')
+          if printf '%s\n' "$files" | xargs grep -nIi 'bogdan'; then
+            echo "::error::personal identifier found"; status=1
+          fi
+          if printf '%s\n' "$files" | xargs grep -nIE '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z.]{2,}' \
+              | grep -v 'noreply@'; then
+            echo "::error::e-mail address found"; status=1
+          fi
+          if printf '%s\n' "$files" | xargs grep -nIE '/home/[a-z_][a-z0-9_-]*/'; then
+            echo "::error::hard-coded home path found"; status=1
+          fi
+          cyr=$(printf '%s\n' "$files" \
+            | grep -vE '^(settings_hub/strings\.py|README\.ru\.md|tests/fixtures/)' \
+            | xargs grep -lIP '\p{Cyrillic}' || true)
+          if [ -n "$cyr" ]; then
+            echo "::error::Cyrillic outside strings.py, README.ru.md and tests/fixtures/: $cyr"
+            status=1
+          fi
+          exit "$status"

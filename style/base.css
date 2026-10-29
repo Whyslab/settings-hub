@@ -1,0 +1,453 @@
+/* settings-hub base style.
+ *
+ * Loaded at priority USER + 100, above ~/.config/gtk-4.0/gtk.css. Only literal
+ * colours and our own --sh-* variables are used here, never named @colours:
+ * a gtk.css full of @define-color would otherwise leak in through the
+ * built-in theme. Every node the window uses is described explicitly.
+ */
+
+window, tooltip, popover {
+  --sh-bg: #f2f2f4;
+  --sh-sidebar: #e7e7ea;
+  --sh-border: #d3d3d7;
+  --sh-card: #ffffff;
+  --sh-card-border: #e2e2e6;
+  --sh-sep: #e8e8ec;
+  --sh-fg: #1d1d1f;
+  --sh-fg-dim: #86868b;
+  --sh-accent: #007aff;
+  --sh-accent-fg: #ffffff;
+  --sh-hover: rgba(0, 0, 0, 0.05);
+  --sh-press: rgba(0, 0, 0, 0.09);
+  --sh-search: rgba(0, 0, 0, 0.065);
+  --sh-field: #ffffff;
+  --sh-field-border: #d0d0d5;
+  --sh-button: #ffffff;
+  --sh-button-border: #cdcdd2;
+  --sh-switch-off: #e1e1e5;
+  --sh-trough: #d9d9de;
+  --sh-scroll: rgba(0, 0, 0, 0.32);
+  --sh-focus: rgba(0, 122, 255, 0.55);
+  --sh-highlight: rgba(0, 122, 255, 0.16);
+  --sh-selection: rgba(0, 122, 255, 0.28);
+  --sh-tooltip-bg: #2c2c2e;
+  --sh-tooltip-fg: #f5f5f7;
+  --sh-shadow: rgba(0, 0, 0, 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  window, tooltip, popover {
+    --sh-bg: #1e1e1f;
+    --sh-sidebar: #29292b;
+    --sh-border: #39393c;
+    --sh-card: #2a2a2c;
+    --sh-card-border: #353538;
+    --sh-sep: #3a3a3d;
+    --sh-fg: #f5f5f7;
+    --sh-fg-dim: #98989d;
+    --sh-accent: #0a84ff;
+    --sh-accent-fg: #ffffff;
+    --sh-hover: rgba(255, 255, 255, 0.06);
+    --sh-press: rgba(255, 255, 255, 0.10);
+    --sh-search: rgba(255, 255, 255, 0.08);
+    --sh-field: #1c1c1e;
+    --sh-field-border: #404043;
+    --sh-button: #3a3a3c;
+    --sh-button-border: #48484b;
+    --sh-switch-off: #3a3a3d;
+    --sh-trough: #3d3d40;
+    --sh-scroll: rgba(255, 255, 255, 0.32);
+    --sh-focus: rgba(10, 132, 255, 0.6);
+    --sh-highlight: rgba(10, 132, 255, 0.26);
+    --sh-selection: rgba(10, 132, 255, 0.42);
+    --sh-tooltip-bg: #3a3a3c;
+    --sh-tooltip-fg: #f5f5f7;
+    --sh-shadow: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Reset: whatever the theme or gtk.css set, these win (higher priority). */
+* {
+  color: inherit;
+  background-color: transparent;
+  background-image: none;
+  border-color: var(--sh-border);
+  border-image: none;
+  box-shadow: none;
+  text-shadow: none;
+  outline-color: var(--sh-focus);
+  caret-color: currentColor;
+  -gtk-secondary-caret-color: currentColor;
+  text-decoration-color: currentColor;
+  -gtk-icon-shadow: none;
+  -gtk-icon-filter: none;
+  -gtk-icon-palette: error #ff3b30, warning #ff9500, success #34c759;
+}
+
+window {
+  color: var(--sh-fg);
+  background-color: var(--sh-bg);
+  font-family: "Adwaita Sans", "Inter", "Noto Sans", sans-serif;
+  font-size: 13px;
+}
+
+selection,
+text selection,
+label selection {
+  color: inherit;
+  background-color: var(--sh-selection);
+}
+
+label:disabled,
+.sh-dim {
+  color: var(--sh-fg-dim);
+}
+
+separator {
+  background-color: var(--sh-sep);
+  min-width: 1px;
+  min-height: 1px;
+}
+
+/* ---- sidebar -------------------------------------------------------- */
+
+.sh-sidebar {
+  background-color: var(--sh-sidebar);
+  border-right: 1px solid var(--sh-border);
+}
+
+.sh-sidebar entry {
+  margin: 14px 12px 8px 12px;
+  background-color: var(--sh-search);
+  border: 1px solid transparent;
+}
+
+list.sh-nav {
+  background-color: transparent;
+  padding: 0 10px 10px 10px;
+}
+
+list.sh-nav > row {
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 1px 0;
+  min-height: 24px;
+  outline-offset: -2px;
+}
+
+list.sh-nav > row:hover {
+  background-color: var(--sh-hover);
+}
+
+list.sh-nav > row:selected {
+  background-color: var(--sh-accent);
+  color: var(--sh-accent-fg);
+}
+
+list.sh-nav > row:selected .sh-subtitle {
+  color: var(--sh-accent-fg);
+}
+
+.sh-nav-header {
+  color: var(--sh-fg-dim);
+  font-size: 11px;
+  font-weight: 600;
+  margin: 12px 8px 4px 8px;
+}
+
+.sh-nav-header.first {
+  margin-top: 2px;
+}
+
+.sh-icon {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 5px;
+}
+
+/* A blue icon would vanish into the blue selection without a ring. */
+list.sh-nav > row:selected .sh-icon {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+}
+
+/* ---- content -------------------------------------------------------- */
+
+.sh-content {
+  background-color: var(--sh-bg);
+}
+
+.sh-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 18px 28px 6px 28px;
+}
+
+.sh-page {
+  padding: 8px 28px 28px 28px;
+}
+
+.sh-group-title {
+  color: var(--sh-fg-dim);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 14px 10px 6px 10px;
+}
+
+.sh-group-note {
+  color: var(--sh-fg-dim);
+  font-size: 11.5px;
+  margin: 6px 10px 0 10px;
+}
+
+list.sh-group {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 10px;
+}
+
+list.sh-group > row {
+  padding: 0 0 0 14px;
+  border-radius: 0;
+  outline-offset: -3px;
+  transition: background-color 300ms ease-out;
+}
+
+list.sh-group > row.activatable:hover {
+  background-color: var(--sh-hover);
+}
+
+list.sh-group > row.activatable:active {
+  background-color: var(--sh-press);
+}
+
+list.sh-group > row.sh-highlight {
+  background-color: var(--sh-highlight);
+}
+
+.sh-row-inner {
+  padding: 10px 14px 10px 0;
+  min-height: 24px;
+  border-bottom: 1px solid var(--sh-sep);
+}
+
+list.sh-group > row:last-child .sh-row-inner {
+  border-bottom-color: transparent;
+}
+
+.sh-subtitle {
+  color: var(--sh-fg-dim);
+  font-size: 11.5px;
+}
+
+.sh-status {
+  color: var(--sh-fg-dim);
+  font-size: 12px;
+  margin: 0 28px 12px 28px;
+}
+
+/* ---- controls ------------------------------------------------------- */
+
+entry,
+spinbutton {
+  color: var(--sh-fg);
+  background-color: var(--sh-field);
+  border: 1px solid var(--sh-field-border);
+  border-radius: 7px;
+  min-height: 26px;
+  padding: 0 8px;
+}
+
+entry:focus-within,
+spinbutton:focus-within {
+  outline: 2px solid var(--sh-focus);
+  outline-offset: -1px;
+}
+
+entry image {
+  color: var(--sh-fg-dim);
+  margin: 0 2px;
+}
+
+entry text placeholder,
+text placeholder {
+  color: var(--sh-fg-dim);
+}
+
+spinbutton > button {
+  border: none;
+  background-color: transparent;
+  min-width: 20px;
+  padding: 0 4px;
+}
+
+button {
+  color: var(--sh-fg);
+  background-color: var(--sh-button);
+  border: 1px solid var(--sh-button-border);
+  border-radius: 6px;
+  padding: 3px 12px;
+  min-height: 22px;
+}
+
+button:hover {
+  background-color: var(--sh-hover);
+}
+
+button:active,
+button:checked {
+  background-color: var(--sh-press);
+}
+
+button:disabled {
+  color: var(--sh-fg-dim);
+}
+
+button.suggested-action {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-accent);
+  border-color: transparent;
+}
+
+button.flat {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+switch {
+  background-color: var(--sh-switch-off);
+  border: none;
+  border-radius: 99px;
+  min-width: 38px;
+  min-height: 22px;
+}
+
+switch:checked {
+  background-color: var(--sh-accent);
+}
+
+switch > slider {
+  background-color: #ffffff;
+  border: none;
+  border-radius: 99px;
+  min-width: 20px;
+  min-height: 20px;
+  margin: 1px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+switch > image {
+  color: transparent;
+}
+
+scale > trough {
+  background-color: var(--sh-trough);
+  border: none;
+  border-radius: 99px;
+  min-height: 4px;
+  min-width: 4px;
+}
+
+scale > trough > highlight {
+  background-color: var(--sh-accent);
+  border: none;
+  border-radius: 99px;
+}
+
+scale > trough > slider {
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 99px;
+  min-width: 20px;
+  min-height: 20px;
+  margin: -9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+scale marks mark indicator {
+  background-color: var(--sh-fg-dim);
+  min-width: 1px;
+  min-height: 6px;
+}
+
+check,
+radio {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-field);
+  border: 1px solid var(--sh-field-border);
+  border-radius: 4px;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+radio {
+  border-radius: 99px;
+}
+
+check:checked,
+radio:checked {
+  background-color: var(--sh-accent);
+  border-color: transparent;
+}
+
+flowbox > flowboxchild {
+  border-radius: 8px;
+  padding: 4px;
+}
+
+flowbox > flowboxchild:hover {
+  background-color: var(--sh-hover);
+}
+
+flowbox > flowboxchild:selected {
+  background-color: var(--sh-highlight);
+}
+
+listview > row:selected,
+list > row:selected {
+  background-color: var(--sh-highlight);
+}
+
+scrollbar {
+  background-color: transparent;
+  border: none;
+}
+
+scrollbar > range > trough {
+  background-color: transparent;
+  border: none;
+}
+
+scrollbar > range > trough > slider {
+  background-color: var(--sh-scroll);
+  border: 2px solid transparent;
+  border-radius: 99px;
+  min-width: 6px;
+  min-height: 6px;
+}
+
+popover > contents {
+  color: var(--sh-fg);
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px var(--sh-shadow);
+  padding: 6px;
+}
+
+popover > arrow {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+}
+
+tooltip {
+  color: var(--sh-tooltip-fg);
+  background-color: var(--sh-tooltip-bg);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+window.dialog,
+window.message {
+  background-color: var(--sh-card);
+}

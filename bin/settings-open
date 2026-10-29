@@ -1,0 +1,134 @@
+#!/bin/sh
+# settings-open [PAGE] - show the Settings window, optionally on PAGE.
+#
+# Bound to hotkeys, so it must be fast and must never leave the user with
+# nothing on screen:
+#   1. the background copy owns its D-Bus name -> ask it to open the page
+#      (gdbus is a small C program, ~10 ms; starting Python would take 0.3-0.6 s);
+#      it does not answer within 1 s (hung) -> fall back, never start a second one;
+#   2. nobody owns the name -> take a lock and start `app.py --daemon`, wait up
+#      to SETTINGS_HUB_START_WAIT (3) seconds for the name, then open the page;
+#      the lock is held by another press that is starting it -> wait for that
+#      press and send our page too, without starting another Python;
+#   3. the name never appeared -> kill exactly the process we started and fall
+#      back to the old window for this page (or a notification).
+# Every call is written to $XDG_STATE_HOME/settings-hub/open.log with the time
+# in nanoseconds; the window logs the time it was mapped next to it.
+
+set -u
+
+APP_ID=io.github.whyslab.SettingsHub
+OBJECT_PATH=/io/github/whyslab/SettingsHub
+DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/settings-hub
+APP=${SETTINGS_HUB_APP:-$DATA_HOME/settings-hub/app.py}
+WAIT=${SETTINGS_HUB_START_WAIT:-3}
+RUNTIME=${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}
+LOCK=$RUNTIME/settings-hub-start.lock
+
+case $WAIT in
+    '' | *[!0-9]*) WAIT=3 ;;
+esac
+
+page=${1:-}
+case $page in
+    *[!a-z0-9-]*)
+        echo "settings-open: bad page name: $page" >&2
+        exit 2
+        ;;
+esac
+
+mkdir -p "$STATE_DIR" 2>/dev/null
+OPEN_LOG=$STATE_DIR/open.log
+# Two lines per press for years would add up; keep the recent part.
+if [ -f "$OPEN_LOG" ] && [ "$(wc -c <"$OPEN_LOG")" -gt 262144 ]; then
+    tail -n 1000 "$OPEN_LOG" >"$OPEN_LOG.tmp" 2>/dev/null && mv -f "$OPEN_LOG.tmp" "$OPEN_LOG"
+fi
+
+note() {
+    printf '%s %s %s %s\n' "$1" "$(date +%s%N)" "${page:--}" "$2" >>"$OPEN_LOG" 2>/dev/null
+}
+
+has_owner() {
+    gdbus call --session --timeout 1 --dest org.freedesktop.DBus \
+        --object-path /org/freedesktop/DBus \
+        --method org.freedesktop.DBus.NameHasOwner "$APP_ID" 2>/dev/null | grep -q true
+}
+
+send_open() {
+    gdbus call --session --timeout 1 --dest "$APP_ID" --object-path "$OBJECT_PATH" \
+        --method org.gtk.Actions.Activate open "[<'$page'>]" '{}' >/dev/null 2>&1
+}
+
+wait_owner() {
+    tries=$((WAIT * 10))
+    i=0
+    while [ "$i" -lt "$tries" ]; do
+        has_owner && return 0
+        sleep 0.1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+notify_failed() {
+    msg=$(cat "$DATA_HOME/settings-hub/open-failed.txt" 2>/dev/null) ||
+        msg="Settings did not start, see $STATE_DIR/app.log"
+    notify-send -a settings-hub "$msg" >/dev/null 2>&1 &
+}
+
+# The windows that existed before settings-hub; they stay installed.
+old_window() {
+    note fallback "${1:-}"
+    case $page in
+        screen-sleep) old="$DATA_HOME/screen-sleep/gui.py" ;;
+        wallpaper) old="$DATA_HOME/rofi-launcher/bin/hub-wallpaper.sh" ;;
+        animations) old="$DATA_HOME/rofi-launcher/bin/hub-animations.sh" ;;
+        *) old= ;;
+    esac
+    if [ -n "$old" ] && [ -f "$old" ]; then
+        case $old in
+            *.py) python3 "$old" </dev/null >/dev/null 2>&1 & ;;
+            *) "$old" </dev/null >/dev/null 2>&1 & ;;
+        esac
+    else
+        notify_failed
+    fi
+    exit 1
+}
+
+note call ""
+
+# 1. Already running.
+if has_owner; then
+    if send_open; then
+        note open running
+        exit 0
+    fi
+    old_window "no answer from the running copy"
+fi
+
+# 2. Not running: one press starts it, any other press waits for that one.
+exec 9>"$LOCK" || old_window "cannot open $LOCK"
+if flock -n 9; then
+    # The child must not inherit the lock, or it would hold it for its lifetime.
+    python3 "$APP" --daemon </dev/null >>"$STATE_DIR/app.log" 2>&1 9>&- &
+    pid=$!
+    note start "pid=$pid"
+    if wait_owner && send_open; then
+        note open started
+        exit 0
+    fi
+    # 3. It did not come up: kill exactly what we started, release the lock.
+    kill "$pid" 2>/dev/null
+    flock -u 9
+    exec 9>&-
+    old_window "no name after ${WAIT}s, killed pid=$pid"
+fi
+
+flock -w $((WAIT + 1)) 9 || note wait "lock still held"
+if has_owner && send_open; then
+    note open waited
+    exit 0
+fi
+old_window "the starting press did not bring it up"

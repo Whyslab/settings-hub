@@ -1,0 +1,9 @@
+{"id": "a10", "group": "a1", "ts": "2026-10-29T09:12:40", "backend": "screen-sleep", "key": "idle.battery.dim", "label": "Пресет «Экономный»", "before": {"enabled": true, "minutes": 3}, "after": {"enabled": true, "minutes": 1}}
+{"id": "a11", "group": "a1", "ts": "2026-10-29T09:12:40", "backend": "screen-sleep", "key": "idle.battery.lock", "label": "Пресет «Экономный»", "before": {"enabled": true, "minutes": 5}, "after": {"enabled": true, "minutes": 2}}
+{"id": "a12", "group": "a1", "ts": "2026-10-29T09:12:40", "backend": "screen-sleep", "key": "idle.battery.dpms", "label": "Пресет «Экономный»", "before": {"enabled": true, "minutes": 8}, "after": {"enabled": true, "minutes": 3}}
+{"id": "a13", "group": "a1", "ts": "2026-10-29T09:12:40", "backend": "screen-sleep", "key": "idle.battery.suspend", "label": "Пресет «Экономный»", "before": {"enabled": true, "minutes": 15}, "after": {"enabled": true, "minutes": 10}}
+{"id": "b20", "group": "b2", "ts": "2026-10-29T11:03:05", "backend": "night", "key": "night.current_temp", "label": "Ночной фильтр: сейчас", "before": 6500, "after": 4200}
+{"id": "b21", "group": "b2", "ts": "2026-10-29T11:03:05", "backend": "night", "key": "night.manual_override", "label": "Ночной фильтр: сейчас", "before": false, "after": true}
+{"id": "c30", "group": "c3", "ts": "2026-10-29T12:47:51", "backend": "wallpaper", "key": "wallpaper.desktop", "label": "Обои рабочего стола", "before": "~/Pictures/wallpapers/fjord.jpg", "after": "~/Pictures/wallpapers/aurora.jpg"}
+{"id": "d40", "group": "d4", "ts": "2026-10-29T13:20:14", "backend": "binds", "key": "SUPER SHIFT, K", "label": "Переназначить «Таймер»", "before": [], "after": ["bind = SUPER SHIFT, K, exec, timer"]}
+{"id": "d41", "group": "d4", "ts": "2026-10-29T13:20:14", "backend": "binds", "key": "SUPER SHIFT, T", "label": "Переназначить «Таймер»", "before": [], "after": ["unbind = SUPER SHIFT, T"]}

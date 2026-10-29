@@ -1,0 +1,116 @@
+{
+  "find": [
+    {
+      "query": "сон",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "СОН",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "cjy",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "бинд",
+      "page": "binds"
+    },
+    {
+      "query": "бинды",
+      "page": "binds"
+    },
+    {
+      "query": ",byl",
+      "page": "binds"
+    },
+    {
+      "query": "обои",
+      "page": "wallpaper"
+    },
+    {
+      "query": "j,jb",
+      "page": "wallpaper"
+    },
+    {
+      "query": "анимация",
+      "page": "animations"
+    },
+    {
+      "query": "fybvfwbz",
+      "page": "animations"
+    },
+    {
+      "query": "история",
+      "page": "history"
+    },
+    {
+      "query": "тёплый",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "теплый",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "ТЁПЛЫЙ",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "не засыпать",
+      "page": "screen-sleep"
+    },
+    {
+      "query": "sddm",
+      "page": "wallpaper"
+    },
+    {
+      "query": "ыввь",
+      "page": "wallpaper"
+    },
+    {
+      "query": "экран",
+      "page": "screen-sleep"
+    }
+  ],
+  "rows": [
+    {
+      "query": "отменить",
+      "page": "history",
+      "row": "undo"
+    },
+    {
+      "query": "jnvtybnm",
+      "page": "history",
+      "row": "undo"
+    }
+  ],
+  "nothing": [
+    "zzzz",
+    "щщщщ",
+    "   "
+  ],
+  "layout": [
+    {
+      "en": "cjy",
+      "ru": "сон"
+    },
+    {
+      "en": "ghbdtn",
+      "ru": "привет"
+    },
+    {
+      "en": "`krf",
+      "ru": "ёлка"
+    },
+    {
+      "en": "{jkjl",
+      "ru": "холод"
+    }
+  ],
+  "yo": {
+    "with": "Ёлка тёплая",
+    "without": "елка теплая"
+  },
+  "broad": "а"
+}
