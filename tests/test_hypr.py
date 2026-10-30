@@ -50,3 +50,16 @@ def test_arguments_are_not_shell_code(tmp_path):
     calls = run(tmp_path, hypr.dual_dispatch("hl.dsp.x()", "exec", "$(touch pwned); `id`"), False)
     assert calls[-1] == "dispatch exec $(touch pwned); `id`"
     assert not (tmp_path / "pwned").exists()
+
+
+def test_under_lua_a_failed_lua_form_is_not_retried_in_the_plain_form(tmp_path):
+    # Lua runs `hyprctl dispatch <text>` as hl.dispatch(<text>): plain text is code.
+    command = hypr.dual_dispatch("hl.dsp.nonsense()", "exec", "x")
+    stub = tmp_path / "hyprctl"
+    stub.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >>\"$T/calls.log\"\n"
+                    "echo 'error: attempt to call nil'\n")
+    stub.chmod(0o755)
+    env = dict(os.environ, T=str(tmp_path), PATH=f"{tmp_path}:/usr/bin:/bin")
+    subprocess.run(command, env=env, check=True, timeout=10)
+    assert (tmp_path / "calls.log").read_text().splitlines() == ["dispatch hl.dsp.nonsense()"]
+

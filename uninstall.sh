@@ -90,9 +90,11 @@ if [ "$LIVE" -eq 1 ]; then
         i=0
         while has_owner && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
         has_owner && warn "the background copy is still running"
-        # A Lua config (Hyprland 0.57+) takes only hl.dsp.submap(...).
-        [ "$(hyprctl dispatch 'hl.dsp.submap("reset")' 2>/dev/null)" = ok ] ||
-            hyprctl dispatch submap reset >/dev/null 2>&1 || true
+        # A Lua config (Hyprland 0.57+) takes only hl.dsp.submap(...); a .conf
+        # answers it "Invalid dispatcher" and takes the plain form.
+        case $(hyprctl dispatch 'hl.dsp.submap("reset")' 2>/dev/null || true) in
+            *"Invalid dispatcher"*) hyprctl dispatch submap reset >/dev/null 2>&1 || true ;;
+        esac
         ok "background copy asked to quit; submap reset"
     fi
 fi

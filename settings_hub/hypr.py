@@ -2,7 +2,8 @@
 
 A Lua config (Hyprland 0.57+) takes only `hyprctl dispatch 'hl.dsp....'`; a
 .conf only the plain `hyprctl dispatch name args`, and rejects the Lua form
-with "Invalid dispatcher". So try Lua and fall back when the reply is not "ok".
+with "Invalid dispatcher". So try Lua and fall back only on exactly that reply:
+under Lua the plain text would run as Lua code (`hl.dispatch(<text>)`).
 """
 
 from __future__ import annotations
@@ -27,9 +28,10 @@ def lua_str(text: str) -> str:
 
 
 def dual_dispatch(lua: str, *legacy: str) -> list[str]:
-    """A fire-and-forget command: the Lua dispatch, else the plain one.
-
-    Arguments travel as positional parameters, never inside the script text.
+    """A fire-and-forget command: the Lua dispatch, or the plain one if a .conf
+    Hyprland rejected it. Arguments travel as positional parameters, never
+    inside the script text.
     """
-    script = '[ "$(hyprctl dispatch "$1")" = ok ] || { shift; hyprctl dispatch "$@"; }'
+    script = ('case "$(hyprctl dispatch "$1")" in '
+              '*"Invalid dispatcher"*) shift; hyprctl dispatch "$@" ;; esac')
     return ["sh", "-c", script, "sh", lua, *legacy]

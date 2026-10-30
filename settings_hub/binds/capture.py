@@ -108,12 +108,13 @@ def reset_if_stuck(hyprctl: Runner) -> bool:
 
     This also runs under a Lua config (Hyprland 0.57+), where the capture
     itself is off but settings-hub.lua still defines the submap: Lua takes only
-    `hl.dsp.submap(...)`, a .conf only the plain form, so try Lua first.
+    `hl.dsp.submap(...)`, a .conf only the plain form (it answers the Lua form
+    with "Invalid dispatcher"), so try Lua first.
     """
     rc, out = hyprctl(["submap"])
     if rc == 0 and out.strip() == SUBMAP:
         _, reply = hyprctl(["dispatch", 'hl.dsp.submap("reset")'])
-        if reply.strip() != "ok":
+        if "Invalid dispatcher" in reply:  # a .conf Hyprland
             hyprctl(["dispatch", "submap", "reset"])
         return True
     return False

@@ -347,12 +347,14 @@ if has_owner; then
 fi
 # Through Hyprland, so it is not a child of this script (exec-once only runs at
 # login). A Lua config takes only hl.dsp.exec_cmd(...), a .conf only `exec`.
-start="python3 '$APP_DIR/app.py' --daemon >>'$STATE_DIR/app.log' 2>&1"
+# Only a .conf Hyprland gets the plain form (it answers "Invalid dispatcher"):
+# under Lua, plain text would run as Lua code.
+start=$(py -c 'import shlex, sys; a, s = sys.argv[1:]; print(f"python3 {shlex.quote(a)} --daemon >>{shlex.quote(s)} 2>&1")' \
+    "$APP_DIR/app.py" "$STATE_DIR/app.log")
 start_lua=$(py -c 'import sys; from settings_hub.hypr import lua_str; print(lua_str(sys.argv[1]))' "$start")
-if [ "$(hyprctl dispatch "hl.dsp.exec_cmd($start_lua)" 2>/dev/null)" != ok ] &&
-    [ "$(hyprctl dispatch exec "$start" 2>/dev/null)" != ok ]; then
-    warn "could not start the background copy; settings-open starts it on the first press"
-fi
+reply=$(hyprctl dispatch "hl.dsp.exec_cmd($start_lua)" 2>/dev/null || true)
+case $reply in *"Invalid dispatcher"*) reply=$(hyprctl dispatch exec "$start" 2>/dev/null || true) ;; esac
+[ "$reply" = ok ] || warn "could not start the background copy; settings-open starts it on the first press"
 i=0
 while ! has_owner && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
 if has_owner; then ok "background copy running"; else warn "background copy not up yet (see $STATE_DIR/app.log)"; fi

@@ -7,6 +7,7 @@ never reached: no HYPRLAND_INSTANCE_SIGNATURE, stubs first in PATH."""
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -140,7 +141,7 @@ def test_install_adds_one_line_at_the_end_and_starts_the_app_through_hyprland(li
                                      "hyprctl configerrors"]
     app = live.home / ".local/share/settings-hub/app.py"
     log = live.home / ".local/state/settings-hub/app.log"
-    start = f"python3 '{app}' --daemon >>'{log}' 2>&1"
+    start = f"python3 {shlex.quote(str(app))} --daemon >>{shlex.quote(str(log))} 2>&1"
     assert live.hypr_calls()[3:] == [  # a .conf Hyprland rejects the Lua form first
         f"hyprctl dispatch hl.dsp.exec_cmd({lua_str(start)})", f"hyprctl dispatch exec {start}"]
     manifest = live.manifest.read_text().splitlines()
