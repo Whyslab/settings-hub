@@ -162,9 +162,17 @@ while IFS="$TAB" read -r kind path; do
 done <"$MANIFEST"
 ok "$removed files removed"
 
+# A hyprland.lua that loads settings-hub.lua by a line of its own (not ours)
+# now points at a missing file: Hyprland falls back to emergency binds unless
+# that line checks the file exists first.
+HYPR_LUA=$PREFIX${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua
+if [ -f "$HYPR_LUA" ] && grep -v '^[[:space:]]*--' "$HYPR_LUA" | grep -q 'settings-hub\.lua' &&
+    ! grep -q '  -- settings-hub$' "$HYPR_LUA"; then
+    warn "hyprland.lua loads settings-hub.lua by its own line; make sure it checks the file exists"
+fi
+
 # settings-hub.lua is gone; a hyprland.lua that loads it by a line of its own
 # must forget its binds too.
-HYPR_LUA=$PREFIX${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua
 [ -f "$HYPR_LUA" ] && ! dry && RELOAD=1
 if [ "$LIVE" -eq 1 ] && [ "$RELOAD" -eq 1 ] && ! dry; then
     hyprctl reload >/dev/null 2>&1 || warn "hyprctl reload failed"
@@ -176,7 +184,6 @@ if [ "$LIVE" -eq 1 ] && [ "$RELOAD" -eq 1 ] && ! dry; then
         ok "hyprctl reload: no config errors"
     fi
 fi
-
 
 # Python leaves byte-code caches in the program directory.
 grep "^file$TAB" "$MANIFEST" | cut -f 2 | grep '\.py$' | while IFS= read -r f; do

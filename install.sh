@@ -103,7 +103,8 @@ py -m settings_hub.binds.writer conf "$STAGE/settings-hub.conf" \
     --data-home "$DATA_HOME" --bin-home "$BIN_HOME" --keep "$OWN_CONF" ||
     die "settings-hub.conf was not generated (see above); nothing was changed"
 py -m settings_hub.binds.writer lua "$STAGE/settings-hub.lua" \
-    --data-home "$DATA_HOME" --bin-home "$BIN_HOME"
+    --data-home "$DATA_HOME" --bin-home "$BIN_HOME" ||
+    die "settings-hub.lua was not generated (see above); nothing was changed"
 py -m settings_hub.registry pages-json "$STAGE/pages.json"
 py -m settings_hub.registry open-failed "$STAGE/open-failed.txt" --log "$STATE_HOME/settings-hub/app.log"
 py -m settings_hub.registry desktop "$STAGE/settings-hub.desktop" --exec "$BIN_HOME/settings-open"
@@ -259,13 +260,18 @@ fi
 # A config that already loads settings-hub.lua itself (an uncommented line
 # naming it) gets nothing more.
 if [ -f "$HYPR_LUA" ]; then
-    if ! grep -Fxq "$LUA_LINE" "$HYPR_LUA" &&
-        grep -v '^[[:space:]]*--' "$HYPR_LUA" | grep -Fq 'settings-hub.lua'; then
+    if ! grep -Fxq "$LUA_LINE" "$HYPR_LUA" && py -m settings_hub.hypr loads-settings-hub "$HYPR_LUA"; then
         ok "hyprland.lua loads settings-hub.lua itself - left as it is"
         HOOK_FILE="" ADDED_SOURCE=0
     else
         add_hook_line "$HYPR_LUA" "$LUA_LINE"
         HOOK_FILE=$HYPR_LUA LINE=$LUA_LINE
+    fi
+    # The Binds page edits only settings-hub.conf, which a Lua config never reads.
+    kept=$(sed -n '/^# >>> settings-hub binds$/,/^# <<< settings-hub binds$/p' "$OWN_CONF" 2>/dev/null |
+        grep -cv -e '^# >>> settings-hub binds$' -e '^# <<< settings-hub binds$' -e '^[[:space:]]*$' || true)
+    if [ "${kept:-0}" -gt 0 ]; then
+        warn "settings-hub.conf has $kept bind line(s) from the Binds page; Hyprland reads hyprland.lua, so they do nothing now"
     fi
 fi
 
@@ -316,7 +322,7 @@ if grep -Fxv -f "$STAGE/errors-before" "$STAGE/errors-after" >"$STAGE/errors-new
     warn "Hyprland reports new config errors:"
     sed 's/^/     /' "$STAGE/errors-new" >&2
     # Taken out only if the file is exactly as this run left it.
-    expected=$((SIZE_BEFORE + ADDED_NEWLINE + ${#LINE} + 1))
+    expected=$((SIZE_BEFORE + ADDED_NEWLINE + $(printf '%s\n' "$LINE" | wc -c)))  # bytes, not characters
     if [ "$ADDED_SOURCE" -eq 1 ] && [ "$(tail -n 1 "$HOOK_FILE")" = "$LINE" ] &&
         [ "$(wc -c <"$HOOK_FILE")" -eq "$expected" ]; then
         truncate -s "$SIZE_BEFORE" "$HOOK_FILE" # same inode; the file as it was
@@ -325,6 +331,8 @@ if grep -Fxv -f "$STAGE/errors-before" "$STAGE/errors-after" >"$STAGE/errors-new
         cat "$STAGE/manifest-left" >"$MANIFEST"
         hyprctl reload >/dev/null || true
         warn "our line was taken out of $(basename "$HOOK_FILE") again; the other files stay (settings-hub-uninstall removes them)"
+    elif [ -n "$HOOK_FILE" ] && [ "$ADDED_SOURCE" -eq 0 ]; then
+        warn "our line was in $(basename "$HOOK_FILE") before this run; left in (settings-hub-uninstall removes it)"
     elif [ -n "$HOOK_FILE" ]; then
         warn "$(basename "$HOOK_FILE") changed meanwhile; our line is left in (settings-hub-uninstall removes it)"
     fi

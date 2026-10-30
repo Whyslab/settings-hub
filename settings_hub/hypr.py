@@ -8,6 +8,10 @@ under Lua the plain text would run as Lua code (`hl.dispatch(<text>)`).
 
 from __future__ import annotations
 
+import re
+import sys
+from pathlib import Path
+
 
 def lua_str(text: str) -> str:
     """A double-quoted Lua string literal.
@@ -35,3 +39,24 @@ def dual_dispatch(lua: str, *legacy: str) -> list[str]:
     script = ('case "$(hyprctl dispatch "$1")" in '
               '*"Invalid dispatcher"*) shift; hyprctl dispatch "$@" ;; esac')
     return ["sh", "-c", script, "sh", lua, *legacy]
+
+
+def loads_settings_hub(text: str) -> bool:
+    """Whether a hyprland.lua names settings-hub.lua in code, not in a comment
+    (block comments `--[[ ]]` and `--` to the end of a line are dropped first)."""
+    text = re.sub(r"--\[(=*)\[.*?\]\1\]", "", text, flags=re.S)
+    code = "\n".join(line.split("--", 1)[0] for line in text.splitlines())
+    return "settings-hub.lua" in code
+
+
+def main(argv: list[str]) -> int:
+    """For install.sh: `python3 -m settings_hub.hypr loads-settings-hub FILE`
+    exits 0 if FILE loads settings-hub.lua by a line of its own, else 1."""
+    if len(argv) != 2 or argv[0] != "loads-settings-hub":
+        print("usage: hypr loads-settings-hub FILE", file=sys.stderr)
+        return 2
+    return 0 if loads_settings_hub(Path(argv[1]).read_text(encoding="utf-8")) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

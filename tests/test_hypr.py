@@ -63,3 +63,15 @@ def test_under_lua_a_failed_lua_form_is_not_retried_in_the_plain_form(tmp_path):
     subprocess.run(command, env=env, check=True, timeout=10)
     assert (tmp_path / "calls.log").read_text().splitlines() == ["dispatch hl.dsp.nonsense()"]
 
+
+@pytest.mark.parametrize(("text", "want"), [
+    ('safe_dofile(home .. "/.config/hypr/settings-hub.lua")\n', True),
+    ('local f = home .. "/.config/hypr/settings-hub.lua"\nsafe_dofile(f)\n', True),
+    ('-- dofile(home .. "/.config/hypr/settings-hub.lua")\n', False),
+    ('x = 1 -- see settings-hub.lua\n', False),
+    ('--[[\ndofile("settings-hub.lua")\n]]\nx = 1\n', False),
+    ('--[==[ settings-hub.lua ]==] x = 1\n', False),
+])
+def test_loads_settings_hub_ignores_comments(text, want):
+    assert hypr.loads_settings_hub(text) is want
+

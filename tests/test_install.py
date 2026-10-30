@@ -263,3 +263,33 @@ def test_generated_file_does_not_size_dialogs(sb):
     main, dialogs = rules
     assert f"match:initial_title ^({strings.APP_TITLE})$" in main and "size 920 640" in main
     assert "match:modal true" in dialogs and "size" not in dialogs
+
+
+def test_bind_lines_in_the_conf_block_are_flagged_under_lua(sb):
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    (hypr / "hyprland.lua").write_text("-- lua\n")
+    sb.install()
+    own = hypr / "settings-hub.conf"
+    own.write_text(own.read_text().replace(
+        "# >>> settings-hub binds\n", "# >>> settings-hub binds\nbind = SUPER, K, exec, kitty\n"))
+    assert "1 bind line(s) from the Binds page" in sb.install().stdout
+
+
+def test_a_trailing_comment_naming_us_does_not_count_as_loading(sb):
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    lua = hypr / "hyprland.lua"
+    lua.write_text("x = 1 -- see settings-hub.lua\n")
+    sb.install()
+    assert lua.read_text().splitlines()[-1] == LUA_LINE
+
+
+def test_uninstall_warns_about_a_line_of_the_users_own(sb):
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    (hypr / "hyprland.lua").write_text(
+        'dofile(os.getenv("HOME") .. "/.config/hypr/settings-hub.lua")\n')
+    sb.install()
+    assert "loads settings-hub.lua by its own line" in sb.uninstall("--purge").stdout
+
