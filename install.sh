@@ -8,12 +8,15 @@
 #                                calls hyprctl or gdbus
 #
 # A live install copies the program, writes ~/.config/hypr/settings-hub.conf (an
-# existing file keeps its binds block byte for byte), hides the old "Screen and
-# sleep" menu entry (NoDisplay=true in screen-sleep.desktop, if it has no
-# NoDisplay line), adds one `source` line at the end of hyprland.conf (dated copy
-# first), reloads Hyprland and checks `hyprctl configerrors`: new errors -> our
-# line is taken out again, reload, exit 1. Then the background copy is started
-# through Hyprland, not as a child of this script.
+# existing file keeps its binds block byte for byte) and settings-hub.lua, hides
+# the old "Screen and sleep" menu entry (NoDisplay=true in screen-sleep.desktop,
+# if it has no NoDisplay line), adds one `source` line at the end of
+# hyprland.conf and, if there is a hyprland.lua (Hyprland 0.57+ then reads only
+# that), one `dofile` line at its end -- unless it already loads settings-hub.lua
+# itself (dated copies first). Then it reloads Hyprland and checks `hyprctl
+# configerrors`: new errors -> the line in the file Hyprland reads is taken out
+# again, reload, exit 1. Then the background copy is started through Hyprland,
+# not as a child of this script.
 #
 # Every created file and every added line is listed in
 # $XDG_STATE_HOME/settings-hub/install-manifest; uninstall.sh removes exactly that.
@@ -64,6 +67,8 @@ STATE_DIR=$PREFIX$STATE_HOME/settings-hub
 MANIFEST=$STATE_DIR/install-manifest
 HYPR_CONF=$HYPR_DIR/hyprland.conf
 OWN_CONF=$HYPR_DIR/settings-hub.conf
+HYPR_LUA=$HYPR_DIR/hyprland.lua
+OWN_LUA=$HYPR_DIR/settings-hub.lua
 OLD_DESKTOP=$DESKTOP_DIR/screen-sleep.desktop
 TAB=$(printf '\t')
 APP_ID=io.github.whyslab.SettingsHub
@@ -74,9 +79,8 @@ would() { printf '   would %s\n' "$*"; }
 
 if [ "$LIVE" -eq 1 ]; then
     say "Installing for $(id -un) (live)"
-    [ -f "$HYPR_CONF" ] || die "no $HYPR_CONF - is this a Hyprland session?"
-    [ ! -e "$HYPR_DIR/hyprland.lua" ] ||
-        die "Hyprland reads $HYPR_DIR/hyprland.lua, not hyprland.conf; settings-hub supports .conf only"
+    [ -f "$HYPR_CONF" ] || [ -f "$HYPR_LUA" ] ||
+        die "no $HYPR_LUA or $HYPR_CONF - is this a Hyprland session?"
     command -v hyprctl >/dev/null 2>&1 || die "hyprctl not found"
     command -v gdbus >/dev/null 2>&1 || warn "gdbus not found: settings-open needs it (glib2)"
 else
@@ -98,6 +102,8 @@ py() { (cd "$SRC" && PYTHONDONTWRITEBYTECODE=1 python3 "$@"); }
 py -m settings_hub.binds.writer conf "$STAGE/settings-hub.conf" \
     --data-home "$DATA_HOME" --bin-home "$BIN_HOME" --keep "$OWN_CONF" ||
     die "settings-hub.conf was not generated (see above); nothing was changed"
+py -m settings_hub.binds.writer lua "$STAGE/settings-hub.lua" \
+    --data-home "$DATA_HOME" --bin-home "$BIN_HOME"
 py -m settings_hub.registry pages-json "$STAGE/pages.json"
 py -m settings_hub.registry open-failed "$STAGE/open-failed.txt" --log "$STATE_HOME/settings-hub/app.log"
 py -m settings_hub.registry desktop "$STAGE/settings-hub.desktop" --exec "$BIN_HOME/settings-open"
@@ -158,7 +164,8 @@ ok "settings-open and settings-hub-uninstall in $BIN_DIR"
 
 put 644 "$STAGE/settings-hub.desktop" "$DESKTOP_DIR/settings-hub.desktop"
 put 644 "$STAGE/settings-hub.conf" "$OWN_CONF"
-ok "settings-hub.desktop, settings-hub.conf"
+put 644 "$STAGE/settings-hub.lua" "$OWN_LUA"
+ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua"
 
 # The line this install added to FILE earlier, as the old manifest has it.
 previous_line() { # FILE TEXT
@@ -202,35 +209,63 @@ if [ -f "$OLD_DESKTOP" ]; then
     fi
 fi
 
-# One line at the end of hyprland.conf: a dated copy first, then the line,
-# unless it is already there.
+# One line at the end of FILE: a dated copy first, then the line, unless it is
+# already there. Sets ADDED_SOURCE / SIZE_BEFORE / ADDED_NEWLINE for that file.
+add_hook_line() { # FILE LINE
+    ADDED_SOURCE=0
+    SIZE_BEFORE=0
+    ADDED_NEWLINE=0
+    if grep -Fxq "$2" "$1"; then
+        if prev=$(previous_line "$1" "$2"); then
+            record "$prev"
+        else
+            record "line$TAB$1$TAB$2${TAB}0"
+        fi
+        ok "$(basename "$1") already has our line"
+    else
+        backup="$1.bak-$(date +%Y%m%d)-settings-hub"
+        if [ ! -e "$backup" ]; then
+            if dry; then would "copy $1 to $backup"; else cp -p "$1" "$backup"; fi
+        fi
+        SIZE_BEFORE=$(wc -c <"$1")
+        append_line "$1" "$2"
+        ADDED_SOURCE=1
+        ok "$(basename "$1"): one line added (copy: $(basename "$backup"))"
+    fi
+}
+
+# hyprland.conf: read by Hyprland up to 0.56, and again after a rollback.
 if [ "$CONFIG_HOME" = "$HOME/.config" ]; then
     # Hyprland expands the tilde itself; the line stays readable this way.
     # shellcheck disable=SC2088
     conf_ref="~/.config/hypr/settings-hub.conf"
+    lua_ref='os.getenv("HOME") .. "/.config/hypr/settings-hub.lua"'
 else
     conf_ref="$CONFIG_HOME/hypr/settings-hub.conf"
+    lua_ref=$(py -c 'import sys; from settings_hub.hypr import lua_str; print(lua_str(sys.argv[1]))' \
+        "$CONFIG_HOME/hypr/settings-hub.lua")
 fi
-LINE="source = $conf_ref  # settings-hub"
+CONF_LINE="source = $conf_ref  # settings-hub"
+LUA_LINE="dofile($lua_ref)  -- settings-hub"
+HOOK_FILE="" # the file Hyprland reads, if we added a line to it
+LINE=""
 ADDED_SOURCE=0
 SIZE_BEFORE=0
 if [ -f "$HYPR_CONF" ]; then
-    if grep -Fxq "$LINE" "$HYPR_CONF"; then
-        if prev=$(previous_line "$HYPR_CONF" "$LINE"); then
-            record "$prev"
-        else
-            record "line$TAB$HYPR_CONF$TAB$LINE${TAB}0"
-        fi
-        ok "hyprland.conf already sources settings-hub.conf"
+    add_hook_line "$HYPR_CONF" "$CONF_LINE"
+    HOOK_FILE=$HYPR_CONF LINE=$CONF_LINE
+fi
+# hyprland.lua: when it exists, Hyprland reads it and ignores hyprland.conf.
+# A config that already loads settings-hub.lua itself (an uncommented line
+# naming it) gets nothing more.
+if [ -f "$HYPR_LUA" ]; then
+    if ! grep -Fxq "$LUA_LINE" "$HYPR_LUA" &&
+        grep -v '^[[:space:]]*--' "$HYPR_LUA" | grep -Fq 'settings-hub.lua'; then
+        ok "hyprland.lua loads settings-hub.lua itself - left as it is"
+        HOOK_FILE="" ADDED_SOURCE=0
     else
-        backup="$HYPR_CONF.bak-$(date +%Y%m%d)-settings-hub"
-        if [ ! -e "$backup" ]; then
-            if dry; then would "copy $HYPR_CONF to $backup"; else cp -p "$HYPR_CONF" "$backup"; fi
-        fi
-        SIZE_BEFORE=$(wc -c <"$HYPR_CONF")
-        append_line "$HYPR_CONF" "$LINE"
-        ADDED_SOURCE=1
-        ok "hyprland.conf: one line added (copy: $(basename "$backup"))"
+        add_hook_line "$HYPR_LUA" "$LUA_LINE"
+        HOOK_FILE=$HYPR_LUA LINE=$LUA_LINE
     fi
 fi
 
@@ -269,7 +304,7 @@ errors() { hyprctl configerrors 2>/dev/null | grep -v '^[[:space:]]*$' || true; 
 
 if dry; then
     would "run: hyprctl reload, then hyprctl configerrors (new errors -> our line out again)"
-    would "restart the background copy: hyprctl dispatch exec \"python3 $APP_DIR/app.py --daemon\""
+    would "restart the background copy: hyprctl dispatch (exec) python3 $APP_DIR/app.py --daemon"
     say "Dry run finished: nothing was changed"
     exit 0
 fi
@@ -282,16 +317,16 @@ if grep -Fxv -f "$STAGE/errors-before" "$STAGE/errors-after" >"$STAGE/errors-new
     sed 's/^/     /' "$STAGE/errors-new" >&2
     # Taken out only if the file is exactly as this run left it.
     expected=$((SIZE_BEFORE + ADDED_NEWLINE + ${#LINE} + 1))
-    if [ "$ADDED_SOURCE" -eq 1 ] && [ "$(tail -n 1 "$HYPR_CONF")" = "$LINE" ] &&
-        [ "$(wc -c <"$HYPR_CONF")" -eq "$expected" ]; then
-        truncate -s "$SIZE_BEFORE" "$HYPR_CONF" # same inode; the file as it was
-        grep -Fxv "line$TAB$HYPR_CONF$TAB$LINE$TAB$ADDED_NEWLINE" "$MANIFEST" \
+    if [ "$ADDED_SOURCE" -eq 1 ] && [ "$(tail -n 1 "$HOOK_FILE")" = "$LINE" ] &&
+        [ "$(wc -c <"$HOOK_FILE")" -eq "$expected" ]; then
+        truncate -s "$SIZE_BEFORE" "$HOOK_FILE" # same inode; the file as it was
+        grep -Fxv "line$TAB$HOOK_FILE$TAB$LINE$TAB$ADDED_NEWLINE" "$MANIFEST" \
             >"$STAGE/manifest-left" || true
         cat "$STAGE/manifest-left" >"$MANIFEST"
         hyprctl reload >/dev/null || true
-        warn "our line was taken out of hyprland.conf again; the other files stay (settings-hub-uninstall removes them)"
-    else
-        warn "hyprland.conf changed meanwhile; our line is left in (settings-hub-uninstall removes it)"
+        warn "our line was taken out of $(basename "$HOOK_FILE") again; the other files stay (settings-hub-uninstall removes them)"
+    elif [ -n "$HOOK_FILE" ]; then
+        warn "$(basename "$HOOK_FILE") changed meanwhile; our line is left in (settings-hub-uninstall removes it)"
     fi
     exit 1
 fi
@@ -310,9 +345,14 @@ if has_owner; then
     i=0
     while has_owner && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
 fi
-# Through Hyprland, so it is not a child of this script (exec-once only runs at login).
-hyprctl dispatch exec "python3 '$APP_DIR/app.py' --daemon >>'$STATE_DIR/app.log' 2>&1" >/dev/null ||
+# Through Hyprland, so it is not a child of this script (exec-once only runs at
+# login). A Lua config takes only hl.dsp.exec_cmd(...), a .conf only `exec`.
+start="python3 '$APP_DIR/app.py' --daemon >>'$STATE_DIR/app.log' 2>&1"
+start_lua=$(py -c 'import sys; from settings_hub.hypr import lua_str; print(lua_str(sys.argv[1]))' "$start")
+if [ "$(hyprctl dispatch "hl.dsp.exec_cmd($start_lua)" 2>/dev/null)" != ok ] &&
+    [ "$(hyprctl dispatch exec "$start" 2>/dev/null)" != ok ]; then
     warn "could not start the background copy; settings-open starts it on the first press"
+fi
 i=0
 while ! has_owner && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
 if has_owner; then ok "background copy running"; else warn "background copy not up yet (see $STATE_DIR/app.log)"; fi

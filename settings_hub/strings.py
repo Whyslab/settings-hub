@@ -320,8 +320,9 @@ AN_FAILED = "Не удалось применить: {error}"
 BN_ROWS = PAGES["binds"]["rows"]
 BN_SEARCH = "Найти бинд"
 BN_NOTHING = "Ничего не найдено"
-BN_LUA = "Hyprland перешёл на Lua — редактор выключен до переноса"
-BN_LUA_HINT = "Найден {path}: Hyprland читает его вместо hyprland.conf."
+BN_LUA = "Hyprland читает Lua-конфиг — бинды пока только для просмотра"
+BN_LUA_HINT = "Редактор биндов под Lua появится позже. Сейчас бинды задаются в {path}."
+BN_LUA_FUNCTION = "Lua-функция"
 BN_NOT_SOURCED = "settings-hub.conf пока не подключён к hyprland.conf"
 BN_NOT_SOURCED_HINT = "Правки сохранятся, но подействуют после установки."
 BN_READ_FAILED = "Не удалось прочитать бинды"
@@ -382,6 +383,7 @@ BN_GROUPS = {
     "submap": "Режим «{name}»",
     "disabled": "Отключённые",
     "live": "Только в живом Hyprland",
+    "lua": "Бинды Hyprland",
 }
 
 # Key names. Modifiers in the order they are shown.

@@ -9,7 +9,9 @@
   `binds -j` prints binds.json (Hyprland's live list), `configerrors` prints an
   error while settings-hub.conf contains the text in $T/bad (if any) plus
   whatever is in $T/old-errors, `submap` prints $T/submap, `dispatch submap X`
-  writes it, `reload` only logs.
+  writes it (and says ok; other dispatchers say "Invalid dispatcher", as a
+  .conf Hyprland does), `reload` only logs. With $T/lua present it acts like
+  a Lua config: only `hl.dsp.*` dispatches work.
 * The backend's `subprocess` is wrapped (step3_env.Guard): any program that is
   not a stub fails the test, so the real hyprctl can never run.
 """
@@ -43,8 +45,17 @@ case "$1" in
         fi ;;
     submap) cat "$T/submap" ;;
     dispatch)
-        if [ "$2" = submap ]; then
+        if [ -e "$T/lua" ]; then
+            case "$2" in
+                'hl.dsp.submap("reset")') echo default >"$T/submap"; echo ok ;;
+                hl.dsp.*) echo ok ;;
+                *) echo "error: [string \"$2\"]:1: syntax error" ;;
+            esac
+        elif [ "$2" = submap ]; then
             if [ "$3" = reset ]; then echo default >"$T/submap"; else echo "$3" >"$T/submap"; fi
+            echo ok
+        else
+            echo "Invalid dispatcher"
         fi ;;
 esac
 exit 0

@@ -113,4 +113,14 @@ def test_backend_startup_reset_runs_on_the_worker(world):
     (world.root / "submap").write_text(capture.SUBMAP + "\n")
     world.backend.reset_submap()
     world.loop.pump()
-    assert world.calls_of() == ["hyprctl submap", "hyprctl dispatch submap reset"]
+    assert world.calls_of() == ["hyprctl submap", 'hyprctl dispatch hl.dsp.submap("reset")',
+                                "hyprctl dispatch submap reset"]
+
+
+def test_startup_reset_under_a_lua_config_uses_the_lua_dispatcher(world):
+    # Hyprland 0.57 reads hyprland.lua and rejects the plain dispatcher.
+    (world.root / "lua").touch()
+    (world.root / "submap").write_text(capture.SUBMAP + "\n")
+    assert capture.reset_if_stuck(world.backend.hyprctl) is True
+    assert world.calls_of() == ["hyprctl submap", 'hyprctl dispatch hl.dsp.submap("reset")']
+    assert submap(world) == "default"

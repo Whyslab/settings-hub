@@ -138,6 +138,12 @@ class Backend:
 
     def load(self) -> State:
         state = State(lua=self.lua())
+        if state.lua is not None:
+            # A Lua config (Hyprland 0.57+): hyprland.conf is no longer read, so
+            # its binds would be stale. Show what Hyprland itself has, read-only.
+            state.live = self.live()
+            state.extra = list(state.live or [])
+            return state
         try:
             cfg = self.parse()
         except OSError as exc:

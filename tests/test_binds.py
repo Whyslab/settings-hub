@@ -436,6 +436,9 @@ def test_lua_config_turns_the_page_read_only(world):
     c, view = controller(world)
     assert view.setup[0] == world.lua and view.editable is False
     assert not any(r.editable for r in view.rows)
+    # hyprland.conf is not read any more: the rows are Hyprland's own list
+    assert view.rows and all(r.id.startswith("lua|") for r in view.rows)
+    assert len(view.rows) == len(world.backend.live())
     c.rebind("ALT, Tab", ALT, "grave")
     c.disable("SUPER, E")
     world.loop.pump()
@@ -472,3 +475,16 @@ def test_a_symlinked_own_file_stays_a_link(world):
     world.backend.change(world.backend.op_disable("SUPER, E"))
     assert world.own.is_symlink()
     assert "unbind = SUPER, E" in target.read_text()
+
+
+def test_lua_dispatchers_are_shown_by_kind():
+    """Hyprland 0.57 with a Lua config reports the dispatcher as "HL.Dispatcher(exec_cmd)"
+    or "function: 0x…" and arg as an internal number; neither number is shown."""
+    item = {"modmask": 64, "key": "Q", "dispatcher": "HL.Dispatcher(exec_cmd)", "arg": "6",
+            "description": "", "submap": ""}
+    b = ctl._live_bind(item)
+    assert (b.dispatcher, b.arg) == ("exec_cmd", "")
+    b = ctl._live_bind(dict(item, dispatcher="function: 0x55bd772b88c0", arg="160"))
+    assert (b.dispatcher, b.arg) == (strings.BN_LUA_FUNCTION, "")
+    b = ctl._live_bind(dict(item, description="Терминал"))
+    assert names.bind_name(b).text == "Терминал"

@@ -26,7 +26,7 @@ from ..binds.conflicts import Entry
 from ..binds.parser import Bind, Combo
 
 GROUP_ORDER = ("apps", "windows", "workspaces", "device", "mouse", "other", "submap",
-               "disabled", "live")
+               "disabled", "live", "lua")
 
 
 @dataclass
@@ -70,8 +70,15 @@ def _live_bind(item: dict) -> Bind:
     code = int(item.get("keycode", 0) or 0)
     key = f"code:{code}" if code else str(item.get("key", ""))
     mask = int(item.get("modmask", 0))
-    return Bind("bind", parser.mods_text(mask), mask, key, str(item.get("dispatcher", "")),
-                str(item.get("arg", "")), str(item.get("description", "")), "", "", "",
+    dispatcher, arg = str(item.get("dispatcher", "")), str(item.get("arg", ""))
+    # Under a Lua config Hyprland reports "HL.Dispatcher(exec_cmd)" or
+    # "function: 0x…", and arg is only an internal number: keep the kind.
+    if dispatcher.startswith("HL.Dispatcher(") and dispatcher.endswith(")"):
+        dispatcher, arg = dispatcher[len("HL.Dispatcher("):-1], ""
+    elif dispatcher.startswith("function:"):
+        dispatcher, arg = strings.BN_LUA_FUNCTION, ""
+    return Bind("bind", parser.mods_text(mask), mask, key, dispatcher, arg,
+                str(item.get("description", "")), "", "", "",
                 Path("-"), 0, str(item.get("submap", "")))
 
 
@@ -105,7 +112,7 @@ class Controller:
         self.entries, self.models = {}, {}
         cfg = state.cfg
         if cfg is None:
-            return []
+            return self._lua_rows(state) if state.lua is not None else []
         try:
             text = self.backend.own_text()
         except OSError:
@@ -148,6 +155,21 @@ class Controller:
                                  live_ok=True))
         order = {g: i for i, g in enumerate(GROUP_ORDER)}
         rows.sort(key=lambda r: order.get(r.group, len(order)))  # stable: config order inside
+        for r in rows:
+            self.models[r.id] = r
+        return rows
+
+    def _lua_rows(self, state: bb.State) -> list[RowModel]:
+        """Hyprland's own list under a Lua config: nothing here can be edited."""
+        rows = []
+        for i, item in enumerate(state.extra):
+            b = _live_bind(item)
+            name = names.bind_name(b)
+            group = "submap" if b.submap else "lua"
+            title = strings.BN_GROUPS[group].format(name=b.submap)
+            rows.append(RowModel(f"lua|{i}", parser.combo_text(b.modmask, b.key), name.text,
+                                 name.human, names.combo_label(b.modmask, b.key),
+                                 names.command_text(b), group, title, live_ok=True))
         for r in rows:
             self.models[r.id] = r
         return rows

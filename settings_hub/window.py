@@ -29,7 +29,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import pages, registry, strings  # noqa: E402
+from . import hypr, pages, registry, strings  # noqa: E402
 from .history import History  # noqa: E402
 from .widgets import keycapture  # noqa: E402
 from .widgets.sidebar import Sidebar  # noqa: E402
@@ -41,6 +41,8 @@ WIDTH, HEIGHT = 920, 640
 PREBUILD_AFTER_S = 20
 STATUS_MS = 5000
 CLASS_MATCH = r"class:^(settings-hub|io\.github\.whyslab\.SettingsHub)$"
+FOCUS_COMMAND = hypr.dual_dispatch(
+    f"hl.dsp.focus({{ window = {hypr.lua_str(CLASS_MATCH)} }})", "focuswindow", CLASS_MATCH)
 
 
 class Window(Gtk.ApplicationWindow):
@@ -157,7 +159,7 @@ class Window(Gtk.ApplicationWindow):
             # from another window; ask Hyprland directly.
             try:
                 Gio.Subprocess.new(
-                    ["hyprctl", "dispatch", "focuswindow", CLASS_MATCH],
+                    FOCUS_COMMAND,
                     Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
                 )
             except GLib.Error as exc:

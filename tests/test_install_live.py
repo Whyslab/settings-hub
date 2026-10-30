@@ -6,6 +6,7 @@ never reached: no HYPRLAND_INSTANCE_SIGNATURE, stubs first in PATH."""
 
 import hashlib
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -13,8 +14,11 @@ import pytest
 from conftest import FIXTURES, OUR_SOURCE_LINE, ROOT, before_install
 
 from settings_hub.binds import parser
+from settings_hub.hypr import lua_str
 
 REAL_CONF = Path.home() / ".config/hypr/hyprland.conf"
+REAL_LUA = Path.home() / ".config/hypr/hyprland.lua"
+DRAFT_LUA = Path.home() / ".config/hypr/staging/hyprland.lua.ready"  # before the switch
 LINE = OUR_SOURCE_LINE
 DESKTOP = """[Desktop Entry]
 Type=Application
@@ -24,19 +28,31 @@ Categories=Settings;
 """
 
 # configerrors reports the config as of the last reload, like Hyprland does;
-# with flags/break, a loaded source line of ours is an error.
+# with flags/break, a loaded line of ours is an error. Like Hyprland 0.57, the
+# stub reads hyprland.lua when there is one (only `hl.dsp.*` dispatches work
+# then), else hyprland.conf (where `hl.dsp.*` is an "Invalid dispatcher").
 HYPRCTL = """#!/bin/sh
 echo "hyprctl $*" >>"{log}"
+main=$HOME/.config/hypr/hyprland.conf mark='# settings-hub$'
+if [ -e "$HOME/.config/hypr/hyprland.lua" ]; then
+    main=$HOME/.config/hypr/hyprland.lua mark='settings-hub[.]lua'
+fi
 case $1 in
     reload)
-        if grep -q '# settings-hub$' "$HOME/.config/hypr/hyprland.conf"
+        if grep -v '^ *--' "$main" | grep -q "$mark"
         then touch "{flags}/loaded"; else rm -f "{flags}/loaded"; fi
         echo ok ;;
     configerrors)
         if [ -e "{flags}/break" ] && [ -e "{flags}/loaded" ]
         then echo "Config error in settings-hub.conf at line 3: invalid field type"; fi
         printf '\\n\\n' ;;
-    dispatch) [ "$2" = exec ] && touch "{flags}/owner"; echo ok ;;
+    dispatch)
+        case $main:$2 in
+            *.lua:hl.dsp.exec_cmd*|*.conf:exec) touch "{flags}/owner"; echo ok ;;
+            *.lua:hl.dsp.*|*.conf:[!h]*) echo ok ;;
+            *.lua:*) echo "error: syntax error" ;;
+            *) echo "Invalid dispatcher" ;;
+        esac ;;
     *) echo ok ;;
 esac
 """
@@ -124,8 +140,9 @@ def test_install_adds_one_line_at_the_end_and_starts_the_app_through_hyprland(li
                                      "hyprctl configerrors"]
     app = live.home / ".local/share/settings-hub/app.py"
     log = live.home / ".local/state/settings-hub/app.log"
-    assert live.hypr_calls()[3:] == [
-        f"hyprctl dispatch exec python3 '{app}' --daemon >>'{log}' 2>&1"]
+    start = f"python3 '{app}' --daemon >>'{log}' 2>&1"
+    assert live.hypr_calls()[3:] == [  # a .conf Hyprland rejects the Lua form first
+        f"hyprctl dispatch hl.dsp.exec_cmd({lua_str(start)})", f"hyprctl dispatch exec {start}"]
     manifest = live.manifest.read_text().splitlines()
     assert f"line\t{live.conf}\t{LINE}\t0" in manifest
     assert f"line\t{live.desktop}\tNoDisplay=true\t0" in manifest
@@ -215,7 +232,8 @@ def test_uninstall_restores_both_files_byte_for_byte_and_leaves_nothing(live):
     calls = live.calls()
     tail = calls[calls.index(next(c for c in calls if "Activate quit" in c)):]
     assert [c for c in tail if c.startswith("hyprctl")] == [
-        "hyprctl dispatch submap reset", "hyprctl reload", "hyprctl configerrors"]
+        'hyprctl dispatch hl.dsp.submap("reset")', "hyprctl dispatch submap reset",
+        "hyprctl reload", "hyprctl configerrors"]
 
 
 def test_uninstall_without_purge_keeps_history_only(live):
@@ -252,11 +270,51 @@ def test_damaged_binds_block_stops_before_anything_changes(live):
     assert tree(live.home) == before and live.calls() == []
 
 
-def test_a_lua_config_stops_the_install(live):
-    (live.conf.parent / "hyprland.lua").write_text("-- lua\n")
+LUA_LINE = 'dofile(os.getenv("HOME") .. "/.config/hypr/settings-hub.lua")  -- settings-hub'
+
+
+def test_a_lua_config_gets_one_dofile_line_and_uninstall_restores_it(live):
+    """Hyprland 0.57+ reads hyprland.lua only: our dofile line goes there, the
+    source line still goes to hyprland.conf (for a rollback), dispatches take
+    the Lua form, uninstall gives both files back byte for byte."""
+    lua = live.conf.parent / "hyprland.lua"
+    lua.write_text('hl.config({ general = { gaps_in = 2 } })\n')
     before = tree(live.home)
-    assert "hyprland.lua" in live.run("install.sh", rc=2).stderr
-    assert tree(live.home) == before
+    live.run("install.sh")
+    assert lua.read_text().splitlines()[-1] == LUA_LINE
+    assert live.conf.read_text().endswith(LINE + "\n")
+    assert (live.conf.parent / "settings-hub.lua").is_file()
+    calls = live.hypr_calls()
+    assert calls[:3] == ["hyprctl configerrors", "hyprctl reload", "hyprctl configerrors"]
+    assert len(calls) == 4 and calls[3].startswith("hyprctl dispatch hl.dsp.exec_cmd(")
+    live.run("install.sh")  # nothing twice
+    assert lua.read_text().count(LUA_LINE) == 1
+    proc = live.run("uninstall.sh", "--purge")
+    assert "hyprland.lua: our line removed" in proc.stdout
+    after = tree(live.home)
+    backups = [k for k in after if ".bak-" in k]
+    assert len(backups) == 2  # hyprland.conf and hyprland.lua: the user's copies
+    for k in backups:
+        del after[k]
+    assert after == before
+    calls = live.calls()
+    tail = calls[max(i for i, c in enumerate(calls) if "Activate quit" in c):]  # the uninstall's
+    assert [c for c in tail if c.startswith("hyprctl")] == [
+        'hyprctl dispatch hl.dsp.submap("reset")', "hyprctl reload", "hyprctl configerrors"]
+
+
+def test_new_config_errors_under_lua_take_the_lua_line_out_again(live):
+    lua = live.conf.parent / "hyprland.lua"
+    lua.write_text("-- lua\n")
+    (live.flags / "break").touch()
+    proc = live.run("install.sh", rc=1)
+    assert "Config error in settings-hub.conf" in proc.stderr
+    assert "taken out of hyprland.lua again" in proc.stdout
+    assert lua.read_text() == "-- lua\n"
+    assert f"line\t{lua}\t" not in live.manifest.read_text()
+    (live.flags / "break").unlink()
+    live.run("uninstall.sh", "--purge")
+    assert lua.read_text() == "-- lua\n"
 
 
 @pytest.mark.parametrize("desktop", [
@@ -298,10 +356,18 @@ def test_without_hyprland_conf_nothing_happens(tmp_path):
     assert tree(live.home) == before and live.calls() == []
 
 
+def hyprland_minor() -> int:
+    out = subprocess.run(["Hyprland", "--version"], capture_output=True, text=True).stdout
+    match = re.search(r"Hyprland 0\.(\d+)", out)
+    return int(match.group(1)) if match else 0
+
+
 @pytest.mark.live
 def test_hyprland_itself_accepts_the_installed_config(tmp_path):
     """Hyprland's own parser (--verify-config, no compositor) on the copy of the
     real config with our line and settings-hub.conf: no errors."""
+    if hyprland_minor() >= 57:
+        pytest.skip("Hyprland 0.57+ parses every config as Lua; see the Lua test")
     live = Live(tmp_path, REAL_CONF)
     anim = REAL_CONF.parent / "animations.conf"
     if anim.exists():
@@ -313,3 +379,25 @@ def test_hyprland_itself_accepts_the_installed_config(tmp_path):
                           capture_output=True, text=True, timeout=60)
     result = proc.stdout.split("Config parsing result:")[-1]
     assert result.strip() == "config ok", result
+
+
+@pytest.mark.live
+def test_hyprland_itself_accepts_the_installed_lua_config(tmp_path):
+    """The same for Hyprland 0.57+: the real hyprland.lua (or the prepared
+    draft) with our dofile line and settings-hub.lua."""
+    if hyprland_minor() < 57:
+        pytest.skip("needs Hyprland 0.57+")
+    source = next((p for p in (REAL_LUA, DRAFT_LUA) if p.exists()), None)
+    if source is None:
+        pytest.skip("no hyprland.lua on this machine")
+    live = Live(tmp_path, FIXTURES / "hypr" / "hyprland.conf")
+    lua = live.conf.parent / "hyprland.lua"
+    lua.write_bytes(source.read_bytes())
+    live.run("install.sh")
+    for path in (live.conf.parent / "settings-hub.lua", lua):
+        proc = subprocess.run(["Hyprland", "--verify-config", "-c", str(path)],
+                              env={"PATH": "/usr/bin:/bin", "HOME": str(live.home),
+                                   "XDG_RUNTIME_DIR": str(tmp_path)},
+                              capture_output=True, text=True, timeout=60)
+        result = proc.stdout.split("Config parsing result:")[-1]
+        assert result.strip() == "config ok", f"{path.name}: {result}"

@@ -13,7 +13,8 @@
 # line occurs exactly once (same file, same inode, same permissions). Other
 # files are never restored from copies. Live: the background copy is asked to
 # quit and the key-capture submap is reset first; after our line leaves
-# hyprland.conf, Hyprland is reloaded.
+# hyprland.conf or hyprland.lua and our files are gone, Hyprland is reloaded
+# (also when hyprland.lua loads settings-hub.lua by a line of its own).
 
 set -eu
 
@@ -82,14 +83,16 @@ has_owner() {
 if [ "$LIVE" -eq 1 ]; then
     if dry; then
         would "ask the background copy to quit (gdbus ... Activate quit)"
-        would "run: hyprctl dispatch submap reset"
+        would "run: hyprctl dispatch submap reset (or its Lua form)"
     else
         gdbus call --session --timeout 2 --dest "$APP_ID" --object-path "$OBJECT_PATH" \
             --method org.gtk.Actions.Activate quit '[]' '{}' >/dev/null 2>&1 || true
         i=0
         while has_owner && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
         has_owner && warn "the background copy is still running"
-        hyprctl dispatch submap reset >/dev/null 2>&1 || true
+        # A Lua config (Hyprland 0.57+) takes only hl.dsp.submap(...).
+        [ "$(hyprctl dispatch 'hl.dsp.submap("reset")' 2>/dev/null)" = ok ] ||
+            hyprctl dispatch submap reset >/dev/null 2>&1 || true
         ok "background copy asked to quit; submap reset"
     fi
 fi
@@ -134,23 +137,12 @@ remove_line() { # FILE TEXT ADDED_NEWLINE
         warn "$(basename "$file"): unexpected result after removing our line - please check it"
     fi
     ok "$(basename "$file"): our line removed"
-    case $file in */hyprland.conf) RELOAD=1 ;; esac
+    case $file in */hyprland.conf | */hyprland.lua) RELOAD=1 ;; esac
 }
 
 while IFS="$TAB" read -r kind path text added; do
     [ "$kind" = line ] && remove_line "$path" "$text" "${added:-0}"
 done <"$MANIFEST"
-
-if [ "$LIVE" -eq 1 ] && [ "$RELOAD" -eq 1 ]; then
-    hyprctl reload >/dev/null 2>&1 || warn "hyprctl reload failed"
-    errors=$(hyprctl configerrors 2>/dev/null | grep -v '^[[:space:]]*$' || true)
-    if [ -n "$errors" ]; then
-        warn "Hyprland reports config errors:"
-        printf '%s\n' "$errors" | sed 's/^/     /' >&2
-    else
-        ok "hyprctl reload: no config errors"
-    fi
-fi
 
 removed=0
 while IFS="$TAB" read -r kind path; do
@@ -167,6 +159,22 @@ while IFS="$TAB" read -r kind path; do
     fi
 done <"$MANIFEST"
 ok "$removed files removed"
+
+# settings-hub.lua is gone; a hyprland.lua that loads it by a line of its own
+# must forget its binds too.
+HYPR_LUA=$PREFIX${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua
+[ -f "$HYPR_LUA" ] && ! dry && RELOAD=1
+if [ "$LIVE" -eq 1 ] && [ "$RELOAD" -eq 1 ] && ! dry; then
+    hyprctl reload >/dev/null 2>&1 || warn "hyprctl reload failed"
+    errors=$(hyprctl configerrors 2>/dev/null | grep -v '^[[:space:]]*$' || true)
+    if [ -n "$errors" ]; then
+        warn "Hyprland reports config errors:"
+        printf '%s\n' "$errors" | sed 's/^/     /' >&2
+    else
+        ok "hyprctl reload: no config errors"
+    fi
+fi
+
 
 # Python leaves byte-code caches in the program directory.
 grep "^file$TAB" "$MANIFEST" | cut -f 2 | grep '\.py$' | while IFS= read -r f; do

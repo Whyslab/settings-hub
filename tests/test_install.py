@@ -2,6 +2,7 @@
 loudly: a sandbox install or uninstall must never call them."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -74,6 +75,7 @@ EXPECTED = [
     ".local/bin/settings-open",
     ".local/bin/settings-hub-uninstall",
     ".config/hypr/settings-hub.conf",
+    ".config/hypr/settings-hub.lua",
     ".local/state/settings-hub/install-manifest",
 ]
 
@@ -131,6 +133,76 @@ def test_one_line_in_hyprland_conf_and_exact_removal(sb, original):
     assert conf.stat().st_ino == inode and conf.stat().st_mode & 0o777 == 0o640
     assert backups[0].exists()  # the dated copy is the user's, never removed
     assert sorted(p.name for p in sb.files()) == sorted(["hyprland.conf", backups[0].name])
+
+
+LUA_LINE = 'dofile(os.getenv("HOME") .. "/.config/hypr/settings-hub.lua")  -- settings-hub'
+CONF_LINE = "source = ~/.config/hypr/settings-hub.conf  # settings-hub"
+
+
+@pytest.mark.parametrize("original", ['hl.config({ general = { gaps_in = 2 } })\n',
+                                      "hl.bind(\"SUPER + C\", hl.dsp.window.close())"])
+def test_lua_config_gets_one_dofile_line_and_exact_removal(sb, original):
+    # Hyprland 0.57+ reads hyprland.lua only; hyprland.conf stays for a rollback.
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    conf, lua = hypr / "hyprland.conf", hypr / "hyprland.lua"
+    conf.write_text("bind = SUPER, C, killactive\n")
+    lua.write_text(original)
+    sb.install()
+    sb.install()
+    assert lua.read_text().splitlines()[-1] == LUA_LINE
+    assert lua.read_text().count(LUA_LINE) == 1
+    assert conf.read_text().splitlines()[-1] == CONF_LINE
+    assert len(list(hypr.glob("hyprland.lua.bak-*-settings-hub"))) == 1
+    sb.uninstall("--purge")
+    assert lua.read_text() == original
+    assert conf.read_text() == "bind = SUPER, C, killactive\n"
+
+
+def test_lua_config_that_loads_us_itself_is_left_alone(sb):
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    lua = hypr / "hyprland.lua"
+    original = 'safe_dofile(home .. "/.config/hypr/settings-hub.lua")\n'
+    lua.write_text(original)
+    out = sb.install().stdout
+    assert "loads settings-hub.lua itself" in out
+    assert lua.read_text() == original
+    assert not list(hypr.glob("hyprland.lua.bak-*"))
+    sb.uninstall("--purge")
+    assert lua.read_text() == original
+
+
+def test_a_commented_mention_does_not_count_as_loading(sb):
+    hypr = sb.path(".config/hypr")
+    hypr.mkdir(parents=True)
+    lua = hypr / "hyprland.lua"
+    lua.write_text('-- dofile(home .. "/.config/hypr/settings-hub.lua")\n')
+    sb.install()
+    assert lua.read_text().splitlines()[-1] == LUA_LINE
+
+
+def test_generated_lua_file(sb):
+    sb.install()
+    text = sb.path(".config/hypr/settings-hub.lua").read_text()
+    assert f'hl.exec_cmd("python3 {sb.home}/.local/share/settings-hub/app.py --daemon")' in text
+    assert f'initial_title = "^({strings.APP_TITLE})$"' in text  # UTF-8, not \\u escapes
+    assert f'hl.bind("SUPER + I", hl.dsp.exec_cmd("{sb.home}/.local/bin/settings-open"))' in text
+    assert 'hl.bind("SUPER + CTRL + ALT + Escape", hl.dsp.submap("reset"))' in text
+    assert text.endswith("-- >>> settings-hub binds\n-- <<< settings-hub binds\n")
+    assert str(sb.prefix) not in text
+
+
+@pytest.mark.skipif(shutil.which("Hyprland") is None, reason="needs Hyprland 0.57+")
+def test_hyprland_accepts_the_generated_lua_file(sb):
+    version = subprocess.run(["Hyprland", "--version"], capture_output=True, text=True).stdout
+    if not any(f"Hyprland 0.{n}" in version for n in range(57, 100)):
+        pytest.skip("Hyprland before 0.57 has no Lua config")
+    sb.install()
+    lua = sb.path(".config/hypr/settings-hub.lua")
+    done = subprocess.run(["Hyprland", "--verify-config", "-c", str(lua)],
+                          capture_output=True, text=True, timeout=60)
+    assert "config ok" in done.stdout, done.stdout + done.stderr
 
 
 def test_line_edited_by_hand_is_left_alone(sb):

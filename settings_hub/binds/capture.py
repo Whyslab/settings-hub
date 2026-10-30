@@ -104,9 +104,16 @@ class SubmapFallback:
 
 
 def reset_if_stuck(hyprctl: Runner) -> bool:
-    """At startup: leave the capture submap if a crashed window left us in it."""
+    """At startup: leave the capture submap if a crashed window left us in it.
+
+    This also runs under a Lua config (Hyprland 0.57+), where the capture
+    itself is off but settings-hub.lua still defines the submap: Lua takes only
+    `hl.dsp.submap(...)`, a .conf only the plain form, so try Lua first.
+    """
     rc, out = hyprctl(["submap"])
     if rc == 0 and out.strip() == SUBMAP:
-        hyprctl(["dispatch", "submap", "reset"])
+        _, reply = hyprctl(["dispatch", 'hl.dsp.submap("reset")'])
+        if reply.strip() != "ok":
+            hyprctl(["dispatch", "submap", "reset"])
         return True
     return False
