@@ -67,6 +67,7 @@ STATE_DIR=$PREFIX$STATE_HOME/settings-hub
 MANIFEST=$STATE_DIR/install-manifest
 HYPR_CONF=$HYPR_DIR/hyprland.conf
 OWN_CONF=$HYPR_DIR/settings-hub.conf
+OWN_VARS=$HYPR_DIR/settings-hub-vars.lua
 HYPR_LUA=$HYPR_DIR/hyprland.lua
 OWN_LUA=$HYPR_DIR/settings-hub.lua
 OLD_DESKTOP=$DESKTOP_DIR/screen-sleep.desktop
@@ -103,7 +104,7 @@ py -m settings_hub.binds.writer conf "$STAGE/settings-hub.conf" \
     --data-home "$DATA_HOME" --bin-home "$BIN_HOME" --keep "$OWN_CONF" ||
     die "settings-hub.conf was not generated (see above); nothing was changed"
 py -m settings_hub.binds.writer lua "$STAGE/settings-hub.lua" \
-    --data-home "$DATA_HOME" --bin-home "$BIN_HOME" ||
+    --data-home "$DATA_HOME" --bin-home "$BIN_HOME" --config-home "$CONFIG_HOME" ||
     die "settings-hub.lua was not generated (see above); nothing was changed"
 py -m settings_hub.registry pages-json "$STAGE/pages.json"
 py -m settings_hub.registry open-failed "$STAGE/open-failed.txt" --log "$STATE_HOME/settings-hub/app.log"
@@ -166,7 +167,17 @@ ok "settings-open and settings-hub-uninstall in $BIN_DIR"
 put 644 "$STAGE/settings-hub.desktop" "$DESKTOP_DIR/settings-hub.desktop"
 put 644 "$STAGE/settings-hub.conf" "$OWN_CONF"
 put 644 "$STAGE/settings-hub.lua" "$OWN_LUA"
-ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua"
+# The values changed in the Settings window ("Windows and look", "Keyboard and
+# mouse"). Never rewritten here: a reinstall must keep them; only created once.
+if [ -f "$OWN_VARS" ]; then
+    record "file$TAB$OWN_VARS"
+    ok "settings-hub-vars.lua kept as it is"
+else
+    printf '%s\n' "-- Values changed in the Settings window; the window rewrites this file." \
+        >"$STAGE/settings-hub-vars.lua"
+    put 644 "$STAGE/settings-hub-vars.lua" "$OWN_VARS"
+fi
+ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua, settings-hub-vars.lua"
 
 # The line this install added to FILE earlier, as the old manifest has it.
 previous_line() { # FILE TEXT

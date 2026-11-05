@@ -16,7 +16,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import strings
+from . import settings, strings, variables
 
 ROOT = Path(__file__).resolve().parent.parent
 ICON_DIR = ROOT / "style" / "icons"
@@ -39,13 +39,21 @@ class PageInfo:
         return ICON_DIR / self.icon
 
 
-GROUP_ORDER = ("display", "keyboard", "system")
+GROUP_ORDER = ("general", "display", "keyboard", "system")
 
 PAGES: tuple[PageInfo, ...] = (
     PageInfo("screen-sleep", "display", "screen-sleep.svg", "#007aff"),
     PageInfo("wallpaper", "display", "wallpaper.svg", "#32ade6"),
     PageInfo("animations", "display", "animations.svg", "#af52de"),
     PageInfo("binds", "keyboard", "binds.svg", "#8e8e93"),
+    PageInfo("windows", "keyboard", "windows.svg", "#0a84ff"),
+    PageInfo("input", "keyboard", "input.svg", "#5e5ce6"),
+    PageInfo("general", "general", "general.svg", "#8e8e93"),
+    PageInfo("system", "system", "system.svg", "#8e8e93"),
+    PageInfo("sound", "system", "sound.svg", "#ff2d55"),
+    PageInfo("network", "system", "network.svg", "#32ade6"),
+    PageInfo("power", "system", "power.svg", "#34c759"),
+    PageInfo("modes", "system", "modes.svg", "#ff9500"),
     PageInfo("history", "system", "history.svg", "#ff9500"),
 )
 
@@ -68,7 +76,21 @@ def keywords(page_id: str) -> list[str]:
 
 
 def rows(page_id: str) -> dict[str, tuple[str, list[str]]]:
-    return dict(strings.PAGES[page_id]["rows"])
+    """Searchable rows of a page: its own table plus the generated ones.
+
+    The General page's rows are its settings fields, and a variable page's rows
+    are its variables, so adding one field or one variable makes it searchable
+    without another table to keep in step.
+    """
+    out = dict(strings.PAGES[page_id]["rows"])
+    if page_id == "general":
+        for field in settings.FIELDS:
+            label, _hint, words = strings.HUB_SETTINGS[field.key]
+            out[field.key] = (label, list(words))
+    for var in variables.for_page(page_id):
+        label, _hint, words = strings.VARS[var.option]
+        out[var.option] = (label, list(words))
+    return out
 
 
 def grouped() -> list[tuple[str, list[PageInfo]]]:

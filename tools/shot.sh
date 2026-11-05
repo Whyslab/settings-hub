@@ -66,19 +66,87 @@ stubs=$tmp/stubs
 mkdir -p "$stubs" "$tmp/.config" "$tmp/.local/state" "$tmp/.local/share" "$tmp/.cache" "$tmp/run"
 chmod 700 "$tmp/run"
 for name in hyprctl notify-send pkill pgrep systemctl systemd-inhibit wallpaper.sh \
-    wallpaper-theme; do
+    wallpaper-theme pactl nmcli bluetoothctl tailscale powerprofilesctl brightnessctl \
+    pacman; do
     printf '#!/bin/sh\necho "%s $*" >>"%s/calls.log"\n' "$name" "$tmp" >"$stubs/$name"
     chmod +x "$stubs/$name"
 done
-cat >>"$stubs/hyprctl" <<'STUB'
-[ "$1 $2 $#" = "hyprsunset temperature 2" ] && echo 4300
-[ "$1 $2" = "binds -j" ] && cat "$HOME/binds.json"
-[ "$1 $#" = "submap 1" ] && echo default
-exit 0
-STUB
+# The live values of the variable pages come from the registry's defaults.
+python3 -B -c 'import json, sys; sys.path.insert(0, sys.argv[1]); \
+from settings_hub import variables; \
+print(json.dumps({v.option: v.default for v in variables.VARS}))' "$ROOT" >"$tmp/vars.json"
+cat >"$stubs/hyprctl" <<'PY'
+import json, sys
+from pathlib import Path
+tmp = Path(__file__).resolve().parent.parent
+args = sys.argv[1:]
+with (tmp / "calls.log").open("a") as fh:
+    fh.write("hyprctl " + " ".join(args) + "\n")
+if args[:1] == ["getoption"]:
+    option = args[1]
+    values = json.loads((tmp / "vars.json").read_text())
+    value = values.get(option, 0)
+    kind = ("bool" if isinstance(value, bool) else
+            "float" if isinstance(value, float) else
+            "int" if isinstance(value, int) else "str")
+    print(json.dumps({"option": option, kind: value, "set": True}))
+elif args[:2] == ["binds", "-j"]:
+    print((tmp / "binds.json").read_text())
+elif args[:1] == ["submap"]:
+    print("default")
+elif args[:2] == ["hyprsunset", "temperature"]:
+    print("4300")
+PY
+chmod +x "$stubs/hyprctl"
 cat >>"$stubs/systemctl" <<'STUB'
 case " $* " in *" is-active "*) echo active ;; esac
 exit 0
+STUB
+cat >>"$stubs/pactl" <<'STUB'
+case "$*" in
+  *"json list sinks"*) echo '[{"name":"speakers","description":"Колонки","mute":false,"volume":{"l":{"value_percent":"45%"}}},{"name":"headset","description":"Наушники G435","mute":false,"volume":{"l":{"value_percent":"80%"}}}]' ;;
+  *"json list sources"*) echo '[{"name":"mic","description":"Микрофон","mute":true,"volume":{"l":{"value_percent":"60%"}}}]' ;;
+  "get-default-sink") echo speakers ;;
+  "get-default-source") echo mic ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/nmcli" <<'STUB'
+case "$*" in
+  "radio wifi") echo enabled ;;
+  *"device wifi list"*) printf '*:Домашняя:72:WPA2\n :Сосед:38:WPA2\n' ;;
+  *"connection show"*) printf 'Домашняя:802-11-wireless:yes\nГость:802-11-wireless:no\n' ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/bluetoothctl" <<'STUB'
+case "$*" in
+  "show") printf 'Controller AA:BB\n\tPowered: yes\n' ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/tailscale" <<'STUB'
+case "$*" in
+  "status --json") echo '{"BackendState":"Running","TailscaleIPs":["100.64.0.1"]}' ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/powerprofilesctl" <<'STUB'
+case "$1" in
+  get) echo balanced ;;
+  list) printf '* performance:\n  balanced:\n  power-saver:\n' ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/brightnessctl" <<'STUB'
+case "$1" in
+  get) echo 12000 ;;
+  max) echo 24000 ;;
+esac
+exit 0
+STUB
+cat >>"$stubs/pacman" <<'STUB'
+exit 1
 STUB
 
 ss_dir=$tmp/.local/share/screen-sleep

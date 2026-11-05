@@ -18,6 +18,7 @@ window underneath (Wayland passes held keys to the new focus owner).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -31,6 +32,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import hypr, pages, registry, strings  # noqa: E402
 from .history import History  # noqa: E402
+from .settings import Settings  # noqa: E402
 from .widgets import keycapture  # noqa: E402
 from .widgets.sidebar import Sidebar  # noqa: E402
 from .workers import Workers  # noqa: E402
@@ -40,6 +42,11 @@ log = logging.getLogger(__name__)
 WIDTH, HEIGHT = 920, 640
 PREBUILD_AFTER_S = 20
 STATUS_MS = 5000
+TRANSITIONS = {
+    "none": Gtk.StackTransitionType.NONE,
+    "fade": Gtk.StackTransitionType.CROSSFADE,
+    "slide": Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
+}
 CLASS_MATCH = r"class:^(settings-hub|io\.github\.whyslab\.SettingsHub)$"
 FOCUS_COMMAND = hypr.dual_dispatch(
     f"hl.dsp.focus({{ window = {hypr.lua_str(CLASS_MATCH)} }})", "focuswindow", CLASS_MATCH)
@@ -47,27 +54,32 @@ FOCUS_COMMAND = hypr.dual_dispatch(
 
 class Window(Gtk.ApplicationWindow):
     def __init__(self, app: Gtk.Application, history: History, workers: Workers,
-                 state_dir: Path, backends: dict | None = None) -> None:
+                 state_dir: Path, backends: dict | None = None,
+                 settings: Settings | None = None) -> None:
         super().__init__(application=app, title=strings.APP_TITLE)
-        self.set_default_size(WIDTH, HEIGHT)
+        self.settings = settings if settings is not None else Settings()
+        self.set_default_size(*self._initial_size())
         self.set_hide_on_close(True)
         self.set_decorated(False)
         self.history = history
         self.state_dir = state_dir
         self.ctx = pages.Context(history, workers, self.show_status, self.undo_last,
-                                 dict(backends or {}))
+                                 dict(backends or {}), self.settings, self.return_to)
         self._pages: dict[str, pages.Page] = {}
         self.current: str | None = None
         self._esc_armed = False
         self._status_source = 0
 
-        self.sidebar = Sidebar()
+        self.sidebar = Sidebar(
+            width=int(self.settings.get("appearance.sidebar_width")),
+            search_limit=int(self.settings.get("behavior.search_limit")),
+        )
         self.sidebar.connect("open", self._on_sidebar_open)
 
         self.title = Gtk.Label(xalign=0)
         self.title.add_css_class("sh-title")
         self.stack = Gtk.Stack(vexpand=True, hexpand=True)
-        self.stack.set_transition_type(Gtk.StackTransitionType.NONE)
+        self.stack.set_transition_type(self.transition())
         self.status = Gtk.Label(xalign=0, visible=False)
         self.status.add_css_class("sh-status")
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
@@ -89,8 +101,69 @@ class Window(Gtk.ApplicationWindow):
         keys.connect("key-released", self._on_key_released)
         self.add_controller(keys)
         self.connect("map", self._on_map)
+        self.connect("unmap", self._on_unmap)
 
-        GLib.timeout_add_seconds(PREBUILD_AFTER_S, self._start_prebuild)
+        self._prebuild_source = 0
+        self.set_preload(int(self.settings.get("behavior.preload_s")))
+
+    def set_preload(self, seconds: int) -> None:
+        """Build the pages lazily, after this many seconds of an idle window."""
+        if self._prebuild_source:
+            GLib.source_remove(self._prebuild_source)
+            self._prebuild_source = 0
+        if int(seconds) > 0:
+            self._prebuild_source = GLib.timeout_add_seconds(
+                int(seconds), self._start_prebuild)
+
+    # ---- settings helpers -----------------------------------------------
+
+    def transition(self) -> Gtk.StackTransitionType:
+        return TRANSITIONS.get(str(self.settings.get("appearance.transition")),
+                               Gtk.StackTransitionType.NONE)
+
+    def _state_file(self, name: str) -> Path:
+        return self.state_dir / name
+
+    def _initial_size(self) -> tuple[int, int]:
+        """The remembered size, or the default one from the General page."""
+        width = int(self.settings.get("appearance.window_width"))
+        height = int(self.settings.get("appearance.window_height"))
+        if not self.settings.get("appearance.remember_size"):
+            return width, height
+        try:
+            raw = json.loads(self._state_file("window.json").read_text(encoding="utf-8"))
+            return max(600, int(raw["width"])), max(400, int(raw["height"]))
+        except (OSError, ValueError, KeyError, TypeError):
+            return width, height
+
+    def _on_unmap(self, _win) -> None:
+        """Keep the last size and page (both only when the settings ask for it)."""
+        try:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            if self.settings.get("appearance.remember_size"):
+                width, height = self.get_width(), self.get_height()
+                self._state_file("window.json").write_text(
+                    json.dumps({"width": width, "height": height}) + "\n",
+                    encoding="utf-8")
+            if self.settings.get("behavior.start_page") == "last" and self.current:
+                self._state_file("last-page").write_text(self.current + "\n",
+                                                         encoding="utf-8")
+        except OSError as exc:
+            log.warning("state files: %s", exc)
+
+    def last_page(self) -> str:
+        """The page to open when the start page is "as last time"."""
+        try:
+            page_id = self._state_file("last-page").read_text(encoding="utf-8").strip()
+        except OSError:
+            return registry.DEFAULT_PAGE
+        return page_id if registry.get(page_id) is not None else registry.DEFAULT_PAGE
+
+    def start_page(self) -> str:
+        chosen = str(self.settings.get("behavior.start_page"))
+        if chosen == "last":
+            return self.last_page()
+        return chosen if registry.get(chosen) is not None else registry.DEFAULT_PAGE
 
     # ---- pages ----------------------------------------------------------
 
@@ -105,7 +178,7 @@ class Window(Gtk.ApplicationWindow):
     def show_page(self, page_id: str = "", row_id: str = "") -> None:
         started = time.perf_counter()
         if not page_id:
-            page_id = self.current or registry.DEFAULT_PAGE
+            page_id = self.current or self.start_page()
         if registry.get(page_id) is None:
             log.warning("unknown page %r, showing %s", page_id, registry.DEFAULT_PAGE)
             page_id, row_id = registry.DEFAULT_PAGE, ""
@@ -126,6 +199,7 @@ class Window(Gtk.ApplicationWindow):
         self.show_page(page_id, row_id)
 
     def _start_prebuild(self) -> bool:
+        self._prebuild_source = 0
         failed: set[str] = set()
 
         def step() -> bool:
@@ -146,11 +220,13 @@ class Window(Gtk.ApplicationWindow):
     # ---- showing --------------------------------------------------------
 
     def open_page(self, page_id: str = "") -> None:
-        """The `open` action: show the window on a page (empty = keep the page).
+        """The `open` action: show the window on a page (empty = the start page).
 
         "page#row" also scrolls to that row and tints it, like a search result.
         """
         page_id, _, row_id = page_id.partition("#")
+        if not page_id:
+            page_id = self.start_page()
         self.show_page(page_id, row_id)
         was_visible = self.get_visible()
         self.present()
@@ -192,7 +268,21 @@ class Window(Gtk.ApplicationWindow):
             self._status_source = 0
             return False
 
-        self._status_source = GLib.timeout_add(STATUS_MS, clear)
+        self._status_source = GLib.timeout_add(
+            int(self.settings.get("appearance.status_ms")), clear)
+
+    def return_to(self, group_id: str) -> None:
+        """The History page's "return to this moment": undo everything after it."""
+        try:
+            plan = self.history.plan_return_to(group_id, strings.HISTORY_UNDO_PREFIX)
+        except Exception as exc:
+            log.exception("planning a return")
+            self.show_status(strings.HISTORY_APPLY_FAILED.format(error=exc))
+            return
+        if plan is None:
+            self.show_status(strings.HISTORY_NOTHING_LATER)
+            return
+        self._revert(plan)
 
     def undo_last(self) -> None:
         try:
@@ -204,6 +294,9 @@ class Window(Gtk.ApplicationWindow):
         if plan is None:
             self.show_status(strings.HISTORY_NOTHING_TO_UNDO)
             return
+        self._revert(plan)
+
+    def _revert(self, plan) -> None:
         if plan.missing:
             names = ", ".join(strings.BACKENDS.get(b, b) for b in plan.missing)
             self.show_status(strings.HISTORY_NO_APPLIER.format(backends=names))

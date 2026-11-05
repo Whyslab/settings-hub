@@ -26,9 +26,20 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import APP_ID, PRGNAME  # noqa: E402
-from .backends import animations, binds, screen_sleep, wallpaper  # noqa: E402
+from . import settings as hub_settings  # noqa: E402
+from .backends import (  # noqa: E402
+    animations,
+    audio,
+    binds,
+    network,
+    power,
+    screen_sleep,
+    wallpaper,
+)
 from .history import History  # noqa: E402
 from .theme import SCHEMES, Theme  # noqa: E402
+from .variables import backend as hypr_vars  # noqa: E402
+from .widgets import rows as row_widgets  # noqa: E402
 from .window import Window  # noqa: E402
 from .workers import Workers  # noqa: E402
 
@@ -73,6 +84,8 @@ class App(Gtk.Application):
         self.forced_scheme: str | None = None
         self.window: Window | None = None
         self.workers: Workers | None = None
+        self.settings: hub_settings.Settings | None = None
+        self.theme: Theme | None = None
 
     def do_handle_local_options(self, options: GLib.VariantDict) -> int:
         page = options.lookup_value("page", GLib.VariantType.new("s"))
@@ -100,9 +113,13 @@ class App(Gtk.Application):
         Gtk.Application.do_startup(self)
         directory = state_dir()
         setup_logging(directory)
-        Theme(Gdk.Display.get_default(), self.forced_scheme)
+        self.theme = Theme(Gdk.Display.get_default(), self.forced_scheme)
+        self.settings = hub_settings.Settings()
+        self.theme.set_scheme(str(self.settings.get("appearance.theme")))
+        row_widgets.set_highlight_ms(int(self.settings.get("appearance.highlight_ms")))
         self.workers = Workers()
-        history = History()
+        history = History(keep=int(self.settings.get("behavior.history_keep")))
+        hub_settings.register(history, self.settings)
         # Appliers are registered at start, so undo works before a page is opened.
         backends = {screen_sleep.BACKEND: screen_sleep.Backend(self.workers)}
         screen_sleep.register(history, backends[screen_sleep.BACKEND])
@@ -113,10 +130,20 @@ class App(Gtk.Application):
         animations.register(history, backends[animations.BACKEND])
         backends[binds.BACKEND] = binds.Backend(self.workers)
         binds.register(history, backends[binds.BACKEND])
+        backends[hypr_vars.BACKEND] = hypr_vars.Backend(self.workers)
+        hypr_vars.register(history, backends[hypr_vars.BACKEND])
+        backends[audio.BACKEND] = audio.Backend(self.workers)
+        audio.register(history, backends[audio.BACKEND])
+        backends[network.BACKEND] = network.Backend(self.workers)
+        network.register(history, backends[network.BACKEND])
+        backends[power.BACKEND] = power.Backend(self.workers)
+        power.register(history, backends[power.BACKEND])
         # A window that crashed mid-capture may have left Hyprland in the capture
         # submap; leave it (only if we are in it), on the worker, without waiting.
         backends[binds.BACKEND].reset_submap()
-        self.window = Window(self, history, self.workers, directory, backends)
+        self.window = Window(self, history, self.workers, directory, backends,
+                             settings=self.settings)
+        self.settings.subscribe(self._on_setting)
 
         open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))
         open_action.connect("activate", lambda _a, v: self.window.open_page(v.get_string()))
@@ -126,6 +153,32 @@ class App(Gtk.Application):
         self.add_action(quit_action)
         self.hold()
         log.info("started (pid %d)", os.getpid())
+
+    def _on_setting(self, key: str, value) -> None:
+        """Apply a changed setting at once (the General page's promise)."""
+        if self.window is None:
+            return
+        if key == "appearance.theme":
+            self.theme.set_scheme(str(value))
+        elif key == "appearance.transition":
+            self.window.stack.set_transition_type(self.window.transition())
+        elif key == "appearance.sidebar_width":
+            self.window.sidebar.set_width(int(value))
+        elif key == "appearance.highlight_ms":
+            row_widgets.set_highlight_ms(int(value))
+        elif key == "appearance.status_ms":
+            pass  # read when the next message appears
+        elif key in ("appearance.window_width", "appearance.window_height"):
+            width = int(self.settings.get("appearance.window_width"))
+            height = int(self.settings.get("appearance.window_height"))
+            if not self.window.settings.get("appearance.remember_size"):
+                self.window.set_default_size(width, height)
+        elif key == "behavior.history_keep":
+            self.window.history.keep = int(value)
+        elif key == "behavior.preload_s":
+            self.window.set_preload(int(value))
+        elif key == "behavior.search_limit":
+            self.window.sidebar.search_limit = int(value)
 
     def do_activate(self) -> None:
         if self.start_hidden:

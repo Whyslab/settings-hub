@@ -48,10 +48,12 @@ class Sidebar(Gtk.Box):
         "open": (GObject.SignalFlags.RUN_FIRST, None, (str, str)),
     }
 
-    def __init__(self) -> None:
+    def __init__(self, width: int = WIDTH, search_limit: int = 20) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.add_css_class("sh-sidebar")
-        self.set_size_request(WIDTH, -1)
+        self.width = width
+        self.search_limit = search_limit
+        self.set_size_request(self.width, -1)
         self.set_hexpand(False)
         self._index = search.Index()
         self._suppress = False
@@ -77,6 +79,11 @@ class Sidebar(Gtk.Box):
 
         self._searching = False
         self._fill_pages()
+
+    def set_width(self, width: int) -> None:
+        """The General page's "sidebar width": applied without a restart."""
+        self.width = max(140, int(width))
+        self.set_size_request(self.width, -1)
 
     @staticmethod
     def _nothing_found() -> Gtk.Widget:
@@ -159,7 +166,7 @@ class Sidebar(Gtk.Box):
     def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
         text = entry.get_text()
         if text.strip():
-            self._fill_results(self._index.search(text))
+            self._fill_results(self._index.search(text, limit=self.search_limit))
         else:
             self._fill_pages()
             self.emit("open", "", "")  # re-select the page that is shown

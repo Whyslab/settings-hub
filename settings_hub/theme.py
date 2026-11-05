@@ -74,7 +74,23 @@ class Theme:
         if self.settings.get_property("gtk-interface-color-scheme") != scheme:
             self.settings.set_property("gtk-interface-color-scheme", scheme)
 
+    def set_scheme(self, name: str) -> None:
+        """The General page's theme: "system" follows the desktop again.
+
+        A forced scheme (screenshots) wins over the setting.
+        """
+        if self._forced is not None:
+            return
+        if name in SCHEMES:
+            self._set_scheme(SCHEMES[name])
+            return
+        self._set_scheme(Gtk.InterfaceColorScheme.DEFAULT)
+        self._follow_gnome()
+
     def _follow_gnome(self) -> None:
+        if self._gnome is not None:  # already following; just re-read
+            self._apply_gnome()
+            return
         source = Gio.SettingsSchemaSource.get_default()
         schema = source.lookup("org.gnome.desktop.interface", True) if source else None
         if schema is None or not schema.has_key("color-scheme"):

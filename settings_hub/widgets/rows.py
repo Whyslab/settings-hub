@@ -15,6 +15,17 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
 HIGHLIGHT_MS = 1500
+_highlight_ms = HIGHLIGHT_MS
+
+
+def set_highlight_ms(value: int) -> None:
+    """How long a row from a search result stays tinted (the General page)."""
+    global _highlight_ms
+    _highlight_ms = max(100, int(value))
+
+
+def highlight_ms() -> int:
+    return _highlight_ms
 
 
 class Row(Gtk.ListBoxRow):
@@ -51,7 +62,7 @@ class Row(Gtk.ListBoxRow):
         self._highlight_source = 0
 
     def highlight(self) -> None:
-        """Tint the row for 1.5 s (a search result was opened)."""
+        """Tint the row for a moment (a search result was opened)."""
         if self._highlight_source:
             GLib.source_remove(self._highlight_source)
         self.add_css_class("sh-highlight")
@@ -61,7 +72,7 @@ class Row(Gtk.ListBoxRow):
             self._highlight_source = 0
             return False
 
-        self._highlight_source = GLib.timeout_add(HIGHLIGHT_MS, clear)
+        self._highlight_source = GLib.timeout_add(_highlight_ms, clear)
 
 
 class Group(Gtk.Box):

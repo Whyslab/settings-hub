@@ -26,6 +26,8 @@ class Context:
     status: Callable[[str], None]  # one line at the bottom of the window
     undo_last: Callable[[], None]
     backends: dict[str, Any] = field(default_factory=dict)  # by History backend name
+    settings: Any = None  # settings.Settings: the window's own settings
+    return_to: Callable[[str], None] | None = None  # undo everything after a group
 
 
 class Page:

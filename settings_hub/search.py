@@ -73,9 +73,12 @@ def _score(entry: _Entry, query: str) -> int:
     keyword_words = [w for k in entry.keywords for w in k.split()]
     haystack = " ".join((entry.title, *entry.keywords))
     total = 0
+    page = entry.row_id is None
     for word in words:
         if any(w.startswith(word) for w in title_words):
-            total += 80
+            # A row's label usually starts with the very word the person typed
+            # ("Анимация ручного размера"); its page must still come first.
+            total += 80 if page else 70
         elif any(w.startswith(word) for w in keyword_words):
             total += 60
         elif word in haystack:
@@ -85,8 +88,10 @@ def _score(entry: _Entry, query: str) -> int:
     score = total // len(words)
     if entry.title.startswith(query):
         score += 20
-    if entry.row_id is not None:
-        score -= 5  # a page outranks one of its rows on a tie
+    if page:
+        score += 25  # a page outranks one of its rows
+    else:
+        score -= 10
     return score
 
 

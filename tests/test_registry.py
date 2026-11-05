@@ -14,7 +14,9 @@ def test_ids_unique_and_well_formed():
     ids = [p.id for p in registry.PAGES]
     assert len(ids) == len(set(ids))
     assert all(re.fullmatch(r"[a-z0-9-]+", i) for i in ids)  # settings-open accepts these
-    assert ids == ["screen-sleep", "wallpaper", "animations", "binds", "history"]
+    assert ids == ["screen-sleep", "wallpaper", "animations", "binds", "windows",
+                   "input", "general", "system", "sound", "network", "power",
+                   "modes", "history"]
 
 
 def test_every_page_has_text_icon_module_and_group():
@@ -36,7 +38,10 @@ def test_icon_colour_matches_registry():
 def test_groups_in_sidebar_order():
     groups = registry.grouped()
     assert [g for g, _ in groups] == list(registry.GROUP_ORDER)
-    assert [p.id for _, ps in groups for p in ps] == [p.id for p in registry.PAGES]
+    flat = [p.id for _, ps in groups for p in ps]
+    assert sorted(flat) == sorted(p.id for p in registry.PAGES)
+    for group, pages in groups:
+        assert pages == [p for p in registry.PAGES if p.group == group]
 
 
 def test_export_pages_json(tmp_path):

@@ -76,6 +76,7 @@ EXPECTED = [
     ".local/bin/settings-hub-uninstall",
     ".config/hypr/settings-hub.conf",
     ".config/hypr/settings-hub.lua",
+    ".config/hypr/settings-hub-vars.lua",
     ".local/state/settings-hub/install-manifest",
 ]
 
@@ -99,7 +100,7 @@ def test_generated_hyprland_file(sb):
     conf = sb.path(".config/hypr/settings-hub.conf").read_text()
     assert f"exec-once = python3 {sb.home}/.local/share/settings-hub/app.py --daemon" in conf
     assert ("windowrule = match:class ^(settings-hub|io\\.github\\.whyslab\\.SettingsHub)$, "
-            f"match:initial_title ^({strings.APP_TITLE})$, float true, size 920 640, "
+            f"match:initial_title ^({strings.APP_TITLE})$, float true, "
             "center true") in conf
     assert f"bind   = SUPER SHIFT, N, exec, {sb.home}/.local/bin/settings-open screen-sleep" in conf
     assert "unbind = SUPER SHIFT, W" in conf
@@ -189,7 +190,11 @@ def test_generated_lua_file(sb):
     assert f'initial_title = "^({strings.APP_TITLE})$"' in text  # UTF-8, not \\u escapes
     assert f'hl.bind("SUPER + I", hl.dsp.exec_cmd("{sb.home}/.local/bin/settings-open"))' in text
     assert 'hl.bind("SUPER + CTRL + ALT + Escape", hl.dsp.submap("reset"))' in text
-    assert text.endswith("-- >>> settings-hub binds\n-- <<< settings-hub binds\n")
+    assert "-- >>> settings-hub binds\n-- <<< settings-hub binds\n" in text
+    # The values changed in the window are loaded last (a missing file is fine).
+    assert (f'pcall(dofile, "{sb.home}/.config/hypr/settings-hub-vars.lua")'
+            in text)
+    assert text.rstrip().endswith("-- <<< settings-hub binds")
     assert str(sb.prefix) not in text
 
 
@@ -255,14 +260,21 @@ def test_dry_run_into_a_sandbox_writes_nothing(sb):
 
 
 def test_generated_file_does_not_size_dialogs(sb):
-    """The 920x640 rule matches the main window's title; dialogs share the class only."""
+    """The title rule matches the main window; dialogs share the class only.
+
+    Neither rule pins a size: the General page ("Общие") owns the window size,
+    so a rule would quietly override the setting.
+    """
     sb.install()
     rules = [line for line in sb.path(".config/hypr/settings-hub.conf").read_text().splitlines()
              if line.startswith("windowrule")]
     assert len(rules) == 2
     main, dialogs = rules
-    assert f"match:initial_title ^({strings.APP_TITLE})$" in main and "size 920 640" in main
+    assert f"match:initial_title ^({strings.APP_TITLE})$" in main and "size" not in main
     assert "match:modal true" in dialogs and "size" not in dialogs
+    lua = sb.path(".config/hypr/settings-hub.lua").read_text()
+    assert "size" not in [line for line in lua.splitlines() if 'name   = "settings-hub"' in line][0]
+    assert 'size   = "920 640"' not in lua
 
 
 def test_bind_lines_in_the_conf_block_are_flagged_under_lua(sb):
