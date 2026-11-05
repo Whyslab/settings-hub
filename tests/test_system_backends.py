@@ -404,3 +404,56 @@ def test_history_does_not_claim_what_a_failed_backend_did_not_do():
     assert ("power", "power.brightness") in keys  # this part did happen: it can be undone
     assert not [k for k in keys if k[0] == "hypr"]
     assert "refused" in view.messages[-1]
+
+
+def test_turning_a_mode_off_finds_its_groups_and_undoes_only_them(tmp_path):
+    log = hist.History(tmp_path / "history.jsonl")
+    game = hub_modes.BY_ID["game"]
+    log.record([("hypr", "general:gaps_in", "Отступы", 4, 0),
+                ("hypr", "decoration:rounding", "Скругление", 12, 0),
+                ("power", "power.brightness", "Яркость", 50, 100)])  # the mode
+    first = log.groups()[-1].id
+    log.record([("hypr", "general:gaps_in", "Отступы", 0, 5)])  # by hand
+    log.record([("hypr", "cursor:theme", "Курсор", "A", "B")])  # unrelated
+    log.record([("hypr", "general:gaps_in", "Отступы", 5, 0)])  # the mode again
+    again = log.groups()[-1].id
+    assert hub_modes.groups_that_turned_on(game, log.groups(), "Отмена") == [first, again]
+
+    class Live:
+        def read(self, keys):
+            return {"general:gaps_in": 0, "decoration:rounding": 0, "power.brightness": 100}
+
+        def apply(self, values):
+            pass
+
+    log.register("hypr", Live())
+    log.register("power", Live())
+    plan = log.plan_undo([first, again])
+    assert plan.targets[("hypr", "general:gaps_in")] == 4  # as before the mode, not 5
+    assert plan.targets[("power", "power.brightness")] == 50
+    assert plan.flagged == []
+    log.record([("hypr", "general:gaps_in", "Отмена: Отступы", 0, 4)])  # turned off
+    assert hub_modes.groups_that_turned_on(game, log.groups(), "Отмена") == []
+
+
+def test_another_modes_group_ends_the_search(tmp_path):
+    log = hist.History(tmp_path / "history.jsonl")
+    log.record([("hypr", "general:gaps_in", "Отступы", 4, 0)])  # game
+    log.record([("hypr", "general:gaps_in", "Отступы", 0, 3),
+                ("hypr", "general:gaps_out", "Края", 0, 6)])  # travel
+    log.record([("hypr", "decoration:rounding", "Скругление", 8, 0)])  # game again
+    found = hub_modes.groups_that_turned_on(hub_modes.BY_ID["game"], log.groups(), "Отмена")
+    assert found == [log.groups()[-1].id]
+
+
+def test_an_unrelated_undo_does_not_hide_the_mode(tmp_path):
+    """Undoing a night filter change set the override to Game's own value."""
+    log = hist.History(tmp_path / "history.jsonl")
+    log.record([("hypr", "general:gaps_in", "Отступы", 4, 0),
+                ("hypr", "decoration:rounding", "Скругление", 12, 0)])
+    game_group = log.groups()[-1].id
+    log.record([("screen-sleep", hub_modes.NIGHT_OVERRIDE, "Фильтр", False, True)])
+    log.record([("screen-sleep", hub_modes.NIGHT_OVERRIDE, "Отмена: Фильтр", True, False),
+                ("screen-sleep", "night.target_temp", "Отмена: Цель", 2300, 2600)])
+    assert hub_modes.groups_that_turned_on(
+        hub_modes.BY_ID["game"], log.groups(), "Отмена") == [game_group]

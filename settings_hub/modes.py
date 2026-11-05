@@ -9,6 +9,7 @@ strings.MODE_ITEMS.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -93,6 +94,46 @@ def label_for(backend: str, key: str) -> str:
     if backend in ("screen-sleep", "night"):
         return strings.MODE_ITEMS.get(key, key)
     return strings.MODE_ITEMS.get(key, key)
+
+
+def groups_that_turned_on(mode: Mode, groups: list, undo_prefix: str) -> list[str]:
+    """The History groups that brought this mode about, oldest first ([] if none).
+
+    A mode logs only what it changed, so its groups are found by their items:
+    all of this mode, each set to the mode's value. Going back from the newest,
+    they are collected until an undo that took one of its items away from the
+    mode's value (the mode was turned off) or another mode's group (two items
+    or more: a single one is a hand edit that happens to match): undoing
+    them all gives the mode's items back as they were before it, even after it
+    was switched on twice with hand edits in between.
+    """
+    wanted = {(b, k): _plain(v) for b, k, v in mode.items}
+    found: list[str] = []
+    for group in reversed(groups):
+        undo = any(e.label.startswith(undo_prefix) for e in group.entries)
+        if undo and any((e.backend, e.key) in wanted
+                        and wanted[(e.backend, e.key)] != _plain(e.after)
+                        for e in group.entries):
+            break
+        if not undo and _is_group_of(mode, group):
+            found.append(group.id)
+        elif (not undo and len(group.entries) >= 2  # one item alone is a hand edit
+              and any(_is_group_of(other, group) for other in MODES if other is not mode)):
+            break
+    return found[::-1]
+
+
+def _is_group_of(mode: Mode, group) -> bool:
+    wanted = {(b, k): _plain(v) for b, k, v in mode.items}
+    return bool(group.entries) and all(
+        wanted.get((e.backend, e.key), _MISSING) == _plain(e.after) for e in group.entries)
+
+
+_MISSING = object()
+
+
+def _plain(value: Any) -> Any:
+    return json.loads(json.dumps(value))
 
 
 def matches(mode: Mode, current: dict[tuple[str, str], Any]) -> bool:

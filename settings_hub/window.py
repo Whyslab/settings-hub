@@ -77,7 +77,8 @@ class Window(Gtk.ApplicationWindow):
         self.history = history
         self.state_dir = state_dir
         self.ctx = pages.Context(history, workers, self.show_status, self.undo_last,
-                                 dict(backends or {}), self.settings, self.return_to)
+                                 dict(backends or {}), self.settings, self.return_to,
+                                 self.undo_group)
         self._pages: dict[str, pages.Page] = {}
         self.current: str | None = None
         self._esc_armed = False
@@ -319,6 +320,16 @@ class Window(Gtk.ApplicationWindow):
             return
         if plan is None:
             self.show_status(strings.HISTORY_NOTHING_LATER)
+            return
+        self._revert(plan)
+
+    def undo_group(self, group_ids: list[str]) -> None:
+        """Undo these groups, such as the ones a mode wrote ("Turn off")."""
+        try:
+            plan = self.history.plan_undo(group_ids, strings.HISTORY_UNDO_PREFIX)
+        except Exception as exc:
+            log.exception("planning a group undo")
+            self.show_status(strings.HISTORY_APPLY_FAILED.format(error=exc))
             return
         self._revert(plan)
 

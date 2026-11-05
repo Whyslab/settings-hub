@@ -220,6 +220,13 @@ class History:
             return None
         return self._plan(groups[-1:], label_prefix)
 
+    def plan_undo(self, group_ids: list[str], label_prefix: str = "") -> Plan:
+        """Undo these groups only; items changed since are asked about (flagged)."""
+        groups = [g for g in self.groups() if g.id in set(group_ids)]
+        if len(groups) != len(set(group_ids)):
+            raise KeyError(group_ids)
+        return self._plan(groups, label_prefix)
+
     def plan_return_to(self, group_id: str, label_prefix: str = "") -> Plan | None:
         """Return to the moment right after `group_id` was applied."""
         groups = self.groups()

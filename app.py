@@ -11,6 +11,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from settings_hub.app import main  # noqa: E402
+from settings_hub.session import move_into_scope  # noqa: E402
 
 if __name__ == "__main__":
+    # Before any window or child: logind and polkit refuse a process outside a login.
+    move_into_scope()
     sys.exit(main(sys.argv))

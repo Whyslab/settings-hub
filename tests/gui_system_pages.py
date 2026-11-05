@@ -129,7 +129,30 @@ for dialog in dialogs:
 spin(0.5)
 wifi_back_on = net.wifi_switch.get_active()
 
+history_groups = len(history.groups())  # opening the pages must log nothing
+
+# An active mode offers "Turn off", which undoes the group that turned it on.
+history.record([("hypr", "general:gaps_in", "Отступы", 4, 0),
+                ("hypr", "decoration:rounding", "Скругление", 12, 0)])
+mode_group = history.groups()[-1].id
+win.show_page("modes")
+spin(0.5)
+modes_page = win._pages["modes"]
+undone_groups = []
+modes_page.ctx.undo_group = undone_groups.append
+modes_page.show_active({"game"})
+_row, off_button = modes_page.buttons["game"]
+off_label, off_sensitive = off_button.get_label(), off_button.get_sensitive()
+off_button.emit("clicked")
+modes_page.show_active(set())
+on_label = off_button.get_label()
+
 out = {
+    "off_label": off_label,
+    "off_sensitive": off_sensitive,
+    "undone_groups": undone_groups,
+    "mode_group": mode_group,
+    "on_label": on_label,
     "kept_page": kept_page,
     "start_page": start_page,
     "search_kept": search_kept,
@@ -139,7 +162,7 @@ out = {
     "focus_after_enter_is_none": focus_after_enter is None,
     "asked": asked,
     "wifi_back_on": wifi_back_on,
-    "history_groups": len(history.groups()),
+    "history_groups": history_groups,
     "sink_selected": sound.kinds["sink"].dropdown.get_selected(),
     "source_selected": sound.kinds["source"].dropdown.get_selected(),
     "source_names": sound.kinds["source"].names,

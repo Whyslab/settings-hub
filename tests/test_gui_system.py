@@ -63,6 +63,9 @@ esac""", log)
     assert "pactl set-" not in calls, calls
     r = json.loads(out.read_text())
     assert r["history_groups"] == 0
+    assert (r["off_label"], r["off_sensitive"]) == ("Выключить", True)
+    assert r["undone_groups"] == [[r["mode_group"]]]
+    assert r["on_label"] == "Включить"
     assert r["sink_selected"] == 1  # speakers, as in use
     assert r["source_names"] == ["usb.monitor", "mic"]  # in use, so it stays visible
     assert r["source_selected"] == 0
