@@ -64,20 +64,6 @@ class Var:
             return int(value)
         return value
 
-    def to_lua(self, value: Any) -> str:
-        """The value as a Lua literal for hl.config (strings are always quoted)."""
-        return lua_literal(self.stored(value))
-
-
-def lua_literal(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        if isinstance(value, float):
-            return repr(round(value, 6))
-        return str(value)
-    return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
-
 
 def var(option: str, kind: str, default: Any, page: str, group: str, **kw: Any) -> Var:
     return Var(option=option, kind=kind, default=default, page=page, group=group, **kw)

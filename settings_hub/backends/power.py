@@ -10,8 +10,6 @@ History: "power.profile" (a profile id) and "power.brightness" (percent).
 from __future__ import annotations
 
 import logging
-import os
-import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -222,11 +220,3 @@ class Backend:
 def register(history, backend: Backend) -> Backend:
     history.register(BACKEND, backend)
     return backend
-
-
-def _env() -> dict[str, str]:
-    return dict(os.environ)
-
-
-def available() -> bool:
-    return shutil.which("brightnessctl") is not None or shutil.which("powerprofilesctl") is not None

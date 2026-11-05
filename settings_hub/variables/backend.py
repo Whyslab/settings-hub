@@ -31,7 +31,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 import threading
@@ -562,7 +561,3 @@ def register(history, backend: Backend):
     """History works on single variables; adding more needs `register_many`."""
     history.register(BACKEND, backend)
     return backend
-
-
-def hyprctl_available() -> bool:
-    return shutil.which("hyprctl") is not None

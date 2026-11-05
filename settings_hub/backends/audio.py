@@ -116,10 +116,6 @@ class Backend:
 
     # ---- reading ---------------------------------------------------------
 
-    def _cmd(self, kind: str, verb: str) -> str:
-        return {"sink": "get-default-sink", "source": "get-default-source"}[kind] \
-            if verb == "default" else ""
-
     def probe(self) -> Audio:
         audio = Audio()
         for kind in KINDS:
