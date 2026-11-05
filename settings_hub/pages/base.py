@@ -12,6 +12,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Graphene", "1.0")
 from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
+from .. import strings  # noqa: E402
 from ..history import History  # noqa: E402
 from ..widgets.rows import Group, Row  # noqa: E402
 from ..workers import Workers  # noqa: E402
@@ -56,6 +57,24 @@ class Page:
         Called every time the window is shown and every time the page is
         opened: the window keeps no state of its own.
         """
+
+    def confirm(self, message: str, detail: str, ok: str, on_yes, on_no=None) -> None:
+        """Ask before an action that is hard to take back. Cancel is the default."""
+        dialog = Gtk.AlertDialog(message=message, detail=detail,
+                                 buttons=[ok, strings.HISTORY_CONFLICT_CANCEL],
+                                 cancel_button=1, default_button=1, modal=True)
+
+        def answered(dlg, result) -> None:
+            try:
+                choice = dlg.choose_finish(result)
+            except GLib.Error:
+                choice = 1  # dismissed
+            if choice == 0:
+                on_yes()
+            elif on_no is not None:
+                on_no()
+
+        dialog.choose(self.widget.get_root(), None, answered)
 
     def add_group(self, group: Group) -> Group:
         self._box.append(group)

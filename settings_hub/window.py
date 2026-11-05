@@ -50,6 +50,19 @@ TRANSITIONS = {
 CLASS_MATCH = r"class:^(settings-hub|io\.github\.whyslab\.SettingsHub)$"
 FOCUS_COMMAND = hypr.dual_dispatch(
     f"hl.dsp.focus({{ window = {hypr.lua_str(CLASS_MATCH)} }})", "focuswindow", CLASS_MATCH)
+CENTER_COMMAND = hypr.dual_dispatch(
+    f"hl.dsp.window.center({{ window = {hypr.lua_str(CLASS_MATCH)} }})",
+    "centerwindow")  # a .conf centers the active window only
+RESIZE_AFTER_MAP_MS = 60
+NETWORK_SETTLE_S = 6
+
+
+def resize_command(width: int, height: int) -> list[str]:
+    """A floating window gets its size from Hyprland, not from GTK's default size."""
+    lua = (f"hl.dsp.window.resize({{ x = {int(width)}, y = {int(height)}, relative = false, "
+           f"window = {hypr.lua_str(CLASS_MATCH)} }})")
+    return hypr.dual_dispatch(lua, "resizewindowpixel",
+                              f"exact {int(width)} {int(height)},{CLASS_MATCH}")
 
 
 class Window(Gtk.ApplicationWindow):
@@ -220,15 +233,17 @@ class Window(Gtk.ApplicationWindow):
     # ---- showing --------------------------------------------------------
 
     def open_page(self, page_id: str = "") -> None:
-        """The `open` action: show the window on a page (empty = the start page).
+        """The `open` action: show the window on a page.
+
+        Empty: the start page, but a window already on screen stays where it is.
 
         "page#row" also scrolls to that row and tints it, like a search result.
         """
         page_id, _, row_id = page_id.partition("#")
-        if not page_id:
-            page_id = self.start_page()
-        self.show_page(page_id, row_id)
         was_visible = self.get_visible()
+        if not page_id:
+            page_id = (self.current if was_visible else "") or self.start_page()
+        self.show_page(page_id, row_id)
         self.present()
         if was_visible and not self.is_active() and os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             # With misc:focus_on_activate = 0, present() does not take focus
@@ -254,6 +269,29 @@ class Window(Gtk.ApplicationWindow):
         page = self._pages.get(self.current or "")
         if page is not None:
             page.refresh()
+        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+            GLib.timeout_add(RESIZE_AFTER_MAP_MS, self._apply_size)
+
+    def _apply_size(self) -> bool:
+        """Ask Hyprland for the size the General page names (only if it differs)."""
+        width, height = self._initial_size()
+        if (self.get_width(), self.get_height()) != (width, height):
+            self._run_in_order([resize_command(width, height), CENTER_COMMAND])
+        return False
+
+    def _run_in_order(self, commands: list[list[str]]) -> None:
+        """One after the other: centering before the resize would leave it off center."""
+        if not commands:
+            return
+        try:
+            process = Gio.Subprocess.new(
+                commands[0],
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
+            )
+        except GLib.Error as exc:
+            log.warning("window size: %s", exc.message)
+            return
+        process.wait_async(None, lambda *_: self._run_in_order(commands[1:]))
 
     # ---- status and undo ------------------------------------------------
 
@@ -336,9 +374,15 @@ class Window(Gtk.ApplicationWindow):
         elif result.applied:
             label = ", ".join(g.label for g in plan.groups if g.id not in result.skipped)
             self.show_status(strings.HISTORY_UNDONE.format(label=label))
+        self._refresh_page()
+        if "network" in result.applied:  # undo only starts the connection
+            GLib.timeout_add_seconds(NETWORK_SETTLE_S, self._refresh_page)
+
+    def _refresh_page(self) -> bool:
         page = self._pages.get(self.current or "")
         if page is not None:
             page.refresh()
+        return False
 
     # ---- keys -----------------------------------------------------------
 
@@ -361,6 +405,8 @@ class Window(Gtk.ApplicationWindow):
             self.sidebar.focus_search()
             return True
         if letter == "Z":
+            if focus is not None and isinstance(focus.get_parent(), (Gtk.Entry, Gtk.SearchEntry)):
+                return False  # a text field undoes its own typing
             self.undo_last()
             return True
         if keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab):

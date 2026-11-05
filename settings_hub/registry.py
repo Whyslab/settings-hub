@@ -39,7 +39,7 @@ class PageInfo:
         return ICON_DIR / self.icon
 
 
-GROUP_ORDER = ("general", "display", "keyboard", "system")
+GROUP_ORDER = ("display", "keyboard", "general", "system")  # the order of PAGES below
 
 PAGES: tuple[PageInfo, ...] = (
     PageInfo("screen-sleep", "display", "screen-sleep.svg", "#007aff"),

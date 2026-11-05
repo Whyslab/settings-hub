@@ -18,9 +18,13 @@ The interface is in Russian; all user-facing text lives in
 
 ## Status
 
-Version 1 is being built step by step. Done so far: the **framework** and the
-pages **Screen and sleep**, **Wallpaper and theme**, **Animations** and
-**Binds**. The framework:
+Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
+and theme**, **Animations**, **Binds**, **Windows and look**, **Keyboard and
+mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
+and brightness**, **Modes** and **History**. Values on Windows and look and
+Keyboard and mouse apply at once (`hyprctl eval`) and persist in
+`~/.config/hypr/settings-hub-vars.lua`; persistence needs a Lua config (Hyprland
+0.57+). The framework:
 
 - the resident application, the window (sidebar with search and coloured
   icons, rounded groups of rows), light and dark looks, keyboard control;

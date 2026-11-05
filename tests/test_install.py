@@ -305,3 +305,26 @@ def test_uninstall_warns_about_a_line_of_the_users_own(sb):
     sb.install()
     assert "loads settings-hub.lua by its own line" in sb.uninstall("--purge").stdout
 
+
+
+def test_uninstall_forgets_the_variables_with_their_file(sb):
+    """The values must not all come back at the first edit after a reinstall."""
+    sb.install()
+    state = sb.path(".local/state/settings-hub")
+    (state / "hyprvars.json").write_text('{"general:gaps_in": 9}\n')
+    (state / "hyprvars-base.json").write_text('{"general:gaps_in": 4}\n')
+    (state / "history.jsonl").write_text("{}\n")
+    sb.uninstall("--dry-run")
+    assert (state / "hyprvars.json").exists()
+    sb.uninstall()
+    assert sorted(p.name for p in sb.files()) == ["history.jsonl"]
+    sb.uninstall("--purge")
+
+
+def test_purge_also_removes_the_windows_settings(sb):
+    sb.install()
+    settings = sb.path(".config/settings-hub/settings.json")
+    settings.parent.mkdir(parents=True)
+    settings.write_text("{}\n")
+    sb.uninstall("--purge")
+    assert not settings.parent.exists()

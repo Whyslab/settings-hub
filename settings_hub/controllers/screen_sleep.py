@@ -194,7 +194,8 @@ def label_for(path: str) -> str:
 
 class Controller:
     def __init__(self, backend: ss_backend.Backend, history, view: View,
-                 timers: Timers | None = None) -> None:
+                 timers: Timers | None = None, settings=None) -> None:
+        self.settings = settings  # the General page's delays; None = the defaults
         self.backend = backend
         self.history = history
         self.view = view
@@ -213,13 +214,22 @@ class Controller:
         backend.on_applied.append(self._on_applied)
         backend.on_external.append(self._on_external)
 
+    def _delay(self, key: str, default: float) -> float:
+        """A delay from the General page, read at each use so a change applies at once."""
+        return default if self.settings is None else self.settings.get(key)
+
+    def _refresh_ms(self) -> int:
+        if self.settings is None:
+            return REFRESH_MS
+        return self.settings.get("behavior.refresh_s") * 1000
+
     # ---- re-reading -------------------------------------------------------
 
     def may_overwrite(self, key: str) -> bool:
         if key in self.pending or self.view.focused(key):
             return False
         last = self.touched.get(key)
-        return last is None or self.timers.now() - last >= GUARD_S
+        return last is None or self.timers.now() - last >= self._delay("behavior.guard_s", GUARD_S)
 
     def refresh(self) -> None:
         """Re-read config.json (now) and the running state (on a worker)."""
@@ -257,14 +267,14 @@ class Controller:
         self.timers.cancel(self._refresh_timer)
         self._refresh_timer = None
         if visible:
-            self._refresh_timer = self.timers.after(REFRESH_MS, self._tick)
+            self._refresh_timer = self.timers.after(self._refresh_ms(), self._tick)
 
     def _tick(self) -> None:
         self._refresh_timer = None
         if not self._visible:
             return
         self.refresh()
-        self._refresh_timer = self.timers.after(REFRESH_MS, self._tick)
+        self._refresh_timer = self.timers.after(self._refresh_ms(), self._tick)
 
     def _on_external(self, keys: set[str]) -> None:
         """History changed these keys: show them even if touched a moment ago."""
@@ -304,7 +314,8 @@ class Controller:
         if key.startswith("idle."):
             self._show_order()
         self.timers.cancel(self._debounce)
-        self._debounce = self.timers.after(DEBOUNCE_MS, self.flush)
+        self._debounce = self.timers.after(self._delay("behavior.apply_delay_ms", DEBOUNCE_MS),
+                                           self.flush)
 
     def flush(self) -> None:
         """Write the debounced changes now (as one group)."""
@@ -442,9 +453,11 @@ class Controller:
         self._mark(TEMP_KEY, value)
         self.view.show(TEMP_KEY, value)  # the slider is there already; the label follows
         self.timers.cancel(self._temp_timer)
-        self._temp_timer = self.timers.after(TEMP_LIVE_MS, self._apply_live)
+        self._temp_timer = self.timers.after(self._delay("behavior.night_slider_ms", TEMP_LIVE_MS),
+                                             self._apply_live)
         self.timers.cancel(self._still_timer)
-        self._still_timer = self.timers.after(SERIES_STILL_MS, self.slider_done)
+        self._still_timer = self.timers.after(
+            self._delay("behavior.series_still_ms", SERIES_STILL_MS), self.slider_done)
 
     def _apply_live(self) -> None:
         self._temp_timer = None

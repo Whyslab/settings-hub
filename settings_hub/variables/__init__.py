@@ -5,9 +5,9 @@ plus its text in strings.py (labels live there; this file has none). A Var is
 also the contract with the Hyprland backend:
 
     option  hyprctl's own name, "general:gaps_in"; the same path is used for
-            `hyprctl getoption` (reading the live value) and `hyprctl keyword`
-            (changing it), and it maps to the nested Lua config table:
-            "input:touchpad:natural_scroll" -> input.touchpad.natural_scroll
+            `hyprctl getoption` (reading the live value), and it maps to the
+            nested Lua config table used to change it (`hyprctl eval`):
+            "input:touchpad:tap-to-click" -> input.touchpad.tap_to_click
     kind    int | float | bool | choice | str; choice values are strings and
             the backend turns them back into the option's own type
     lo/hi/step  the bounds the spin button offers
@@ -54,7 +54,8 @@ class Var:
         """Where the value goes in an hl.config table, e.g. ("general", "gaps_in")."""
         path: list[str] = []
         for part in self.option.split(":"):
-            path.extend(part.split("."))
+            # Lua names use "_" where the old option name has "-" (tap-to-click).
+            path.extend(part.replace("-", "_").split("."))
         return tuple(path)
 
     def stored(self, value: Any) -> Any:

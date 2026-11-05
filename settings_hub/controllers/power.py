@@ -79,17 +79,44 @@ class Controller:
     def _brightness_applied(self, result, error: BaseException | None) -> None:
         if error is not None:
             self.view.status(strings.POWER_APPLY_FAILED.format(error=error))
+        elif result is not None and not result[0]:
+            self.view.status(strings.POWER_APPLY_FAILED.format(error=result[1]))
 
     def commit_brightness(self) -> None:
+        """The slider rested: log what is really in use, after the queued moves."""
         before = self._brightness_before
-        after = self._brightness_last
+        last = self._brightness_last
         self._brightness_before = self._brightness_last = None
-        self.pending.discard(pw.BRIGHTNESS_KEY)
-        if before is None or after is None or before == after:
+        if before is None or last is None:
+            self.pending.discard(pw.BRIGHTNESS_KEY)
             return
-        self.history.record([(BACKEND, pw.BRIGHTNESS_KEY, label(pw.BRIGHTNESS_KEY),
-                              before, after)])
-        self.view.status(strings.POWER_APPLIED.format(name=label(pw.BRIGHTNESS_KEY)))
+        if self.info is not None:
+            self.info.brightness = last  # a drag starting right now starts from here
+
+        def job() -> tuple[int, Any]:
+            return before, self.backend.read([pw.BRIGHTNESS_KEY]).get(pw.BRIGHTNESS_KEY)
+
+        self.backend.workers.submit(pw.WORKER, job, self._brightness_committed, key="commit")
+
+    def _brightness_committed(self, result, error: BaseException | None) -> None:
+        if self._brightness_before is None:  # no new series has started meanwhile
+            self.pending.discard(pw.BRIGHTNESS_KEY)
+        if error is not None or result is None:
+            self.view.status(strings.POWER_APPLY_FAILED.format(error=error))
+            return
+        before, actual = result
+        if actual is None:
+            if self.info is not None and self._brightness_before is None:
+                self.info.brightness = before  # not known: the last known
+            return
+        if self.info is not None:
+            self.info.brightness = actual  # the next series starts from this
+        if self._brightness_before is None:
+            self.view.show_brightness(actual)
+        if actual != before:
+            self.history.record([(BACKEND, pw.BRIGHTNESS_KEY, label(pw.BRIGHTNESS_KEY),
+                                  before, actual)])
+            self.view.status(strings.POWER_APPLIED.format(name=label(pw.BRIGHTNESS_KEY)))
 
     def _done(self, result, error: BaseException | None) -> None:
         if error is not None or result is None:

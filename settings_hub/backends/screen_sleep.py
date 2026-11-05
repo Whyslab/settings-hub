@@ -309,6 +309,8 @@ class Backend:
 class ConfigApplier:
     """History backend "screen-sleep": fields of config.json."""
 
+    queued = True  # apply() only queues the write; a read right after sees the old file
+
     def __init__(self, backend: Backend) -> None:
         self.backend = backend
 
@@ -349,6 +351,8 @@ class NightApplier:
 
 class CaffeineApplier:
     """History backend "caffeine": the stay-awake switch."""
+
+    queued = True  # like ConfigApplier: a read right after apply() is too early
 
     def __init__(self, backend: Backend) -> None:
         self.backend = backend

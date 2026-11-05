@@ -2,7 +2,7 @@
 # uninstall.sh - remove settings-hub: exactly what install.sh recorded.
 #
 #   settings-hub-uninstall                 undo the live install, keep history
-#   settings-hub-uninstall --purge         also remove history and logs
+#   settings-hub-uninstall --purge         also remove history, logs and the window's settings
 #   settings-hub-uninstall --dry-run       print every action, change nothing
 #   ./uninstall.sh --prefix DIR [--purge]  undo a sandbox install (never calls
 #                                          hyprctl or gdbus)
@@ -58,10 +58,26 @@ dry() { [ "$DRY" -eq 1 ]; }
 would() { printf '   would %s\n' "$*"; }
 inside() { case $1 in "$ROOT"/*) return 0 ;; *) return 1 ;; esac; }
 
+# settings-hub-vars.lua goes with the manifest; its values must not come back
+# all at once at the first edit after a reinstall.
+forget_vars() {
+    for f in "$STATE_DIR/hyprvars.json" "$STATE_DIR/hyprvars-base.json" \
+             "$STATE_DIR"/hyprvars*.bad-*; do
+        [ -e "$f" ] || continue
+        if dry; then would "remove $f"; else rm -f -- "$f"; fi
+    done
+}
+
 purge_state() {
-    if [ "$PURGE" -eq 1 ] && [ -d "$STATE_DIR" ]; then
+    [ "$PURGE" -eq 1 ] || return 0
+    if [ -d "$STATE_DIR" ]; then
         if dry; then would "remove $STATE_DIR"; else rm -rf -- "$STATE_DIR"; fi
         ok "history and logs removed"
+    fi
+    settings_dir=$PREFIX${XDG_CONFIG_HOME:-$HOME/.config}/settings-hub
+    if [ -d "$settings_dir" ]; then
+        if dry; then would "remove $settings_dir"; else rm -rf -- "$settings_dir"; fi
+        ok "the window's settings removed"
     fi
 }
 
@@ -197,11 +213,13 @@ done
 dirs=$(grep "^dir$TAB" "$MANIFEST" | cut -f 2 | sort -r -u) || true
 if dry; then
     would "remove $MANIFEST and the directories install.sh created, if empty"
+    forget_vars
     purge_state
     say "Dry run finished: nothing was changed"
     exit 0
 fi
 rm -f -- "$MANIFEST"
+forget_vars
 purge_state
 printf '%s\n' "$dirs" | while IFS= read -r d; do
     if [ -n "$d" ] && inside "$d" && [ -d "$d" ]; then

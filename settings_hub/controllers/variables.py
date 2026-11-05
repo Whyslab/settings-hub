@@ -1,9 +1,9 @@
 """Page logic for the desktop variables. No GTK.
 
 The page builds a control per variable and forwards edits here. A change is
-one user action: read the live value, write it with `hyprctl keyword` (the
-backend also remembers it and rewrites the Lua file), read it back, log it in
-History as one group, and show the value Hyprland really uses.
+one user action: read the live value, change it in the session (the backend
+also remembers it and rewrites the Lua file), read it back, log it in History as
+one group, and show the value Hyprland really uses.
 
 Re-reading the whole page happens on a worker: it is one `hyprctl getoption`
 per variable and must never run on the GTK thread. A key with a queued change
@@ -67,17 +67,27 @@ class Controller:
         var = get_var(option)
         if var is None:
             raise KeyError(option)
-        if option in self.pending and self.values.get(option) == value:
+        if var.kind == "str" and option not in self.values:
+            self.view.status(strings.VAR_NOT_READ)  # the field has not shown the live value
+            return
+        if option == "input:kb_layout" and not str(value).strip():
+            self.view.status(strings.VAR_EMPTY_LAYOUT)  # no way to type otherwise
+            self.view.show_values({option: self.values[option]})
+            return
+        # Nothing to do when the value is the one in use. A queued change is the
+        # exception: going back to the old value has to overtake it.
+        if option not in self.pending and option in self.values \
+                and self.values[option] == value:
             return
         self.pending.add(option)
 
-        def job() -> tuple[str, Any, hypr.ApplyResult]:
+        def job() -> tuple[str, Any, Any, hypr.ApplyResult]:
             try:
                 before = self.backend.read_one(option)
             except (RuntimeError, ValueError) as exc:
                 log.warning("reading %s before a change: %s", option, exc)
                 before = self.values.get(option)
-            return option, before, self.backend.apply_now({option: value})
+            return option, value, before, self.backend.apply_now({option: value})
 
         self.backend.workers.submit(hypr.WORKER, job, self._applied, key=option)
 
@@ -89,16 +99,22 @@ class Controller:
         if result is None:
             self._finish()
             return
-        option, before, applied = result
+        option, asked, before, applied = result
         self.pending.discard(option)
         if not applied.ok:
             self.view.status(strings.VAR_APPLY_FAILED.format(error=applied.message))
+            if option in self.values:  # the field must not show what is not in use
+                self.view.show_values({option: self.values[option]})
             return
         after = applied.values.get(option, self.values.get(option))
         self.values[option] = after
-        self.history.record([(hypr.BACKEND, option, label(option), before, after)])
+        if not hypr.same(before, after):
+            self.history.record([(hypr.BACKEND, option, label(option), before, after)])
         self.view.show_values({option: after})
-        self.view.status(strings.VAR_APPLIED.format(name=label(option)))
+        if hypr.same(after, asked):
+            self.view.status(strings.VAR_APPLIED.format(name=label(option)))
+        else:
+            self.view.status(strings.VAR_NOT_TAKEN.format(name=label(option), value=after))
 
     def _finish(self) -> None:
         self.pending.clear()
@@ -115,9 +131,17 @@ class Controller:
 
         def job() -> tuple[list[str], dict[str, Any], dict[str, Any], bool, str]:
             before = self.backend.read(options)
-            self.backend.clear(options)
-            ok, message = self.backend.reload()
-            after = self.backend.read(options)
+            if not self.backend.remembers(options):
+                return options, before, before, True, ""  # nothing to forget
+            with self.backend.lock:  # an undo or a mode must not slip in between
+                saved = self.backend.snapshot()
+                cleared = self.backend.clear(options)
+                ok, message = self.backend.reload()
+                if not ok:  # the session keeps the values, so the files must too
+                    self.backend.restore(saved)
+                else:
+                    ok, message = self.backend.set_cursor(cleared.values)
+            after = self.backend.read(options)  # outside: an undo waits less
             return options, before, after, ok, message
 
         self.backend.workers.submit(hypr.WORKER, job, self._reset_done, key="reset")
@@ -133,10 +157,11 @@ class Controller:
             self.view.status(strings.VAR_APPLY_FAILED.format(error=message))
         self.values.update({o: v for o, v in after.items() if v is not None})
         self.view.show_values(after)
-        self.history.record([
-            (hypr.BACKEND, option, label(option), before.get(option), after.get(option))
-            for option in options
-        ])
+        items = [(hypr.BACKEND, option, label(option), before[option], after[option])
+                 for option in options
+                 if option in before and option in after and before[option] != after[option]]
+        if items:
+            self.history.record(items)
         if ok:
             self.view.status(strings.VAR_RESET_DONE)
 

@@ -18,6 +18,8 @@ class View(Protocol):
 
     def status(self, text: str) -> None: ...
 
+    def refresh_later(self, seconds: int) -> None: ...
+
 
 def label(key: str) -> str:
     return {
@@ -86,5 +88,9 @@ class Controller:
             self.view.status(strings.NET_APPLY_FAILED.format(error=message))
         else:
             self.history.record([(BACKEND, key, label(key), before, value)])
-            self.view.status(strings.NET_APPLIED.format(name=label(key)))
+            if message == net.STILL_CONNECTING:  # undo works; the page looks again later
+                self.view.status(strings.NET_STILL_CONNECTING.format(name=value))
+                self.view.refresh_later(net.SETTLE_S)
+            else:
+                self.view.status(strings.NET_APPLIED.format(name=label(key)))
         self.refresh()

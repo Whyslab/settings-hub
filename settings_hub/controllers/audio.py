@@ -7,6 +7,7 @@ Device and mute changes are logged immediately, one item each.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any, Protocol
 
 from .. import strings
@@ -46,6 +47,7 @@ class Controller:
         self.pending: set[str] = set()
         self._volume_before: dict[str, int] = {}  # kind -> percent before the drag
         self._volume_last: dict[str, int] = {}  # kind -> percent last applied
+        self._volume_device: dict[str, str] = {}  # kind -> the device being moved
 
     # ---- reading ---------------------------------------------------------
 
@@ -109,11 +111,13 @@ class Controller:
         """Apply at once; the History entry comes from commit_volume()."""
         if self.audio is None:
             return
-        name = self.audio.default(kind)
+        # The default may change under a drag: the series stays on its device.
+        name = self._volume_device.get(kind) or self.audio.default(kind)
         if not name:
             return
         percent = max(0, min(150, int(percent)))
         if kind not in self._volume_before:
+            self._volume_device[kind] = name
             device = self._device(kind, name)
             self._volume_before[kind] = device.volume if device else percent
         self._volume_last[kind] = percent
@@ -128,21 +132,54 @@ class Controller:
     def _volume_applied(self, result, error: BaseException | None) -> None:
         if error is not None:
             self.view.status(strings.AUDIO_APPLY_FAILED.format(error=error))
+        elif result is not None and not result[0]:
+            self.view.status(strings.AUDIO_APPLY_FAILED.format(error=result[1]))
 
     def commit_volume(self, kind: str) -> None:
-        """The slider rested: log the series as one History item."""
+        """The slider rested: log what is really in use as one History item."""
         before = self._volume_before.pop(kind, None)
         after = self._volume_last.pop(kind, None)
-        if before is None or after is None or before == after or self.audio is None:
-            return
-        name = self.audio.default(kind)
-        if not name:
+        name = self._volume_device.pop(kind, "")
+        if before is None or after is None or self.audio is None or not name:
             return
         key = aud.key_volume(kind, name)
-        self.history.record([(BACKEND, key, label(key), before, after)])
-        self.pending.discard(key)
-        self.view.status(strings.AUDIO_APPLIED.format(
-            name=strings.AUDIO_VOLUME_DONE.format(percent=after)))
+        self._remember_volume(kind, name, after)  # a drag starting now starts from here
+
+        def job() -> tuple[str, str, str, int, Any]:  # queued after the moves
+            return kind, name, key, before, self.backend.read([key]).get(key)
+
+        self.backend.workers.submit(aud.WORKER, job, self._volume_committed,
+                                    key=("commit", key))
+
+    def _remember_volume(self, kind: str, name: str, percent: int) -> None:
+        if self.audio is None:
+            return
+        devices = self.audio.devices(kind)
+        for index, device in enumerate(devices):
+            if device.name == name:
+                devices[index] = replace(device, volume=percent)
+
+    def _volume_committed(self, result, error: BaseException | None) -> None:
+        if error is not None or result is None:
+            if not self._volume_device:  # no drag going on now
+                self.pending.clear()
+            self.view.status(strings.AUDIO_APPLY_FAILED.format(error=error))
+            return
+        kind, name, key, before, actual = result
+        dragging = self._volume_device.get(kind) == name  # a new drag on this device
+        if not dragging:
+            self.pending.discard(key)
+        if actual is None:
+            self._remember_volume(kind, name, before)  # not known: the last known
+            return
+        self._remember_volume(kind, name, actual)
+        shown = self.audio is not None and self.audio.default(kind) == name
+        if shown and kind not in self._volume_before:
+            self.view.show_volume(kind, actual)
+        if actual != before:
+            self.history.record([(BACKEND, key, label(key), before, actual)])
+            self.view.status(strings.AUDIO_APPLIED.format(
+                name=strings.AUDIO_VOLUME_DONE.format(percent=actual)))
 
     def _device(self, kind: str, name: str) -> aud.Device | None:
         if self.audio is None:

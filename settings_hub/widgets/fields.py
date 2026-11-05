@@ -148,11 +148,16 @@ class EntryControl(Control):
         self.entry.set_width_chars(18)
         self.entry.set_placeholder_text(self.var.default or "")
         self.entry.set_valign(Gtk.Align.CENTER)
-        self.entry.connect("activate", lambda *_: self._changed())
-        focus = Gtk.EventControllerFocus()
-        focus.connect("leave", lambda *_: self._changed())
-        self.entry.add_controller(focus)
+        # Enter only: leaving the field or the window must not apply half-typed
+        # text (a wrong keyboard layout is hard to undo by typing).
+        self.entry.connect("activate", lambda *_: self._entered())
         return self.entry
+
+    def _entered(self) -> None:
+        root = self.entry.get_root()
+        if root is not None:
+            root.set_focus(None)  # applied: Ctrl+Z now undoes it, not the typing
+        self._changed()  # after: a refused value must be able to put the field back
 
     def _show(self, value: Any) -> None:
         self.entry.set_text("" if value is None else str(value))

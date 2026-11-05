@@ -591,3 +591,35 @@ def test_isolation_catches_absolute_programs(world):
         world.ss.idle.subprocess.run(["/usr/bin/true"])
     assert "HYPRLAND_INSTANCE_SIGNATURE" not in os.environ
     assert str(world.ss.idle.HYPRIDLE_CONF).startswith(str(world.root))
+
+
+def test_undoing_a_mode_brings_the_night_schedule_back(world):
+    """The config write is queued: read at once, the old value looked unchanged."""
+    from settings_hub.controllers import modes as mode_ctl
+
+    class Other:  # hypr and power; only the screen-sleep part is under test
+        def read(self, keys):
+            return {}
+
+        def apply(self, values):
+            pass
+
+    class Quiet:
+        def show_active(self, _active):
+            pass
+
+        def status(self, _text):
+            pass
+
+    world.history.register("hypr", Other())
+    world.history.register("power", Other())
+    cfg = world.cfg()
+    cfg["night"]["manual_override"] = True
+    world.write_cfg(cfg)
+    world.loop.pump()
+    c = mode_ctl.Controller(world.history, world.loop.workers, Quiet())
+    c.apply("game")
+    world.loop.pump()
+    logged = [(e.key, e.before, e.after) for g in world.history.groups() for e in g.entries]
+    assert ("night.manual_override", True, False) in logged
+    assert world.cfg()["night"]["manual_override"] is False

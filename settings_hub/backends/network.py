@@ -19,6 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import strings
 from ..workers import Workers
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,10 @@ WIFI_RADIO = "wifi.radio"
 BLUETOOTH_POWER = "bluetooth.power"
 WIFI_CONNECTION = "wifi.connection"
 TIMEOUT_S = 10
+CONNECT_WAIT_S = 8  # shorter than TIMEOUT_S, so nmcli itself says it timed out
+NMCLI_TIMED_OUT = 3  # man nmcli: "Timeout expired"
+STILL_CONNECTING = "still connecting"  # connect(): started, the result comes later
+SETTLE_S = 10  # when the page looks again after a slow connection
 
 Result = tuple[int, str, str]
 Runner = Callable[[list[str]], Result]
@@ -195,8 +200,29 @@ class Backend:
     def set_bluetooth(self, enabled: bool) -> tuple[bool, str]:
         return self._ok(["bluetoothctl", "power", "on" if enabled else "off"])
 
-    def connect(self, name: str) -> tuple[bool, str]:
-        return self._ok(["nmcli", "connection", "up", name])
+    def connect(self, name: str, wait: bool = True) -> tuple[bool, str]:
+        """wait=False: History runs on the GTK thread and must not stop the window.
+
+        It only starts the connection: a wrong password shows on the page later.
+        """
+        if not wait:
+            return self._ok(["nmcli", "-w", "0", "connection", "up", name])
+        if not shutil.which("nmcli"):
+            return False, "nmcli not found"
+        code, out, err = self.run(["nmcli", "-w", str(CONNECT_WAIT_S), "connection", "up", name])
+        if code == NMCLI_TIMED_OUT:  # it carries on connecting without us
+            return True, STILL_CONNECTING
+        text = (out + err).strip()
+        return code == 0, "" if code == 0 else (text or f"exit {code}")
+
+    def disconnect_active(self) -> tuple[bool, str]:
+        """Undo a connection made from no connection at all."""
+        active = self.read([WIFI_CONNECTION]).get(WIFI_CONNECTION)
+        if active is None:
+            return False, strings.NET_NOT_READ
+        if not active:
+            return True, ""
+        return self._ok(["nmcli", "-w", "0", "connection", "down", active])
 
     def _ok(self, argv: list[str]) -> tuple[bool, str]:
         if not shutil.which(argv[0]):
@@ -208,17 +234,23 @@ class Backend:
     # ---- History's view --------------------------------------------------
 
     def read(self, keys: list[str]) -> dict[str, Any]:
-        info = probe(self.run)
+        """Only what is asked: listing the visible networks takes seconds."""
         out: dict[str, Any] = {}
-        for key in keys:
-            if key == WIFI_RADIO and info.wifi_on is not None:
-                out[key] = info.wifi_on
-            elif key == BLUETOOTH_POWER and info.bluetooth_on is not None:
-                out[key] = info.bluetooth_on
-            elif key == WIFI_CONNECTION:
-                active = next((s.name for s in info.saved if s.active), "")
-                if active:
-                    out[key] = active
+        if WIFI_RADIO in keys and shutil.which("nmcli"):
+            code, text, _err = self.run(["nmcli", "radio", "wifi"])
+            if code == 0:
+                out[WIFI_RADIO] = text.strip() == "enabled"
+        if WIFI_CONNECTION in keys and shutil.which("nmcli"):
+            code, text, _err = self.run(["nmcli", "-t", "-f", "NAME,TYPE,ACTIVE",
+                                         "connection", "show"])
+            if code == 0:  # "" is a real answer: connected to nothing
+                out[WIFI_CONNECTION] = next((s.name for s in parse_saved(text) if s.active), "")
+        if BLUETOOTH_POWER in keys and shutil.which("bluetoothctl"):
+            code, text, _err = self.run(["bluetoothctl", "show"])
+            if code == 0:
+                for line in text.splitlines():
+                    if line.strip().lower().startswith("powered:"):
+                        out[BLUETOOTH_POWER] = line.split(":", 1)[1].strip().lower() == "yes"
         return out
 
     def apply(self, values: dict[str, Any]) -> None:
@@ -229,7 +261,10 @@ class Backend:
             elif key == BLUETOOTH_POWER:
                 ok, message = self.set_bluetooth(bool(value))
             elif key == WIFI_CONNECTION:
-                ok, message = self.connect(str(value))
+                if value:
+                    ok, message = self.connect(str(value), wait=False)
+                else:
+                    ok, message = self.disconnect_active()
             else:
                 continue
             if not ok:

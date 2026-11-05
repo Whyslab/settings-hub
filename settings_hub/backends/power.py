@@ -147,17 +147,22 @@ def probe(run: Runner | None = None) -> Power:
     if code == 0:
         info.profile = out.strip()
     info.profiles = _profiles(run)
+    info.brightness, info.brightness_max = _brightness(run)
+    return info
+
+
+def _brightness(run: Runner) -> tuple[int | None, int | None]:
+    """Brightness in percent and its maximum; None when they cannot be read."""
     code, out, _err = run(["brightnessctl", "get"])
     code_max, out_max, _err_max = run(["brightnessctl", "max"])
     try:
         current = int(out.strip()) if code == 0 else None
         maximum = int(out_max.strip()) if code_max == 0 else None
     except ValueError:
-        current = maximum = None
-    if current is not None and maximum:
-        info.brightness = int(round(current / maximum * 100))
-        info.brightness_max = maximum
-    return info
+        return None, None
+    if current is None or not maximum:
+        return None, None
+    return int(round(current / maximum * 100)), maximum
 
 
 class Backend:
@@ -187,13 +192,16 @@ class Backend:
     # ---- History's view --------------------------------------------------
 
     def read(self, keys: list[str]) -> dict[str, Any]:
-        info = probe(self.run)
+        """Only what is asked: History reads on the GTK thread."""
         out: dict[str, Any] = {}
-        for key in keys:
-            value = {PROFILE_KEY: info.profile,
-                     BRIGHTNESS_KEY: info.brightness}.get(key)
-            if value not in (None, ""):
-                out[key] = value
+        if PROFILE_KEY in keys:
+            code, text, _err = self.run(["powerprofilesctl", "get"])
+            if code == 0 and text.strip():
+                out[PROFILE_KEY] = text.strip()
+        if BRIGHTNESS_KEY in keys:
+            percent, _maximum = _brightness(self.run)
+            if percent is not None:
+                out[BRIGHTNESS_KEY] = percent
         return out
 
     def apply(self, values: dict[str, Any]) -> None:

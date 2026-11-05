@@ -38,10 +38,8 @@ def test_icon_colour_matches_registry():
 def test_groups_in_sidebar_order():
     groups = registry.grouped()
     assert [g for g, _ in groups] == list(registry.GROUP_ORDER)
-    flat = [p.id for _, ps in groups for p in ps]
-    assert sorted(flat) == sorted(p.id for p in registry.PAGES)
-    for group, pages in groups:
-        assert pages == [p for p in registry.PAGES if p.group == group]
+    # The sidebar lists PAGES as they are: a group must not be split or moved.
+    assert [p.id for _, ps in groups for p in ps] == [p.id for p in registry.PAGES]
 
 
 def test_export_pages_json(tmp_path):

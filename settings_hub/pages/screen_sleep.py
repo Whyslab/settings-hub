@@ -89,7 +89,8 @@ class ScreenSleepPage(Page):
             self._build_profile(profile)
         self._build_night()
 
-        self.controller = ctl.Controller(backend, self.ctx.history, self)
+        self.controller = ctl.Controller(backend, self.ctx.history, self,
+                                         settings=self.ctx.settings)
         self.widget.connect("map", lambda *_: self.controller.set_visible(True))
         self.widget.connect("unmap", lambda *_: self._hidden())
         self.refresh()

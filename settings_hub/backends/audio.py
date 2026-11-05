@@ -48,6 +48,7 @@ class Device:
     description: str
     volume: int  # percent, the loudest channel
     mute: bool
+    monitor: bool = False  # a source that repeats what a sink plays, not a microphone
 
 
 @dataclass
@@ -62,6 +63,13 @@ class Audio:
 
     def default(self, kind: str) -> str:
         return self.default_sink if kind == "sink" else self.default_source
+
+
+def is_monitor(item: dict) -> bool:
+    """A source that only repeats what a sink plays: not a microphone."""
+    properties = item.get("properties") or {}
+    return (properties.get("device.class") == "monitor"
+            or str(item.get("name", "")).endswith(".monitor"))
 
 
 def parse_devices(text: str) -> list[Device]:
@@ -88,6 +96,7 @@ def parse_devices(text: str) -> list[Device]:
             description=str(item.get("description") or item["name"]),
             volume=max(percents) if percents else 0,
             mute=bool(item.get("mute")),
+            monitor=is_monitor(item),
         ))
     return out
 
@@ -116,15 +125,15 @@ class Backend:
         for kind in KINDS:
             code, out, _err = self.run(["pactl", "-f", "json", "list", f"{kind}s"])
             devices = parse_devices(out) if code == 0 else []
-            if kind == "sink":
-                audio.sinks = devices
-            else:
-                audio.sources = devices
             code, out, _err = self.run(["pactl", f"get-default-{kind}"])
             default = out.strip() if code == 0 else ""
             if kind == "sink":
+                audio.sinks = devices
                 audio.default_sink = default
             else:
+                # Monitors are not offered, except one already in use: it has to
+                # be seen, and a real microphone has to be selectable instead.
+                audio.sources = [d for d in devices if not d.monitor or d.name == default]
                 audio.default_source = default
         return audio
 

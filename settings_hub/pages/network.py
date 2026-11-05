@@ -5,7 +5,7 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from .. import strings  # noqa: E402
 from ..backends import network as net  # noqa: E402
@@ -47,6 +47,7 @@ class NetworkPage(Page):
             strings.NET_BLUETOOTH, strings.NET_BLUETOOTH_HINT, suffix=self.bt_switch,
             row_id="bluetooth.power"))
         self.bt_group = bluetooth
+        self._bt_rows: list[Row] = []
 
         tailscale = self.add_group(Group(strings.NET_TAILSCALE_GROUP))
         self.tailscale_label = Gtk.Label(label="")
@@ -65,8 +66,21 @@ class NetworkPage(Page):
     # ---- signals --------------------------------------------------------
 
     def _on_wifi(self, switch: Gtk.Switch, _pspec) -> None:
-        if not self._quiet:
-            self.controller.set_wifi(switch.get_active())
+        if self._quiet:
+            return
+        if switch.get_active():
+            self.controller.set_wifi(True)
+            return
+
+        def keep_on() -> None:
+            self._quiet = True
+            switch.set_active(True)
+            self._quiet = False
+            self.refresh()  # the radio may have changed while the question was up
+
+        # It can be the only link, and Tailscale goes with it.
+        self.confirm(strings.NET_WIFI_OFF_ASK, strings.NET_WIFI_OFF_DETAIL,
+                     strings.NET_WIFI_OFF_OK, lambda: self.controller.set_wifi(False), keep_on)
 
     def _on_bluetooth(self, switch: Gtk.Switch, _pspec) -> None:
         if not self._quiet:
@@ -100,17 +114,21 @@ class NetworkPage(Page):
         if not info.saved:
             self.rows["wifi.saved"] = self.saved_group.add(
                 Row(strings.NET_SAVED_EMPTY, row_id="wifi.saved"))
-        for saved in info.saved:
+        for index, saved in enumerate(info.saved):
             button = Gtk.Button(label=strings.NET_CONNECT)
             button.set_sensitive(not saved.active and bool(info.wifi_on))
             button.connect("clicked", lambda *_a, name=saved.name:
                            self.controller.connect(name))
             subtitle = strings.NET_SAVED_ACTIVE if saved.active else strings.NET_SAVED_OFF
-            self.saved_group.add(Row(saved.name, subtitle, suffix=button,
-                                     row_id=f"saved.{saved.name}"))
+            row = self.saved_group.add(Row(saved.name, subtitle, suffix=button,
+                                           row_id=f"saved.{saved.name}"))
+            if index == 0:  # what a search result for saved networks scrolls to
+                self.rows["wifi.saved"] = row
 
         self.visible_group.clear()
-        for wifi in [w for w in info.wifi if not w.in_use][:8]:
+        visible = [w for w in info.wifi if not w.in_use][:8]
+        self.visible_group.set_visible(bool(visible))
+        for wifi in visible:
             name = wifi.ssid if wifi.security and wifi.security != "--" else (
                 wifi.ssid + strings.NET_OPEN_SUFFIX)
             self.visible_group.add(Row(
@@ -118,20 +136,28 @@ class NetworkPage(Page):
                 strings.NET_VISIBLE_DETAIL.format(signal=wifi.signal,
                                                   security=wifi.security or "—")))
 
-        self.bt_group.clear()
-        self.bt_group.add(Row(strings.NET_BLUETOOTH, strings.NET_BLUETOOTH_HINT,
-                              suffix=self.bt_switch, row_id="bluetooth.power"))
+        # Only the device rows change; the row with the switch stays where it is.
+        for row in self._bt_rows:
+            self.bt_group.list.remove(row)
         if info.bluetooth:
-            for device in info.bluetooth:
-                self.bt_group.add(Row(device.name, strings.NET_BT_CONNECTED,
-                                      row_id=f"bt.{device.name}"))
+            self._bt_rows = [self.bt_group.add(Row(device.name, strings.NET_BT_CONNECTED,
+                                                   row_id=f"bt.{device.name}"))
+                             for device in info.bluetooth]
         else:
-            self.bt_group.add(Row(strings.NET_BT_NONE, row_id="bluetooth.none"))
+            self._bt_rows = [self.bt_group.add(Row(strings.NET_BT_NONE,
+                                                   row_id="bluetooth.none"))]
 
         state = info.tailscale_state or strings.NET_UNKNOWN
         names = ", ".join(info.tailscale_names) or strings.NET_NO_IP
         self.tailscale_label.set_label(strings.NET_TAILSCALE_STATE.format(
             state=(state or "—"), addresses=names))
+
+    def refresh_later(self, seconds: int) -> None:
+        def again() -> bool:
+            self.refresh()
+            return False
+
+        GLib.timeout_add_seconds(seconds, again)
 
     def status(self, text: str) -> None:
         self.ctx.status(text)

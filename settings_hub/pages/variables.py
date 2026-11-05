@@ -61,10 +61,11 @@ class VariablesPage(Page):
 
         reset = self.add_group(Group())
         button = Gtk.Button(label=strings.VAR_RESET_BUTTON)
-        button.connect("clicked", lambda *_: self.controller.reset(self.page_options))
-        reset.add(Row(strings.VAR_RESET, strings.VAR_RESET_HINT, suffix=button,
-                      row_id="reset"))
-        self.rows["reset"] = reset
+        button.connect("clicked", lambda *_: self.confirm(
+            strings.VAR_RESET, strings.VAR_RESET_ASK, strings.VAR_RESET_BUTTON,
+            lambda: self.controller.reset(self.page_options)))
+        self.rows["reset"] = reset.add(Row(strings.VAR_RESET, strings.VAR_RESET_HINT,
+                                           suffix=button, row_id="reset"))
 
         self.controller = ctl.Controller(backend, self.ctx.history, self)
         self.refresh()
@@ -77,10 +78,16 @@ class VariablesPage(Page):
     # ---- the controller's view -----------------------------------------
 
     def show_values(self, values: dict[str, Any]) -> None:
+        root = self.widget.get_root()
+        focus = root.get_focus() if root is not None else None
         for option, value in values.items():
             control = self.controls.get(option)
-            if control is not None:
-                control.set(value)
+            if control is None:
+                continue
+            if (isinstance(control, fields.EntryControl) and focus is not None
+                    and (focus is control.entry or focus.is_ancestor(control.entry))):
+                continue  # being typed in: a refresh must not take the text away
+            control.set(value)
 
     def status(self, text: str) -> None:
         self.ctx.status(text)

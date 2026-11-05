@@ -62,10 +62,10 @@ class GeneralPage(Page):
 
         reset = self.add_group(Group())
         button = Gtk.Button(label=strings.HUB_RESET_BUTTON)
-        button.connect("clicked", lambda *_: self._reset())
-        reset.add(Row(strings.HUB_RESET, strings.HUB_RESET_HINT, suffix=button,
-                      row_id="reset"))
-        self.rows["reset"] = reset
+        button.connect("clicked", lambda *_: self.confirm(
+            strings.HUB_RESET, strings.HUB_RESET_HINT, strings.HUB_RESET_BUTTON, self._reset))
+        self.rows["reset"] = reset.add(Row(strings.HUB_RESET, strings.HUB_RESET_HINT,
+                                           suffix=button, row_id="reset"))
         self.refresh()
 
     # ---- page protocol --------------------------------------------------

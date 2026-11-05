@@ -51,7 +51,7 @@ class Controller:
                             current[(backend, key)] = values[key]
             return current
 
-        self.workers.submit(WORKER, job, self._read_done)
+        self.workers.submit(WORKER, job, self._read_done, key="refresh")
 
     def _read_done(self, current: dict[tuple[str, str], Any] | None,
                    error: BaseException | None) -> None:
@@ -72,6 +72,7 @@ class Controller:
         def job() -> tuple[str, dict[str, dict[str, Any]], dict[str, dict[str, Any]],
                            list[str]]:
             before: dict[str, dict[str, Any]] = {}
+            after: dict[str, dict[str, Any]] = {}
             wanted: dict[str, dict[str, Any]] = {}
             failed: set[str] = set()
             errors: list[str] = []
@@ -94,24 +95,37 @@ class Controller:
                 applier = self.history.applier(backend)
                 try:
                     applier.apply(values)
+                    # What is in use (a backlight rounds); a queued write is not
+                    # done yet, so it counts as asked.
+                    after[backend] = dict(values)
+                    if not getattr(applier, "queued", False):
+                        try:
+                            after[backend].update(applier.read(list(values)))
+                        except Exception as exc:
+                            log.warning("reading %s after a mode: %s", backend, exc)
                 except Exception as exc:
                     errors.append(f"{backend}: {exc}")
-            return mode_id, before, wanted, errors
+                    # It may have done a part of it: ask what is in use.
+                    try:
+                        after[backend] = applier.read(list(values))
+                    except Exception:
+                        after[backend] = {}
+            return mode_id, before, after, errors
 
-        self.workers.submit(WORKER, job, self._applied)
+        self.workers.submit(WORKER, job, self._applied, key="apply")
 
     def _applied(self, result, error: BaseException | None) -> None:
         self.pending = False
         if error is not None or result is None:
             self.view.status(strings.MODE_FAILED.format(error=error))
             return
-        mode_id, before, wanted, errors = result
+        mode_id, before, after, errors = result
         mode = hub_modes.BY_ID[mode_id]
         items = []
-        for backend, values in wanted.items():
+        for backend, values in after.items():
             for key, value in values.items():
                 was = before.get(backend, {}).get(key)
-                if was == value:
+                if was is None or was == value:  # nothing to take back
                     continue
                 items.append((backend, key, hub_modes.label_for(backend, key),
                               was, value))

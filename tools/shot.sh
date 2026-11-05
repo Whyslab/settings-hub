@@ -76,6 +76,7 @@ python3 -B -c 'import json, sys; sys.path.insert(0, sys.argv[1]); \
 from settings_hub import variables; \
 print(json.dumps({v.option: v.default for v in variables.VARS}))' "$ROOT" >"$tmp/vars.json"
 cat >"$stubs/hyprctl" <<'PY'
+#!/usr/bin/env python3
 import json, sys
 from pathlib import Path
 tmp = Path(__file__).resolve().parent.parent
@@ -90,6 +91,8 @@ if args[:1] == ["getoption"]:
             "float" if isinstance(value, float) else
             "int" if isinstance(value, int) else "str")
     print(json.dumps({"option": option, kind: value, "set": True}))
+elif args[:1] == ["eval"]:
+    print("ok")
 elif args[:2] == ["binds", "-j"]:
     print((tmp / "binds.json").read_text())
 elif args[:1] == ["submap"]:

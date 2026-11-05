@@ -105,7 +105,6 @@ FIELDS: tuple[Field, ...] = (
     Field("behavior.night_slider_ms", "int", 120, lo=30, hi=600, step=10),
     Field("behavior.series_still_ms", "int", 600, lo=200, hi=2000, step=50),
     Field("behavior.guard_s", "int", 10, lo=2, hi=60, step=1),
-    Field("behavior.thumb_width", "int", 480, lo=160, hi=1024, step=16),
     Field("behavior.search_limit", "int", 20, lo=5, hi=50, step=5),
 )
 

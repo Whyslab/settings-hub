@@ -62,14 +62,16 @@ class KindGroup:
 
     def show(self, devices: list[aud.Device], default: str) -> None:
         names = [d.name for d in devices]
-        if names != self.names:
-            self.names = names
-            self.dropdown.set_model(Gtk.StringList.new(
-                [d.description for d in devices] or [strings.AUDIO_NO_DEVICES]))
-            self.dropdown.set_sensitive(bool(devices))
         index = names.index(default) if default in names else -1
+        # All of it quiet: a new model selects its first item and notifies, and
+        # that must not look like a person choosing a device.
         self._quiet = True
         try:
+            if names != self.names:
+                self.names = names
+                self.dropdown.set_model(Gtk.StringList.new(
+                    [d.description for d in devices] or [strings.AUDIO_NO_DEVICES]))
+                self.dropdown.set_sensitive(bool(devices))
             self.dropdown.set_selected(max(0, index))
             device = devices[index] if 0 <= index < len(devices) else None
             if device is not None:
