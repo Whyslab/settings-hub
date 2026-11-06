@@ -44,6 +44,7 @@ GROUP_ORDER = ("display", "keyboard", "general", "system")  # the order of PAGES
 PAGES: tuple[PageInfo, ...] = (
     PageInfo("screen-sleep", "display", "screen-sleep.svg", "#007aff"),
     PageInfo("wallpaper", "display", "wallpaper.svg", "#32ade6"),
+    PageInfo("themes", "display", "themes.svg", "#ff375f"),
     PageInfo("animations", "display", "animations.svg", "#af52de"),
     PageInfo("binds", "keyboard", "binds.svg", "#8e8e93"),
     PageInfo("game-binds", "keyboard", "game-binds.svg", "#ff3b30"),

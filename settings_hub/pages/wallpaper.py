@@ -1,4 +1,6 @@
-"""The "Wallpaper and theme" page: target, picture grid, random wallpapers, theme.
+"""The "Wallpaper" page: target, picture grid, random wallpapers.
+
+Colour themes (and "colours from the wallpaper") have their own page, "Themes".
 
 Only widgets live here; controllers.wallpaper.Controller decides what to run,
 and this page is its view. Thumbnails are decoded on a worker thread (scaled
@@ -149,13 +151,6 @@ class WallpaperPage(Page):
                 self.rows["random"] = row
             self.random_switches[target] = switch
 
-        group = self._add(Group(strings.WP_THEME_GROUP, strings.WP_THEME_NOTE))
-        box, self.theme_buttons = segmented(strings.WP_THEME_MODES, self._on_theme)
-        self.theme_box = box
-        self.theme_row = group.add(Row(strings.WP_THEME_ROW, strings.SS_UNKNOWN, suffix=box,
-                                       row_id="theme"))
-        self.rows["theme"] = self.theme_row
-
         self.controller = ctl.Controller(backend, self.ctx.history, self)
         with self._quiet():
             self.target_buttons[self.controller.target].set_active(True)
@@ -190,10 +185,6 @@ class WallpaperPage(Page):
     def _on_random(self, target: str, switch: Gtk.Switch) -> None:
         if not self._quiet_depth:
             self.controller.random_toggled(target, switch.get_active())
-
-    def _on_theme(self, mode: str) -> None:
-        if not self._quiet_depth:
-            self.controller.theme_chosen(mode)
 
     def _open_picker(self) -> None:
         try:
@@ -270,19 +261,6 @@ class WallpaperPage(Page):
     def show_random(self, target: str, enabled: bool) -> None:
         with self._quiet():
             self.random_switches[target].set_active(enabled)
-
-    def show_theme(self, available: bool, mode: str | None) -> None:
-        self.theme_box.set_sensitive(available)
-        if not available:
-            hint = strings.WP_THEME_MISSING
-        elif mode is None:
-            hint = strings.WP_THEME_UNKNOWN
-        else:
-            hint = strings.WP_THEME_HINTS[mode]
-            with self._quiet():
-                self.theme_buttons[mode].set_active(True)
-        self.theme_row.subtitle_label.set_label(hint)
-        self.theme_row.subtitle_label.set_visible(True)
 
     def status(self, text: str) -> None:
         self.ctx.status(text)

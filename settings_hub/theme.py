@@ -7,7 +7,11 @@
 3. base.css uses only literal colours and its own --sh-* variables, never named
    @colors: a gtk.css full of @define-color would otherwise leak in through the
    built-in theme.
-4. Light/dark follows Gtk.Settings:gtk-interface-color-scheme (base.css has
+4. The colour theme chosen on the Themes page (wallpaper-theme) writes
+   ~/.local/state/wallpaper-theme/settings-hub.css: --sh-* values for the dark
+   look only. It is loaded above base.css and re-read whenever it changes, so
+   the window recolours itself while open. An empty file changes nothing.
+5. Light/dark follows Gtk.Settings:gtk-interface-color-scheme (base.css has
    @media (prefers-color-scheme: dark)). If the platform does not say, the
    GNOME color-scheme setting is used. A forced scheme (for screenshots) wins.
 """
@@ -15,6 +19,8 @@
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 
 import gi
 
@@ -29,6 +35,12 @@ log = logging.getLogger(__name__)
 THEME = "Default"
 CSS_PATH = registry.ROOT / "style" / "base.css"
 PRIORITY = Gtk.STYLE_PROVIDER_PRIORITY_USER + 100
+
+
+def palette_css_path() -> Path:
+    env = os.environ.get("SETTINGS_HUB_THEME_CSS")
+    return Path(env) if env else (
+        Path.home() / ".local" / "state" / "wallpaper-theme" / "settings-hub.css")
 
 SCHEMES = {
     "light": Gtk.InterfaceColorScheme.LIGHT,
@@ -58,6 +70,19 @@ class Theme:
                                     GObject.BindingFlags.SYNC_CREATE)
         Gtk.StyleContext.add_provider_for_display(display, self.provider, PRIORITY)
 
+        self.palette_path = palette_css_path()
+        self.palette = Gtk.CssProvider()
+        self.palette.connect("parsing-error", self._on_css_error)
+        self.settings.bind_property("gtk-interface-color-scheme", self.palette,
+                                    "prefers-color-scheme",
+                                    GObject.BindingFlags.SYNC_CREATE)
+        self._load_palette()
+        Gtk.StyleContext.add_provider_for_display(display, self.palette, PRIORITY + 1)
+        # The theme command replaces the file (rename): watch the folder's entry.
+        self._monitor = Gio.File.new_for_path(str(self.palette_path)).monitor_file(
+            Gio.FileMonitorFlags.WATCH_MOVES, None)
+        self._monitor.connect("changed", lambda *_: self._load_palette())
+
         if self._forced is not None:
             self._set_scheme(self._forced)
             self.settings.connect("notify::gtk-interface-color-scheme",
@@ -65,6 +90,13 @@ class Theme:
         elif self.settings.get_property("gtk-interface-color-scheme") in (
                 Gtk.InterfaceColorScheme.DEFAULT, Gtk.InterfaceColorScheme.UNSUPPORTED):
             self._follow_gnome()
+
+    def _load_palette(self) -> None:
+        try:
+            text = self.palette_path.read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        self.palette.load_from_string(text)
 
     def _keep_theme(self) -> None:
         if self.settings.get_property("gtk-theme-name") != THEME:

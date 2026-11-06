@@ -35,6 +35,7 @@ from .backends import (  # noqa: E402
     network,
     power,
     screen_sleep,
+    themes,
     wallpaper,
 )
 from .history import History  # noqa: E402
@@ -134,6 +135,8 @@ class App(Gtk.Application):
         screen_sleep.register(history, backends[screen_sleep.BACKEND])
         backends[wallpaper.BACKEND] = backends[wallpaper.THEME] = wallpaper.Backend(self.workers)
         wallpaper.register(history, backends[wallpaper.BACKEND])
+        backends[themes.BACKEND] = themes.Backend(self.workers)
+        themes.register(history, backends[themes.BACKEND])
         # The animations module itself is loaded on first use (page or undo).
         backends[animations.BACKEND] = animations.Backend(self.workers)
         animations.register(history, backends[animations.BACKEND])

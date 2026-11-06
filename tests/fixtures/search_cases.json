@@ -101,8 +101,13 @@
     },
     {
       "query": "яркий",
-      "page": "wallpaper",
-      "row": "theme"
+      "page": "themes",
+      "row": "system"
+    },
+    {
+      "query": "надоела",
+      "page": "themes",
+      "row": "random"
     },
     {
       "query": "экран входа",

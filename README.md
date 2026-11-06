@@ -81,12 +81,12 @@ checks this table against them, and the GUI test checks the page builds each):
 | 5 | Moving the slider switches to manual mode | `night.slider` `night.schedule` |
 | 6 | hyprsunset / hypridle / daemon checks; warning when steps are not in ascending order | `status.hyprsunset` `status.hypridle` `status.daemon` `status.power` `idle.ac.order-warning` `idle.battery.order-warning` |
 
-## Wallpaper and theme
+## Wallpaper
 
 Only the existing command-line tools are called (on worker threads):
 `~/.config/hypr/scripts/wallpaper.sh set <desktop|lock|sddm|all> FILE`,
-`wallpaper.sh random <target> on|off`, `wallpaper.sh pick` (the old rofi grid),
-`wallpaper-theme mode off|vivid|tinted` and `wallpaper-theme status`. What is on
+`wallpaper.sh random <target> on|off`, `wallpaper.sh pick` (the old rofi grid).
+What is on
 each target is read from `~/.local/state/hypr-wallpaper/<target>.path` and
 `random.conf`.
 
@@ -95,11 +95,33 @@ each target is read from `~/.local/state/hypr-wallpaper/<target>.path` and
 - Thumbnails share the rofi picker's cache `~/.cache/wallpaper-thumbs` (same
   key, `sha1(path|mtime)[:16]`, 480 px); missing ones are made by `magick` on a
   worker, and decoded off the GTK thread.
-- Random wallpapers per target; the wallpaper-driven theme off / vivid / tinted.
-- History: `wallpaper.<target>` (a path), `random.<target>`, `theme.mode`.
+- Random wallpapers per target. (The wallpaper-driven theme moved to the Themes
+  page; old `theme.mode` History entries still undo.)
+- History: `wallpaper.<target>` (a path), `random.<target>`.
   Choosing a picture also logs random mode it switched off, in the same group.
   Undo restores the picture first, then random mode. Restoring "random on"
   makes the script show a new random picture: that is what random mode does.
+
+
+## Themes
+
+The whole system's colour theme in one click, plus per-program themes. All the
+work is done by `wallpaper-theme` (the wallpaper-theme project); the page calls
+`themes --json`, `state --json`, `theme <id>`, `target <program> <id|system>`,
+`wallpapers on|off`, `random`, `custom-save`, `custom-delete`, `walls`, `walls-set`.
+
+- Theme cards (Monochrome Vivid, Catppuccin Mocha, Nord, Gruvbox, Dracula, Rosé
+  Pine, Everforest, Tokyo Night, One Dark, own themes, two wallpaper-driven
+  ones), previews drawn from each palette; a "random theme" button.
+- "Change wallpapers with the theme": a theme puts its own pictures on the
+  desktop, lock and login screens, and random wallpapers come from them too.
+  Pictures from the library can be added to any theme.
+- Per program: panel, rofi, this window, kitty, window borders, GTK apps, lock
+  screen -- "as the system" or any theme.
+- Own themes from three colours (accent, background, text).
+- The window reads `~/.local/state/wallpaper-theme/settings-hub.css` (dark look
+  only) and recolours itself while open.
+- History: `theme.system`, `theme.target.<program>`, `theme.wallpapers`.
 
 ## Animations
 

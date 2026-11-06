@@ -44,18 +44,17 @@ def test_wallpaper_and_animations_pages(tmp_path, monkeypatch, xvfb):  # noqa: F
         world.close()
     labels = load_json("labels_ru.json")
     # Wallpaper.
-    assert {"target", "grid", "rofi", "random", "theme"} <= set(r["wp_rows"])
+    assert {"target", "grid", "rofi", "random"} <= set(r["wp_rows"])
+    assert "theme" not in r["wp_rows"]  # moved to the Themes page
     assert r["wp_tiles"] == ["amber.jpg", "blue-dusk.jpg", "forest.png", "graphite.webp",
                              "plasma.jpg"]
     assert r["wp_textures"] is True and r["wp_thumbs"] == 5
     assert r["wp_marked"] == ["amber.jpg"] and r["wp_marked_lock"] == ["forest.png"]
-    assert r["wp_theme_active"] == ["vivid"]
     lib = world.library
     assert r["wp_set_calls"] == [f"wallpaper.sh set lock {lib / 'graphite.webp'}"]
     assert r["wp_marked_after"] == ["graphite.webp"]
     assert r["wp_groups"] == [["wallpaper.lock"]]
-    assert r["wp_group_count"] == 3  # picture, random, theme
-    assert r["wp_theme_hint_after"] != r["wp_theme_hint"]
+    assert r["wp_group_count"] == 2  # picture, random
     # Animations.
     assert {"presets", "open", "close", "workspaces", "layers"} <= set(r["an_rows"])
     assert labels["preset_dissolve"] in r["an_tiles"]

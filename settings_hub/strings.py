@@ -58,10 +58,9 @@ PAGES = {
         },
     },
     "wallpaper": {
-        "title": "Обои и тема",
+        "title": "Обои",
         "keywords": [
-            "обои", "фон", "картинка", "тема", "цвета", "яркий",
-            "приглушённый", "sddm", "блокировка",
+            "обои", "фон", "картинка", "sddm", "блокировка",
         ],
         "rows": {
             "target": ("Куда ставить", [
@@ -70,10 +69,6 @@ PAGES = {
             "grid": ("Картинки", ["картинка", "фон", "миниатюры", "выбрать обои"]),
             "rofi": ("Открыть сетку rofi", ["rofi", "сетка", "пикер"]),
             "random": ("Случайные обои", ["случайные", "случайно", "перемешать", "каждый вход"]),
-            "theme": ("Интерфейс под обои", [
-                "тема", "цвета", "яркий", "приглушённый", "оттенок", "wallpaper-theme",
-                "панель", "перекрасить",
-            ]),
         },
     },
     "animations": {
@@ -144,6 +139,7 @@ BACKENDS = {
     "network": "Сеть",
     "power": "Питание",
     "game-binds": "Игровые бинды",
+    "themes": "Темы",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -265,19 +261,6 @@ WP_RANDOM_TARGETS = {
 }
 WP_RANDOM_NOTE = ("Новая картинка при каждом входе в систему, у блокировки — при каждой "
                   "блокировке. Включение сразу ставит случайную картинку.")
-WP_THEME_GROUP = WP_ROWS["theme"][0]
-WP_THEME_ROW = "Цвета интерфейса"
-# Mode ids are wallpaper-theme's: off, vivid, tinted.
-WP_THEME_MODES = {"off": "Выключен", "vivid": "Яркий", "tinted": "Приглушённый"}
-WP_THEME_HINTS = {
-    "off": "Обычная тема Monochrome Vivid",
-    "vivid": "Цвета берутся из обоев",
-    "tinted": "Чёрно-белое с оттенком обоев",
-}
-WP_THEME_UNKNOWN = "Не удалось узнать режим"
-WP_THEME_MISSING = "wallpaper-theme не установлен"
-WP_THEME_NOTE = ("Панель перекрасится за несколько секунд, rofi — при следующем открытии, "
-                 "программы на GTK — после перезапуска.")
 WP_SETUP_GROUP = "Обои"
 WP_SETUP_MISSING = "Не найден скрипт обоев"
 WP_SETUP_MISSING_HINT = "Ожидается {path}"
@@ -289,10 +272,92 @@ WP_APPLYING = "Ставлю обои…"
 WP_SET_DONE = "{target}: {name}"
 WP_RANDOM_ON = "Случайные обои включены: {target}"
 WP_RANDOM_OFF = "Случайные обои выключены: {target}"
-WP_THEME_APPLYING = "Перекрашиваю интерфейс…"
-WP_THEME_DONE = "Интерфейс под обои: {mode}"
 WP_FAILED = "Не удалось: {error}"
 WP_THUMBS = "Готовлю миниатюры: {n}"
+
+# ---- Themes page -------------------------------------------------------------
+# Theme ids and names (Catppuccin, Nord...) come from wallpaper-theme itself.
+
+PAGES["themes"] = {
+    "title": "Темы",
+    "keywords": [
+        "тема", "темы", "оформление", "цвета", "перекрасить", "вид", "внешний вид",
+        "catppuccin", "nord", "gruvbox", "dracula", "rose pine", "everforest",
+        "tokyo night", "one dark", "monochrome", "под обои", "яркий", "приглушённый",
+    ],
+    "rows": {
+        "system": ("Тема системы", [
+            "тема", "перекрасить всё", "одна кнопка", "сменить тему", "под обои", "яркий",
+            "приглушённый", "интерфейс под обои",
+        ]),
+        "random": ("Случайная тема", ["случайная", "надоела", "другая тема"]),
+        "walls": ("Менять обои вместе с темой", ["обои", "фон", "вместе"]),
+        "theme-walls": ("Обои темы", ["обои темы", "картинки темы", "выбрать обои"]),
+        "targets": ("Отдельно для программ", [
+            "отдельно", "панель", "hyprpanel", "rofi", "kitty", "терминал", "рамки",
+            "gtk", "блокировка", "своя тема программы",
+        ]),
+        "custom": ("Своя тема", ["своя", "создать тему", "цвет", "акцент"]),
+    },
+}
+TH_ROWS = PAGES["themes"]["rows"]
+TH_SYSTEM_GROUP = TH_ROWS["system"][0]
+TH_SYSTEM_NOTE = ("Одно нажатие — и перекрашивается всё: панель, rofi, Настройки, kitty, "
+                  "рамки окон, программы GTK и экран блокировки. Панель обновится за "
+                  "несколько секунд, rofi — при следующем открытии, программы GTK — после "
+                  "перезапуска.")
+TH_RANDOM = TH_ROWS["random"][0]
+TH_RANDOM_HINT = "Любая другая тема из списка"
+TH_RANDOM_BUTTON = "Сменить"
+TH_FROM_WALLPAPER = "из обоев"
+TH_WALLS_GROUP = "Обои"
+TH_WALLS = TH_ROWS["walls"][0]
+TH_WALLS_HINT = ("Тема ставит свои обои на рабочий стол, блокировку и экран входа. "
+                 "Случайные обои при входе — тоже только из обоев темы.")
+TH_THEME_WALLS = TH_ROWS["theme-walls"][0]
+TH_THEME_WALLS_HINT = "{n} из набора темы · {m} своих отмечено"
+TH_THEME_WALLS_NONE = "У этой темы обоев нет — обои не меняются"
+TH_THEME_WALLS_EDIT = "Выбрать свои"
+TH_THEME_WALLS_DONE = "Готово"
+TH_THEME_WALLS_NOTE = ("Нажми на картинку из своей библиотеки, чтобы добавить её к теме "
+                       "или убрать.")
+TH_TARGETS_GROUP = TH_ROWS["targets"][0]
+TH_TARGETS_NOTE = "«Как у системы» — программа следует теме системы."
+TH_TARGETS = {
+    "panel": "Панель",
+    "rofi": "Меню rofi",
+    "settings": "Настройки",
+    "kitty": "Терминал kitty",
+    "borders": "Рамки окон",
+    "gtk": "Программы GTK",
+    "lock": "Экран блокировки",
+}
+TH_AS_SYSTEM = "Как у системы"
+TH_CUSTOM_GROUP = TH_ROWS["custom"][0]
+TH_CUSTOM_NOTE = ("Выбери три цвета: акцент (кнопки, выделение), фон и текст. Остальные "
+                  "оттенки получатся сами. Новая тема появится среди карточек.")
+TH_CUSTOM_NAME = "Название"
+TH_CUSTOM_NAME_HINT = "Например: Моя синяя"
+TH_CUSTOM_ACCENT = "Акцент"
+TH_CUSTOM_BG = "Фон"
+TH_CUSTOM_FG = "Текст"
+TH_CUSTOM_SAVE = "Сохранить тему"
+TH_CUSTOM_DELETE = "Удалить"
+TH_CUSTOM_NO_NAME = "Сначала дай теме название"
+TH_CUSTOM_SAVED = "Тема «{name}» сохранена"
+TH_CUSTOM_DELETED = "Тема «{name}» удалена"
+TH_MISSING = "wallpaper-theme не установлен"
+TH_MISSING_HINT = "Ожидается {path}. Установить: ~/Projects/wallpaper-theme/install.sh"
+TH_APPLYING = "Меняю тему…"
+TH_DONE = "Тема: {name}"
+TH_TARGET_DONE = "{target}: {name}"
+TH_WALLS_ON = "Обои меняются вместе с темой"
+TH_WALLS_OFF = "Обои больше не меняются вместе с темой"
+TH_PARTLY = "Тема сменилась, но: {error}"
+TH_FAILED = "Не удалось: {error}"
+TH_LABEL_SYSTEM = "Тема системы"
+TH_LABEL_WALLS = "Обои вместе с темой"
+TH_LABEL_TARGET = "Тема: {target}"
 
 # ---- Animations page -------------------------------------------------------
 # Category, variant, speed and preset names come from rofi-launcher's own

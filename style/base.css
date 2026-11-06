@@ -325,6 +325,18 @@ button.flat {
   border-color: transparent;
 }
 
+button.destructive-action {
+  color: #ff453a;
+}
+
+/* Colour picker button (Themes page): the swatch shows the chosen colour. */
+colorswatch {
+  min-width: 22px;
+  min-height: 16px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--sh-card-border);
+}
+
 switch {
   background-color: var(--sh-switch-off);
   border: none;
@@ -570,6 +582,12 @@ flowbox.sh-tiles > flowboxchild.sh-current .sh-tile-name {
 
 .sh-anim-thumb {
   background-image: linear-gradient(135deg, #5e5ce6, #af52de);
+}
+
+.sh-theme-badge {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .sh-anim-letter {

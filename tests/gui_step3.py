@@ -81,8 +81,6 @@ r["wp_tiles"] = [t.image.name for t in page.tiles]
 r["wp_textures"] = until(lambda: all(t.picture.get_paintable() for t in page.tiles))
 r["wp_thumbs"] = len(list(wallpaper.paths.thumbs.glob("*.jpg")))
 r["wp_marked"] = [t.image.name for t in page.tiles if t.has_css_class("sh-current")]
-r["wp_theme_active"] = [m for m, b in page.theme_buttons.items() if b.get_active()]
-r["wp_theme_hint"] = page.theme_row.subtitle_label.get_label()
 r["wp_random"] = {t: s.get_active() for t, s in page.random_switches.items()}
 
 page.target_buttons["lock"].set_active(True)
@@ -98,11 +96,7 @@ r["wp_groups"] = [[e.key for e in g.entries] for g in history.groups()]
 
 page.random_switches["sddm"].set_active(True)
 until(lambda: "wallpaper.sh random sddm on" in calls())
-spin(0.3)
-page.theme_buttons["tinted"].set_active(True)
-until(lambda: "wallpaper-theme mode tinted" in calls())
 spin(0.5)
-r["wp_theme_hint_after"] = page.theme_row.subtitle_label.get_label()
 r["wp_group_count"] = len(history.groups())
 r["wp_statuses"] = statuses[-3:]
 

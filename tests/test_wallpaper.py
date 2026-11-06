@@ -1,4 +1,6 @@
-"""Wallpaper and theme: backend, page logic and History, isolated (plan section 4).
+"""Wallpaper: backend, page logic and History, isolated (plan section 4).
+
+The old theme mode lives on only as a History backend (the row moved to Themes).
 
 wallpaper.sh, wallpaper-theme and magick are stubs (step3_env.py); no GTK.
 """
@@ -22,7 +24,6 @@ class FakeView:
         self.images = []
         self.current = None
         self.random: dict = {}
-        self.theme = []
         self.thumbs = []
         self.statuses = []
 
@@ -37,9 +38,6 @@ class FakeView:
 
     def show_random(self, target, enabled):
         self.random[target] = enabled
-
-    def show_theme(self, available, mode):
-        self.theme.append((available, mode))
 
     def thumb_ready(self, image, made):
         self.thumbs.append((image.name, made))
@@ -249,20 +247,16 @@ def test_reread_keeps_a_queued_switch(world):
 
 # ---- theme -------------------------------------------------------------------------
 
-def test_theme_mode_calls_wallpaper_theme_and_undo(world):
-    c, view = page(world)
-    assert view.theme[-1] == (True, "off")  # parsed from the real status format
-    c.theme_chosen("vivid")
-    world.loop.pump()
-    assert "wallpaper-theme mode vivid" in world.calls_of("wallpaper-theme")
-    assert view.theme[-1] == (True, "vivid")
-    (group,) = world.history.groups()
-    assert [(e.backend, e.key, e.before, e.after) for e in group.entries] == [
-        ("theme", "theme.mode", "off", "vivid")]
+def test_old_theme_mode_entries_still_undo(world):
+    """The theme row moved to the Themes page; History entries recorded by the
+    old row must still apply through the "theme" backend."""
+    page(world)
+    assert world.wallpaper.theme_mode() == "off"  # parsed from the real status format
+    world.history.record([("theme", "theme.mode", ctl.label_for("theme.mode"), "off", "vivid")])
     world.history.execute(world.history.plan_undo_last())
     world.loop.pump()
     modes = [c for c in world.calls_of("wallpaper-theme") if " mode " in c]
-    assert modes == ["wallpaper-theme mode vivid", "wallpaper-theme mode off"]
+    assert modes == ["wallpaper-theme mode off"]
     assert (world.root / "theme-mode").read_text().strip() == "off"
 
 
@@ -274,11 +268,10 @@ def test_parse_mode():
     assert wp.parse_mode(status.replace("MODE", "rainbow")) is None
 
 
-def test_without_wallpaper_theme_the_row_is_off(tmp_path, monkeypatch):
+def test_without_wallpaper_theme_nothing_calls_it(tmp_path, monkeypatch):
     w = World(tmp_path, monkeypatch, theme=False)
     try:
-        _c, view = page(w)
-        assert view.theme == [(False, None)]
+        page(w)
         assert w.calls_of("wallpaper-theme") == []
         with pytest.raises(RuntimeError):
             w.history.applier("theme").apply({"theme.mode": "vivid"})
@@ -311,7 +304,6 @@ def test_labels_are_russian():
     expected = load_json("labels_ru.json")
     assert strings.PAGES["wallpaper"]["title"] == expected["page_wallpaper"]
     assert set(strings.WP_TARGETS) == {*wp.TARGETS, wp.ALL}
-    assert set(strings.WP_THEME_MODES) == set(wp.MODES)
 
 
 def test_every_searchable_row_is_registered_by_the_page():

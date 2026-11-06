@@ -1,10 +1,11 @@
-"""The "Wallpaper and theme" page logic. No GTK.
+"""The "Wallpaper" page logic. No GTK.
 
 * A picture applies at once to the chosen target (desktop, lock, login screen
   or all three) through wallpaper.sh, on the "wallpaper" worker. What the
   command changed -- the picture, and random mode it switches off -- is read
   back and logged as ONE History group.
-* "Random wallpapers" per target and the theme mode work the same way.
+* "Random wallpapers" per target works the same way. (The theme mode moved to
+  the Themes page; its History entries still undo through backends.wallpaper.)
 * The page re-reads the state files when shown; a re-read never overwrites a
   control whose change is still queued.
 """
@@ -16,7 +17,7 @@ from typing import Any, Protocol
 
 from .. import strings
 from ..backends import wallpaper as wp
-from ..backends.wallpaper import ALL, BACKEND, TARGETS, THEME, THEME_KEY, Change
+from ..backends.wallpaper import ALL, BACKEND, TARGETS, Change
 
 
 class View(Protocol):
@@ -28,8 +29,6 @@ class View(Protocol):
                      random: dict[str, bool]) -> None: ...
 
     def show_random(self, target: str, enabled: bool) -> None: ...
-
-    def show_theme(self, available: bool, mode: str | None) -> None: ...
 
     def thumb_ready(self, image: wp.Image, made: bool) -> None: ...
 
@@ -82,10 +81,6 @@ class Controller:
             if missing:
                 self.view.status(strings.WP_THUMBS.format(n=missing))
         self._show_state()
-        if self.backend.theme_available():
-            self.backend.queue_theme_status(self._theme_read)
-        else:
-            self.view.show_theme(False, None)
 
     def _show_state(self) -> None:
         current, random = self.backend.current(), self.backend.random()
@@ -93,10 +88,6 @@ class Controller:
         for t in TARGETS:
             if wp.random_key(t) not in self.pending:
                 self.view.show_random(t, random[t])
-
-    def _theme_read(self, mode: str | None) -> None:
-        if THEME_KEY not in self.pending:
-            self.view.show_theme(self.backend.theme_available(), mode)
 
     def set_target(self, target: str) -> None:
         if target not in (*TARGETS, ALL):
@@ -117,8 +108,6 @@ class Controller:
                     self.history.record(items)
                 self.view.status(ok_text if change.ok
                                  else strings.WP_FAILED.format(error=change.message))
-            if backend == THEME:
-                self.backend.queue_theme_status(self._theme_read)
             self._show_state()
 
         return done
@@ -141,9 +130,3 @@ class Controller:
         name = strings.WP_RANDOM_TARGETS[target]
         text = (strings.WP_RANDOM_ON if enabled else strings.WP_RANDOM_OFF).format(target=name)
         self.backend.queue_random(target, enabled, self._finish(keys, BACKEND, text))
-
-    def theme_chosen(self, mode: str) -> None:
-        self.pending.add(THEME_KEY)
-        self.view.status(strings.WP_THEME_APPLYING)
-        text = strings.WP_THEME_DONE.format(mode=strings.WP_THEME_MODES[mode].lower())
-        self.backend.queue_theme(mode, self._finish({THEME_KEY}, THEME, text))
