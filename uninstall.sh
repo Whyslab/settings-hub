@@ -58,10 +58,10 @@ dry() { [ "$DRY" -eq 1 ]; }
 would() { printf '   would %s\n' "$*"; }
 inside() { case $1 in "$ROOT"/*) return 0 ;; *) return 1 ;; esac; }
 
-# settings-hub-vars.lua goes with the manifest; its values must not come back
-# all at once at the first edit after a reinstall.
+# settings-hub-vars.lua and settings-hub-games.lua go with the manifest; their values
+# must not come back all at once at the first edit after a reinstall.
 forget_vars() {
-    for f in "$STATE_DIR/hyprvars.json" "$STATE_DIR/hyprvars-base.json" \
+    for f in "$STATE_DIR/hyprvars.json" "$STATE_DIR/hyprvars-base.json" "$STATE_DIR/games.json" \
              "$STATE_DIR"/hyprvars*.bad-*; do
         [ -e "$f" ] || continue
         if dry; then would "remove $f"; else rm -f -- "$f"; fi

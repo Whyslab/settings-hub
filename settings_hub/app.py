@@ -31,6 +31,7 @@ from .backends import (  # noqa: E402
     animations,
     audio,
     binds,
+    game_binds,
     network,
     power,
     screen_sleep,
@@ -113,6 +114,14 @@ class App(Gtk.Application):
         Gtk.Application.do_startup(self)
         directory = state_dir()
         setup_logging(directory)
+        # First, so even a copy whose start failed below can be asked to quit
+        # (install.sh does that before starting the new code).
+        quit_action = Gio.SimpleAction.new("quit", None)
+        quit_action.connect("activate", lambda *_: self.quit())
+        self.add_action(quit_action)
+        open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))
+        open_action.connect("activate", lambda _a, v: self._open(v.get_string()))
+        self.add_action(open_action)
         self.theme = Theme(Gdk.Display.get_default(), self.forced_scheme)
         self.settings = hub_settings.Settings()
         self.theme.set_scheme(str(self.settings.get("appearance.theme")))
@@ -138,6 +147,10 @@ class App(Gtk.Application):
         network.register(history, backends[network.BACKEND])
         backends[power.BACKEND] = power.Backend(self.workers)
         power.register(history, backends[power.BACKEND])
+        backends[game_binds.BACKEND] = game_binds.Backend(self.workers)
+        game_binds.register(history, backends[game_binds.BACKEND])
+        # A reinstall keeps the games file: bring its text up to this version.
+        self.workers.submit(game_binds.WORKER, backends[game_binds.BACKEND].sync)
         # A window that crashed mid-capture may have left Hyprland in the capture
         # submap; leave it (only if we are in it), on the worker, without waiting.
         backends[binds.BACKEND].reset_submap()
@@ -145,12 +158,6 @@ class App(Gtk.Application):
                              settings=self.settings)
         self.settings.subscribe(self._on_setting)
 
-        open_action = Gio.SimpleAction.new("open", GLib.VariantType.new("s"))
-        open_action.connect("activate", lambda _a, v: self.window.open_page(v.get_string()))
-        self.add_action(open_action)
-        quit_action = Gio.SimpleAction.new("quit", None)
-        quit_action.connect("activate", lambda *_: self.quit())
-        self.add_action(quit_action)
         self.hold()
         log.info("started (pid %d)", os.getpid())
 
@@ -184,7 +191,16 @@ class App(Gtk.Application):
         if self.start_hidden:
             self.start_hidden = False
             return
-        self.window.open_page(self.initial_page)
+        self._open(self.initial_page)
+
+    def _open(self, page: str) -> None:
+        if self.window is None:
+            # The start failed (see the log): leave, so the next press of the
+            # hotkey starts a fresh copy instead of asking this one forever.
+            log.error("no window (the start failed); quitting")
+            self.quit()
+            return
+        self.window.open_page(page)
 
     def do_shutdown(self) -> None:
         if self.workers is not None:

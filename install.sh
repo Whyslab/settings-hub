@@ -68,6 +68,7 @@ MANIFEST=$STATE_DIR/install-manifest
 HYPR_CONF=$HYPR_DIR/hyprland.conf
 OWN_CONF=$HYPR_DIR/settings-hub.conf
 OWN_VARS=$HYPR_DIR/settings-hub-vars.lua
+OWN_GAMES=$HYPR_DIR/settings-hub-games.lua
 HYPR_LUA=$HYPR_DIR/hyprland.lua
 OWN_LUA=$HYPR_DIR/settings-hub.lua
 OLD_DESKTOP=$DESKTOP_DIR/screen-sleep.desktop
@@ -177,7 +178,15 @@ else
         >"$STAGE/settings-hub-vars.lua"
     put 644 "$STAGE/settings-hub-vars.lua" "$OWN_VARS"
 fi
-ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua, settings-hub-vars.lua"
+# The "Game binds" page's list, the same way: kept on a reinstall, created once.
+if [ -f "$OWN_GAMES" ]; then
+    record "file$TAB$OWN_GAMES"
+else
+    printf '%s\n' "-- Game binds: off. The Settings window rewrites this file." \
+        >"$STAGE/settings-hub-games.lua"
+    put 644 "$STAGE/settings-hub-games.lua" "$OWN_GAMES"
+fi
+ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua, settings-hub-vars.lua, settings-hub-games.lua"
 
 # The line this install added to FILE earlier, as the old manifest has it.
 previous_line() { # FILE TEXT
@@ -363,6 +372,21 @@ if has_owner; then
         --method org.gtk.Actions.Activate quit '[]' '{}' >/dev/null 2>&1 || true
     i=0
     while has_owner && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
+    # Still there: a copy that hangs or predates the early "quit". End exactly
+    # the process that owns our name, and only if it is our app.py.
+    if has_owner; then
+        pid=$(gdbus call --session --timeout 1 --dest org.freedesktop.DBus \
+            --object-path /org/freedesktop/DBus \
+            --method org.freedesktop.DBus.GetConnectionUnixProcessID "$APP_ID" 2>/dev/null |
+            sed -n 's/.*uint32 \([0-9][0-9]*\).*/\1/p')
+        if [ -n "$pid" ] && tr '\0' ' ' 2>/dev/null <"/proc/$pid/cmdline" |
+            grep -q 'settings-hub/app\.py'; then
+            kill "$pid" 2>/dev/null || true
+            i=0
+            while has_owner && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
+        fi
+        if has_owner; then warn "the old background copy is still running (pid ${pid:-?}); log out and in"; fi
+    fi
 fi
 # Through Hyprland, so it is not a child of this script (exec-once only runs at
 # login). A Lua config takes only hl.dsp.exec_cmd(...), a .conf only `exec`.

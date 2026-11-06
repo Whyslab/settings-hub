@@ -143,6 +143,7 @@ BACKENDS = {
     "audio": "Звук",
     "network": "Сеть",
     "power": "Питание",
+    "game-binds": "Игровые бинды",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1076,3 +1077,58 @@ HISTORY_EXPORT_BUTTON = "Сохранить"
 HISTORY_EXPORTED = "Журнал сохранён: {path} ({count} записей)"
 HISTORY_EXPORT_FAILED = "Не удалось сохранить журнал: {error}"
 HISTORY_NOTHING_LATER = "После этого момента изменений нет"
+
+# ---- Game binds page ---------------------------------------------------------
+
+PAGES["game-binds"] = {
+    "title": "Игровые бинды",
+    "keywords": ["игра", "игры", "дота", "dota", "steam", "бинды", "клавиши",
+                 "сочетания", "отключить", "игровой режим"],
+    "rows": {
+        "enabled": ("Отключать бинды в играх", ["вкл", "включить", "игровой режим"]),
+        "games": ("Игры", ["окно", "класс", "шаблон", "дота", "steam"]),
+        "combos": ("Отключаемые сочетания", ["бинды", "клавиши", "super", "сочетание"]),
+    },
+}
+
+GB_LABEL = "Игровые бинды"
+GB_MODE = "Игровой режим"
+GB_MODE_NOTE = ("Пока окно игры в фокусе, выбранные сочетания достаются игре, а не "
+                "Hyprland. Как только фокус уходит из игры, они снова работают. "
+                "Работает и при закрытом окне настроек.")
+GB_ENABLED = "Отключать бинды в играх"
+GB_GAMES = "Игры"
+GB_GAMES_NOTE = ("Окно считается игрой по своему классу. * — любой текст, ? — один "
+                 "символ: steam_app_* — все игры из Steam.")
+GB_NO_GAMES = "Список пуст — ни одно окно не считается игрой"
+GB_REMOVE = "Убрать"
+GB_FROM_OPEN = "Из открытых окон"
+GB_FROM_OPEN_HINT = "Запустите игру, вернитесь сюда и выберите её окно"
+GB_NO_OPEN = "Нет подходящих окон"
+GB_OWN_PATTERN = "Свой шаблон"
+GB_OWN_PATTERN_PLACEHOLDER = "например, cs2 или *minecraft*"
+GB_ADD = "Добавить"
+GB_COMBOS = "Отключаемые сочетания"
+GB_COMBOS_NOTE = "Сочетание без назначения тоже можно добавить: тогда отключать нечего."
+GB_NO_COMBOS = "Список пуст — в играх ничего не отключается"
+GB_ACTION_NONE = "Сейчас ни на что не назначено"
+GB_ACTION_NO_TEXT = "Назначено (без описания)"
+GB_ADD_COMBO = "Добавить сочетание"
+GB_PRESS = "Нажать сочетание"
+GB_PRESSING = "Нажмите сочетание… (Esc — отмена)"
+GB_NOT_LOADED = ("Hyprland пока не читает этот список: переустановите настройки "
+                 "(install.sh), затем включите снова.")
+GB_DONE_ON = "Игровой режим включён"
+GB_DONE_OFF = "Игровой режим выключен"
+GB_DONE_PATTERN_ADDED = "Добавлена игра: {pattern}"
+GB_DONE_PATTERN_REMOVED = "Убрана игра: {pattern}"
+GB_DONE_COMBO_ADDED = "Добавлено сочетание: {combo}"
+GB_DONE_COMBO_REMOVED = "Убрано сочетание: {combo}"
+GB_PATTERN_EXISTS = "Уже в списке: {pattern}"
+GB_COMBO_EXISTS = "Уже в списке: {combo}"
+GB_BAD_PATTERN = ("Шаблон: латиница, цифры и знаки, не больше 4 символов * и ?")
+GB_BAD_COMBO = "Это не сочетание клавиш"
+GB_FAILED = "Не удалось сохранить: {error}"
+GB_NO_RELOAD = ("Сохранено, но Hyprland не перечитал конфиг ({error}): "
+                "заработает после hyprctl reload")
+GB_FULL = "Список полон"

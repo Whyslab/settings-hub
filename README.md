@@ -19,12 +19,16 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Windows and look**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
 `~/.config/hypr/settings-hub-vars.lua`; persistence needs a Lua config (Hyprland
-0.57+). The framework:
+0.57+). **Game binds** turns chosen key combinations (Super+V, Super+D...) off
+while a game window is focused: Hyprland itself does it from
+`~/.config/hypr/settings-hub-games.lua` (`hl.unbind` on focus, `hyprctl reload
+config-only` when focus leaves), so it works with the window closed; Lua config
+only. The framework:
 
 - the resident application, the window (sidebar with search and coloured
   icons, rounded groups of rows), light and dark looks, keyboard control;

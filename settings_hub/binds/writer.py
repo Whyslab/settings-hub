@@ -116,6 +116,14 @@ pcall(dofile, {vars_file})
 """
 
 
+# Last, after every bind: the "Game binds" page's file turns chosen binds off
+# while a game window is focused (backends/game_binds.py).
+LUA_GAMES = """\
+-- Game binds (the Settings window writes this file); a missing file is fine.
+pcall(dofile, {games_file})
+"""
+
+
 def lua_text(data_home: str, bin_home: str, config_home: str = "") -> str:
     """settings-hub.lua. Paths are shell-quoted inside the commands (exec_cmd
     runs them through sh) and every string is a Lua literal.
@@ -135,7 +143,8 @@ def lua_text(data_home: str, bin_home: str, config_home: str = "") -> str:
         open_any=hypr.lua_str(opener),
         vars_file=hypr.lua_str(os.path.join(config, "hypr", "settings-hub-vars.lua")),
     )
-    return head + LUA_BEGIN + "\n" + LUA_END + "\n"
+    games = hypr.lua_str(os.path.join(config, "hypr", "settings-hub-games.lua"))
+    return (head + LUA_BEGIN + "\n" + LUA_END + "\n" + LUA_GAMES.format(games_file=games))
 
 
 class WriterError(Exception):

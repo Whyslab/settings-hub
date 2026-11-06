@@ -77,6 +77,7 @@ EXPECTED = [
     ".config/hypr/settings-hub.conf",
     ".config/hypr/settings-hub.lua",
     ".config/hypr/settings-hub-vars.lua",
+    ".config/hypr/settings-hub-games.lua",
     ".local/state/settings-hub/install-manifest",
 ]
 
@@ -194,7 +195,9 @@ def test_generated_lua_file(sb):
     # The values changed in the window are loaded last (a missing file is fine).
     assert (f'pcall(dofile, "{sb.home}/.config/hypr/settings-hub-vars.lua")'
             in text)
-    assert text.rstrip().endswith("-- <<< settings-hub binds")
+    # The "Game binds" list comes after every bind (a missing file is fine).
+    assert text.rstrip().endswith(
+        f'pcall(dofile, "{sb.home}/.config/hypr/settings-hub-games.lua")')
     assert str(sb.prefix) not in text
 
 

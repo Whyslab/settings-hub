@@ -14,7 +14,7 @@ def test_ids_unique_and_well_formed():
     ids = [p.id for p in registry.PAGES]
     assert len(ids) == len(set(ids))
     assert all(re.fullmatch(r"[a-z0-9-]+", i) for i in ids)  # settings-open accepts these
-    assert ids == ["screen-sleep", "wallpaper", "animations", "binds", "windows",
+    assert ids == ["screen-sleep", "wallpaper", "animations", "binds", "game-binds", "windows",
                    "input", "general", "system", "sound", "network", "power",
                    "modes", "history"]
 
