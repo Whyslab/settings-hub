@@ -53,6 +53,19 @@ FOCUS_COMMAND = hypr.dual_dispatch(
 CENTER_COMMAND = hypr.dual_dispatch(
     f"hl.dsp.window.center({{ window = {hypr.lua_str(CLASS_MATCH)} }})",
     "centerwindow")  # a .conf centers the active window only
+# The window rule (float, center) is not enough: on the first open after login
+# the window came up tiled or maximized (06.11.2026; the cause is not pinned
+# down, the plugin manager was loading plugins at the time). So after every
+# open the window puts itself back: floating, not maximized or fullscreen.
+# Both are no-ops for a window that is already so.
+FLOAT_COMMAND = hypr.dual_dispatch(
+    f'hl.dsp.window.float({{ action = "set", window = {hypr.lua_str(CLASS_MATCH)} }})',
+    "setfloating", CLASS_MATCH)
+# Lua only: a .conf has no per-window "leave fullscreen", and its dispatcher
+# would hit whatever window is active; there the dispatch just fails.
+UNFULLSCREEN_COMMAND = ["hyprctl", "dispatch",
+                        "hl.dsp.window.fullscreen_state({ internal = 0, client = 0, "
+                        f"window = {hypr.lua_str(CLASS_MATCH)} }})"]
 RESIZE_AFTER_MAP_MS = 60
 NETWORK_SETTLE_S = 6
 
@@ -274,10 +287,14 @@ class Window(Gtk.ApplicationWindow):
             GLib.timeout_add(RESIZE_AFTER_MAP_MS, self._apply_size)
 
     def _apply_size(self) -> bool:
-        """Ask Hyprland for the size the General page names (only if it differs)."""
+        """Floating, not maximized, the size the General page names, centered.
+
+        Always all four: GTK may not know yet that Hyprland tiled or maximized
+        the window, and a window floated back gets a size of Hyprland's choosing.
+        """
         width, height = self._initial_size()
-        if (self.get_width(), self.get_height()) != (width, height):
-            self._run_in_order([resize_command(width, height), CENTER_COMMAND])
+        self._run_in_order([FLOAT_COMMAND, UNFULLSCREEN_COMMAND,
+                            resize_command(width, height), CENTER_COMMAND])
         return False
 
     def _run_in_order(self, commands: list[list[str]]) -> None:
