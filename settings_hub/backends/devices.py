@@ -25,7 +25,9 @@ SYS_HID = Path("/sys/bus/hid/devices")
 TIMEOUT_S = 5
 
 # USB vendor:product (upper case, as in HID_ID) -> name. Plugged in, but the
-# charge cannot be read: HeadsetControl has no support for it (issue #402).
+# charge cannot be read. The G435 does not send it over its dongle at all (no
+# HID++, GET_FEATURE refused, nothing unsolicited: HeadsetControl #336, #402);
+# only over Bluetooth, which then shows up through BlueZ.
 UNREADABLE = {
     ("046D", "0ACB"): "Logitech G435",
 }
