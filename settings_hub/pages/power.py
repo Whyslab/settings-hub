@@ -8,12 +8,14 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk  # noqa: E402
 
 from .. import strings  # noqa: E402
+from ..backends import devices as dev  # noqa: E402
 from ..backends import power as pw  # noqa: E402
 from ..controllers import power as ctl  # noqa: E402
 from ..widgets.rows import Group, Row  # noqa: E402
 from .base import Page  # noqa: E402
 
 BRIGHTNESS_SETTLE_MS = 500
+DEVICES_WORKER = "devices-read"
 
 
 class PowerPage(Page):
@@ -48,6 +50,11 @@ class PowerPage(Page):
         self.rows["battery.ac"] = battery.add(Row(
             strings.POWER_AC, suffix=self.ac_label, row_id="battery.ac"))
 
+        self.devices_group = self.add_group(Group(strings.POWER_DEVICES,
+                                                  note=strings.POWER_DEVICES_NOTE))
+        self.rows["devices"] = self.devices_group.add(Row(
+            strings.POWER_DEVICES_LOOKING, row_id="devices"))
+
         profile = self.add_group(Group(strings.POWER_PROFILE))
         self.profile_dropdown = Gtk.DropDown.new_from_strings(
             [strings.POWER_PROFILES.get(p, p) for p in pw.PROFILES])
@@ -79,6 +86,7 @@ class PowerPage(Page):
 
         self._quiet = False
         self._settle_source = 0
+        self._devices_shown: list[dev.Device] | None = None
         self.controller = ctl.Controller(backend, self.ctx.history, self)
         self.refresh()
 
@@ -86,6 +94,8 @@ class PowerPage(Page):
 
     def refresh(self) -> None:
         self.controller.refresh()
+        self.ctx.workers.submit(DEVICES_WORKER, dev.probe, self._devices_read,
+                                key="probe")
 
     # ---- signals --------------------------------------------------------
 
@@ -147,6 +157,52 @@ class PowerPage(Page):
             self.scale.set_sensitive(info.brightness is not None)
         finally:
             self._quiet = False
+
+    def _devices_read(self, devices, error: BaseException | None) -> None:
+        if error is not None:
+            self.show_devices([])
+            self.status(strings.POWER_READ_FAILED.format(error=error))
+            return
+        self.show_devices(devices or [])
+
+    def show_devices(self, devices: list[dev.Device]) -> None:
+        """One row per device; the first one is the search target "devices"."""
+        if devices == self._devices_shown:
+            return  # unchanged: keep the rows (and a search highlight on them)
+        self._devices_shown = list(devices)
+        # Opened from search a moment ago: the new first row takes over the tint.
+        old = self.rows.get("devices")
+        revealed = old is not None and old.has_css_class("sh-highlight")
+        self.devices_group.clear()
+        rows: list[Row] = []
+        for device in devices:
+            value = Gtk.Label()
+            if device.percent is None:
+                value.set_label(strings.POWER_DEVICE_UNREADABLE)
+                value.add_css_class("sh-dim")
+                hint = (strings.POWER_DEVICE_UNREADABLE_HINT
+                        if device.key.startswith("usb:") and device.kind == "headphones"
+                        else strings.POWER_DEVICE_UNREADABLE_OTHER)
+            else:
+                value.set_label(strings.POWER_PERCENT.format(percent=device.percent))
+                value.add_css_class("sh-value")
+                notes = []
+                if device.charging:
+                    notes.append(strings.POWER_DEVICE_CHARGING)
+                if device.asleep:
+                    notes.append(strings.POWER_DEVICE_ASLEEP)
+                hint = " · ".join(notes) or None
+            kind = strings.POWER_DEVICE_KINDS.get(device.kind)
+            title = f"{kind}: {device.name}" if kind else device.name
+            rows.append(Row(title, hint, suffix=value))
+        if not rows:
+            rows.append(Row(strings.POWER_DEVICES_NONE, strings.POWER_DEVICES_NONE_HINT))
+        for row in rows:
+            self.devices_group.add(row)
+        rows[0].row_id = "devices"
+        self.rows["devices"] = rows[0]
+        if revealed:
+            self.reveal("devices")
 
     def show_brightness(self, percent: int) -> None:
         self._quiet = True

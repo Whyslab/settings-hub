@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,12 +26,13 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import APP_ID, PRGNAME  # noqa: E402
+from . import APP_ID, PRGNAME, strings  # noqa: E402
 from . import settings as hub_settings  # noqa: E402
 from .backends import (  # noqa: E402
     animations,
     audio,
     binds,
+    devices,
     game_binds,
     network,
     power,
@@ -46,6 +48,11 @@ from .window import Window  # noqa: E402
 from .workers import Workers  # noqa: E402
 
 log = logging.getLogger("settings_hub")
+
+BATTERY_CHECK_S = 120  # how often the mouse's and headphones' charge is checked
+BATTERY_FIRST_CHECK_S = 60  # after login: let Bluetooth connect first
+BATTERY_WORKER = "devices-alerts"
+NO_ALERTS_ENV = "SETTINGS_HUB_NO_BATTERY_ALERTS"  # tests set it: no real notifications
 
 
 def state_dir() -> Path:
@@ -160,6 +167,9 @@ class App(Gtk.Application):
         self.window = Window(self, history, self.workers, directory, backends,
                              settings=self.settings)
         self.settings.subscribe(self._on_setting)
+        self.battery_alerts = devices.Alerts()
+        if not os.environ.get(NO_ALERTS_ENV):
+            GLib.timeout_add_seconds(BATTERY_FIRST_CHECK_S, self._first_battery_check)
 
         self.hold()
         log.info("started (pid %d)", os.getpid())
@@ -190,6 +200,27 @@ class App(Gtk.Application):
         elif key == "behavior.search_limit":
             self.window.sidebar.search_limit = int(value)
 
+    # ---- low charge of the mouse and headphones ------------------------
+
+    def _first_battery_check(self) -> bool:
+        self._check_batteries()
+        GLib.timeout_add_seconds(BATTERY_CHECK_S, self._check_batteries)
+        return False
+
+    def _check_batteries(self) -> bool:
+        def job() -> None:
+            for device, level in self.battery_alerts.check(devices.probe()):
+                if not _notify_low(device, level):
+                    self.battery_alerts.forget(device)
+
+        if self.workers is not None:
+            self.workers.submit(BATTERY_WORKER, job, self._battery_checked, key="check")
+        return True  # keep the timer
+
+    def _battery_checked(self, _result, error: BaseException | None) -> None:
+        if error is not None:
+            log.warning("battery check failed: %s", error)
+
     def do_activate(self) -> None:
         if self.start_hidden:
             self.start_hidden = False
@@ -210,6 +241,30 @@ class App(Gtk.Application):
             self.workers.stop_all(timeout=1)
         log.info("stopped")
         Gtk.Application.do_shutdown(self)
+
+
+def _device_name(device: devices.Device) -> str:
+    """ "Мышь PRO X 2": the model name alone may say nothing."""
+    kind = strings.POWER_DEVICE_KINDS.get(device.kind)
+    return f"{kind} {device.name}" if kind else device.name
+
+
+def _notify_low(device: devices.Device, level: int) -> bool:
+    """A desktop notification; runs on a worker thread. True when it was shown."""
+    argv = ["notify-send", "--app-name", strings.APP_TITLE,
+            "--urgency", "critical" if level <= 5 else "normal",
+            "--icon", "battery-caution" if level <= 5 else "battery-low", "--",
+            strings.POWER_LOW_TITLE.format(name=_device_name(device), percent=device.percent),
+            strings.POWER_LOW_BODY.get(level, "")]
+    log.info("low charge: %s %s%%", device.name, device.percent)
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("notify-send failed: %s", exc)
+        return False
+    if done.returncode != 0:
+        log.warning("notify-send failed: %s", done.stderr.strip())
+    return done.returncode == 0
 
 
 def main(argv: list[str]) -> int:

@@ -14,6 +14,8 @@ def _private_home(request, tmp_path_factory, monkeypatch):
     A default path (History(), Settings(), the variables files) then lands in a
     temporary home, not in the person's journal.
     """
+    # No test may send a real "mouse battery low" notification (live ones too).
+    monkeypatch.setenv("SETTINGS_HUB_NO_BATTERY_ALERTS", "1")
     if request.node.get_closest_marker("live"):
         return
     home = tmp_path_factory.mktemp("home")

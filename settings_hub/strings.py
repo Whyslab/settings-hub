@@ -969,6 +969,9 @@ PAGES.update({
             "profile": ("Профиль питания", ["профиль", "производительность",
                                             "экономия", "энергия"]),
             "brightness": ("Яркость", ["яркость", "экран", "подсветка"]),
+            "devices": ("Заряд мыши и наушников", [
+                "мышь", "наушники", "bluetooth", "блютуз", "airpods", "заряд",
+                "батарея", "устройства", "гарнитура"]),
         },
     },
 })
@@ -1006,6 +1009,20 @@ POWER_LABELS = {"power.profile": "Питание: профиль", "power.bright
 POWER_APPLIED = "Применено: {name}"
 POWER_APPLY_FAILED = "Не удалось: {error}"
 POWER_READ_FAILED = "Не удалось прочитать питание: {error}"
+POWER_DEVICES = "Мышь и наушники"
+POWER_DEVICES_NOTE = ("Предупрежу уведомлением, когда заряд опустится до 20% и до 5%. "
+                      "Наушники Bluetooth видны, только пока подключены.")
+POWER_DEVICES_LOOKING = "Ищу устройства…"
+POWER_DEVICES_NONE = "Устройств с батареей не видно"
+POWER_DEVICES_NONE_HINT = "Включите мышь или подключите наушники"
+POWER_DEVICE_KINDS = {"mouse": "Мышь", "headphones": "Наушники", "keyboard": "Клавиатура"}
+POWER_DEVICE_CHARGING = "заряжается"
+POWER_DEVICE_ASLEEP = "спит — последнее значение"
+POWER_DEVICE_UNREADABLE = "не читается"
+POWER_DEVICE_UNREADABLE_HINT = "Linux пока не умеет узнавать заряд этих наушников"
+POWER_DEVICE_UNREADABLE_OTHER = "Устройство не сообщает заряд"
+POWER_LOW_TITLE = "{name}: заряд {percent}%"
+POWER_LOW_BODY = {20: "Пора зарядить.", 5: "Скоро выключится — зарядите сейчас."}
 
 # ---- System page -------------------------------------------------------------
 
