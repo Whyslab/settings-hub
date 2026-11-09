@@ -75,3 +75,14 @@ def test_under_lua_a_failed_lua_form_is_not_retried_in_the_plain_form(tmp_path):
 def test_loads_settings_hub_ignores_comments(text, want):
     assert hypr.loads_settings_hub(text) is want
 
+
+
+def test_window_float_command_is_idempotent():
+    """0.57.1 reads float's unknown action words as "toggle": "set" un-floated
+    the window the rule had floated (09.11.2026). Only "enable" is a no-op."""
+    pytest.importorskip("gi")
+    from settings_hub import window
+
+    lua = window.FLOAT_COMMAND[4]
+    assert 'action = "enable"' in lua
+    assert '"set"' not in lua and '"toggle"' not in lua

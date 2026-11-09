@@ -58,8 +58,11 @@ CENTER_COMMAND = hypr.dual_dispatch(
 # down, the plugin manager was loading plugins at the time). So after every
 # open the window puts itself back: floating, not maximized or fullscreen.
 # Both are no-ops for a window that is already so.
+# "enable", not "set": Hyprland 0.57.1 takes float's unknown action words as
+# "toggle", so "set" un-floated the window the rule had already floated, and on
+# a workspace with a window it came up as a narrow tile (09.11.2026).
 FLOAT_COMMAND = hypr.dual_dispatch(
-    f'hl.dsp.window.float({{ action = "set", window = {hypr.lua_str(CLASS_MATCH)} }})',
+    f'hl.dsp.window.float({{ action = "enable", window = {hypr.lua_str(CLASS_MATCH)} }})',
     "setfloating", CLASS_MATCH)
 # Lua only: a .conf has no per-window "leave fullscreen", and its dispatcher
 # would hit whatever window is active; there the dispatch just fails.
