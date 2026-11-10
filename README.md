@@ -172,7 +172,12 @@ window's own file, `~/.config/hypr/settings-hub.conf`
   with its origin, `# hyprland.conf:138`. The order is atomic write,
   `hyprctl reload`, `hyprctl configerrors`; new errors put the previous text
   back and reload again. Writing what is already there does nothing. With
-  `~/.config/hypr/hyprland.lua` present the page is read-only.
+  `~/.config/hypr/hyprland.lua` present the page is read-only: Hyprland's own
+  list, named from hyprland.lua itself (`binds/luaread.py` runs it in a
+  sandboxed `lua5.4` with a stand-in `hl` that only records `hl.bind`; no
+  commands, no writes, files only below `~/.config/hypr` and
+  `$XDG_STATE_HOME`, 2 s limit). Without a Lua interpreter the rows show just
+  the dispatcher kind.
 - History: one item per combination (its block lines before and after); a
   rebind is one group of two items.
 - Key capture (`widgets/keycapture.py`): the window asks the compositor to

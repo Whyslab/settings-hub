@@ -7,7 +7,9 @@ Paths (each can be overridden by an environment variable, for tests):
     lua   ~/.config/hypr/hyprland.lua       SETTINGS_HUB_HYPR_LUA
 
 load() parses the config (binds/parser.py) and asks Hyprland for its live list
-(`hyprctl binds -j`) to mark binds whose file and live versions differ. Every
+(`hyprctl binds -j`) to mark binds whose file and live versions differ. With a
+hyprland.lua the live list is all there is (read-only); what each item runs is
+read from hyprland.lua itself (binds/luaread.py, sandboxed). Every
 change runs on the "binds" worker as "fresh read -> plan -> commit"
 (binds/writer.py): the entry is looked up again by its id in a fresh parse, so
 nothing decided from an old reading is written.
@@ -27,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..binds import conflicts, parser, writer
+from ..binds import conflicts, luaread, parser, writer
 from ..binds.conflicts import Entry
 from ..binds.parser import Config, combo_text
 from ..workers import Dispatch, Workers, glib_dispatch
@@ -76,6 +78,7 @@ class State:
     found: dict[tuple[str, int], bool] = field(default_factory=dict)  # (file, line) -> live?
     extra: list[dict] = field(default_factory=list)  # live binds not in the files
     lua: Path | None = None
+    lua_binds: list[parser.Bind | None] = field(default_factory=list)  # per extra item
     error: str = ""
 
 
@@ -143,6 +146,9 @@ class Backend:
             # its binds would be stale. Show what Hyprland itself has, read-only.
             state.live = self.live()
             state.extra = list(state.live or [])
+            # What each one runs comes from hyprland.lua itself (sandboxed).
+            state.lua_binds = luaread.annotate(state.extra, luaread.read(state.lua),
+                                               luaread.default_roots(state.lua))
             return state
         try:
             cfg = self.parse()

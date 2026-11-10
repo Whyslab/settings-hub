@@ -96,6 +96,10 @@ def test_binds_page_under_lua_shows_what_hyprland_has(monkeypatch):
     assert all(r.live_ok and not r.editable and not r.movable for r in rows)
     assert [r.group == "submap" for r in rows] == [bool(x.get("submap")) for x in state.live]
     assert all(r.name and r.combo for r in rows)
+    # Named for a person like on hyprland.conf: what each runs is read from
+    # hyprland.lua (binds/luaread.py), Hyprland's list says only "exec_cmd".
+    unnamed = [f"{r.combo}: {r.name}" for r in rows if not r.human]
+    assert len(unnamed) <= 0.1 * len(rows), unnamed
     with pytest.raises(writer.LuaActive):  # refused before anything is read or written
         backend.change(lambda *_: pytest.fail("planned under a Lua config"))
     with pytest.raises(writer.LuaActive):

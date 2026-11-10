@@ -6,6 +6,7 @@ with a stub hyprctl (binds_env.World); hyprland.conf itself is never written.
 
 import hashlib
 import json
+import shutil
 
 import pytest
 from binds_env import CONF, LIVE, SOURCE_LINE, World
@@ -443,6 +444,37 @@ def test_lua_config_turns_the_page_read_only(world):
     c.disable("SUPER, E")
     world.loop.pump()
     assert not world.own.exists() and world.history.groups() == []
+
+
+LUA_LIVE = [  # `hyprctl binds -j` under Hyprland 0.57: kinds only, args are numbers
+    {"modmask": 64, "key": "Q", "keycode": 0, "submap": "", "description": "",
+     "dispatcher": "HL.Dispatcher(exec_cmd)", "arg": "12"},
+    {"modmask": 8, "key": "Tab", "keycode": 0, "submap": "", "description": "",
+     "dispatcher": "function: 0x55f8", "arg": "13"},
+    {"modmask": 64, "key": "K", "keycode": 0, "submap": "", "description": "",
+     "dispatcher": "HL.Dispatcher(exec_cmd)", "arg": "14"},  # not in hyprland.lua
+]
+
+
+@pytest.mark.skipif(shutil.which("lua5.4") is None and shutil.which("lua") is None,
+                    reason="no Lua interpreter")
+def test_lua_rows_are_named_from_hyprland_lua(tmp_path, monkeypatch):
+    live = tmp_path / "lua-live.json"
+    live.write_text(json.dumps(LUA_LIVE))
+    w = World(tmp_path / "w", monkeypatch, live=live)
+    try:
+        w.lua.write_text('hl.bind("SUPER + Q", hl.dsp.exec_cmd("kitty"))\n'
+                         '-- Окна по кругу\nhl.bind("ALT + Tab", function() end)\n')
+        _c, view = controller(w)
+        rows = {r.combo: r for r in view.rows}
+        assert (rows["Super + Q"].name, rows["Super + Q"].detail) == ("Терминал", "kitty")
+        assert rows["Super + Q"].human
+        assert rows["Alt + Tab"].name == "Окна по кругу"
+        assert rows["Super + K"].name == "exec_cmd" and not rows["Super + K"].human
+        assert not any(r.editable for r in view.rows)
+        assert w.calls_of() == ["hyprctl binds -j"]  # reading the Lua file calls no hyprctl
+    finally:
+        w.close()
 
 
 def test_unsourced_own_file_is_reported(tmp_path, monkeypatch):

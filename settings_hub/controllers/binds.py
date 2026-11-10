@@ -163,7 +163,8 @@ class Controller:
         """Hyprland's own list under a Lua config: nothing here can be edited."""
         rows = []
         for i, item in enumerate(state.extra):
-            b = _live_bind(item)
+            paired = state.lua_binds[i] if i < len(state.lua_binds) else None
+            b = paired or _live_bind(item)
             name = names.bind_name(b)
             group = "submap" if b.submap else "lua"
             title = strings.BN_GROUPS[group].format(name=b.submap)
