@@ -40,6 +40,10 @@ OUR_SOURCE_LINE = "source = ~/.config/hypr/settings-hub.conf  # settings-hub"
 
 
 def before_install(data: bytes) -> bytes:
-    """A hyprland.conf as it was before install.sh appended our line."""
-    line = (OUR_SOURCE_LINE + "\n").encode()
-    return data[:-len(line)] if data.endswith(line) else data
+    """A hyprland.conf as it was before install.sh appended our line.
+
+    The line is dropped wherever it is: other installers (wallpaper-theme) append
+    their own lines after it, and install.sh finds it anywhere (grep -Fx)."""
+    line = OUR_SOURCE_LINE.encode()
+    lines = data.splitlines(keepends=True)
+    return b"".join(x for x in lines if x.rstrip(b"\r\n") != line)
