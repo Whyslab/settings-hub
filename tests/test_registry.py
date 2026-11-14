@@ -14,9 +14,22 @@ def test_ids_unique_and_well_formed():
     ids = [p.id for p in registry.PAGES]
     assert len(ids) == len(set(ids))
     assert all(re.fullmatch(r"[a-z0-9-]+", i) for i in ids)  # settings-open accepts these
-    assert ids == ["screen-sleep", "wallpaper", "themes", "animations", "binds", "game-binds",
-                   "windows", "input", "general", "system", "sound", "network", "power",
-                   "modes", "history"]
+    assert ids == ["screen-sleep", "sound", "network", "power", "modes", "themes",
+                   "wallpaper", "animations", "windows", "binds", "game-binds", "input",
+                   "general", "system", "history"]
+
+
+def test_groups_are_runs_in_group_order():
+    """The sidebar puts a heading where the group changes: one run per group."""
+    runs = [p.group for i, p in enumerate(registry.PAGES)
+            if i == 0 or registry.PAGES[i - 1].group != p.group]
+    assert runs == list(registry.GROUP_ORDER)
+    assert all(g in strings.GROUPS for g in registry.GROUP_ORDER)
+
+
+def test_main_group_is_the_home_tiles_in_their_order():
+    from settings_hub.home import TILE_PAGES
+    assert tuple(p.id for p in registry.PAGES if p.group == "main") == TILE_PAGES
 
 
 def test_every_page_has_text_icon_module_and_group():

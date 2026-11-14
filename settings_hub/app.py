@@ -244,7 +244,7 @@ class App(Gtk.Application):
 
 
 def _device_name(device: devices.Device) -> str:
-    """ "Мышь PRO X 2": the model name alone may say nothing."""
+    """The kind before the model ("Mouse PRO X 2"): the model alone may say nothing."""
     kind = strings.POWER_DEVICE_KINDS.get(device.kind)
     return f"{kind} {device.name}" if kind else device.name
 

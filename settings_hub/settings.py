@@ -28,7 +28,7 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 KINDS = ("int", "float", "bool", "choice", "str")
-GROUPS = ("appearance", "behavior")
+GROUPS = ("appearance", "behavior", "advanced")  # "advanced" is folded on the page
 
 
 @dataclass(frozen=True)
@@ -87,11 +87,11 @@ FIELDS: tuple[Field, ...] = (
     Field("appearance.transition", "choice", "none", choices=("none", "fade", "slide"),
           group="appearance"),
     Field("appearance.sidebar_width", "int", 220, lo=160, hi=320, step=4,
-          group="appearance"),
+          group="advanced"),
     Field("appearance.highlight_ms", "int", 1500, lo=300, hi=5000, step=100,
-          group="appearance"),
+          group="advanced"),
     Field("appearance.status_ms", "int", 5000, lo=1000, hi=15000, step=500,
-          group="appearance"),
+          group="advanced"),
     Field("appearance.window_width", "int", 920, lo=600, hi=2400, step=10,
           group="appearance"),
     Field("appearance.window_height", "int", 640, lo=400, hi=1400, step=10,
@@ -99,14 +99,14 @@ FIELDS: tuple[Field, ...] = (
     Field("appearance.remember_size", "bool", False, group="appearance"),
     # ---- behavior -------------------------------------------------------
     Field("behavior.start_page", "choice", START_PAGE_HOME, choices=START_PAGES),
-    Field("behavior.preload_s", "int", 20, lo=0, hi=300, step=5),
-    Field("behavior.refresh_s", "int", 5, lo=1, hi=60, step=1),
+    Field("behavior.preload_s", "int", 20, lo=0, hi=300, step=5, group="advanced"),
+    Field("behavior.refresh_s", "int", 5, lo=1, hi=60, step=1, group="advanced"),
     Field("behavior.history_keep", "int", 1000, lo=100, hi=10000, step=100),
-    Field("behavior.apply_delay_ms", "int", 1500, lo=300, hi=5000, step=100),
-    Field("behavior.night_slider_ms", "int", 120, lo=30, hi=600, step=10),
-    Field("behavior.series_still_ms", "int", 600, lo=200, hi=2000, step=50),
-    Field("behavior.guard_s", "int", 10, lo=2, hi=60, step=1),
-    Field("behavior.search_limit", "int", 20, lo=5, hi=50, step=5),
+    Field("behavior.apply_delay_ms", "int", 1500, lo=300, hi=5000, step=100, group="advanced"),
+    Field("behavior.night_slider_ms", "int", 120, lo=30, hi=600, step=10, group="advanced"),
+    Field("behavior.series_still_ms", "int", 600, lo=200, hi=2000, step=50, group="advanced"),
+    Field("behavior.guard_s", "int", 10, lo=2, hi=60, step=1, group="advanced"),
+    Field("behavior.search_limit", "int", 20, lo=5, hi=50, step=5, group="advanced"),
 )
 
 BY_KEY: dict[str, Field] = {f.key: f for f in FIELDS}

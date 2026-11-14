@@ -26,6 +26,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .. import strings
+
 KINDS = ("int", "float", "bool", "choice", "str")
 PAGES = ("windows", "input")
 GROUPS = {
@@ -124,7 +126,7 @@ VARS: tuple[Var, ...] = (
     var("input:kb_layout", "str", "us", "input", "keyboard"),
     var("input:kb_options", "str", "", "input", "keyboard"),
     var("input:repeat_delay", "int", 400, "input", "keyboard", lo=100, hi=2000,
-        step=10, unit="мс"),
+        step=10, unit=strings.UNIT_MS),
     var("input:repeat_rate", "int", 25, "input", "keyboard", lo=5, hi=100),
     var("input:numlock_by_default", "bool", False, "input", "keyboard"),
     # ---- input: mouse -----------------------------------------------------

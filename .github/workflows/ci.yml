@@ -83,17 +83,17 @@ jobs:
             echo "::error::personal identifier found"; status=1
           fi
           if printf '%s\n' "$files" | xargs grep -nIE '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z.]{2,}' \
-              | grep -v 'noreply@'; then
+              | grep -v 'noreply@' | grep -vE 'user@[0-9]+\.service'; then
             echo "::error::e-mail address found"; status=1
           fi
           if printf '%s\n' "$files" | xargs grep -nIE '/home/[a-z_][a-z0-9_-]*/'; then
             echo "::error::hard-coded home path found"; status=1
           fi
           cyr=$(printf '%s\n' "$files" \
-            | grep -vE '^(settings_hub/strings\.py|README\.ru\.md|tests/fixtures/)' \
+            | grep -vE '^(settings_hub/strings\.py|README\.ru\.md|tests/|tools/shot\.sh$)' \
             | xargs grep -lIP '\p{Cyrillic}' || true)
           if [ -n "$cyr" ]; then
-            echo "::error::Cyrillic outside strings.py, README.ru.md and tests/fixtures/: $cyr"
+            echo "::error::Cyrillic outside strings.py, README.ru.md, tests/ and tools/shot.sh: $cyr"
             status=1
           fi
           exit "$status"

@@ -8,7 +8,7 @@ import pytest
 
 from settings_hub import history as hist
 from settings_hub import modes as hub_modes
-from settings_hub.backends import audio, network, power
+from settings_hub.backends import audio, network, power, sysinfo
 from settings_hub.controllers import audio as audio_ctl
 from settings_hub.controllers import modes as mode_ctl
 from settings_hub.controllers import power as power_ctl
@@ -93,7 +93,8 @@ def test_bluetooth_and_tailscale_parsers():
     assert network.parse_tailscale("not json") == ("", [])
 
 
-def test_undo_to_no_connection_with_nothing_active_sends_no_change():
+def test_undo_to_no_connection_with_nothing_active_sends_no_change(monkeypatch):
+    monkeypatch.setattr(network.shutil, "which", lambda _name: "/bin/x")  # CI has no nmcli
     calls = []
     b = network.Backend(None, runner=lambda a: (calls.append(a), (0, "", ""))[1])
     b.apply({network.WIFI_CONNECTION: ""})
@@ -457,3 +458,35 @@ def test_an_unrelated_undo_does_not_hide_the_mode(tmp_path):
                 ("screen-sleep", "night.target_temp", "Отмена: Цель", 2300, 2600)])
     assert hub_modes.groups_that_turned_on(
         hub_modes.BY_ID["game"], log.groups(), "Отмена") == [game_group]
+
+
+def _zone(base, n, kind, milli):
+    z = base / f"thermal_zone{n}"
+    z.mkdir()
+    (z / "type").write_text(kind + "\n")
+    (z / "temp").write_text(f"{milli}\n")
+
+
+def test_temperature_is_the_processor_not_the_hottest_zone(tmp_path):
+    _zone(tmp_path, 0, "acpitz", 97000)  # a spike on a board sensor
+    _zone(tmp_path, 1, "x86_pkg_temp", 72000)
+    assert sysinfo._temperature(tmp_path) == 72.0
+
+
+def test_temperature_without_a_processor_zone_skips_dead_readings(tmp_path):
+    _zone(tmp_path, 0, "acpitz", 0)
+    _zone(tmp_path, 1, "acpitz", 200000)  # 200 degrees is no reading
+    _zone(tmp_path, 2, "SEN1", 43050)
+    assert sysinfo._temperature(tmp_path) == 43.05
+    assert sysinfo._temperature(tmp_path / "missing") is None
+
+
+def test_model_does_not_repeat_the_vendor(monkeypatch):
+    files = {"sys_vendor": "HP", "product_name": "HP ProBook 440 G7"}
+    monkeypatch.setattr(sysinfo, "_read", lambda path: files[path.rsplit("/", 1)[1]])
+    assert sysinfo._model() == "HP ProBook 440 G7"
+    files["product_name"] = "ThinkPad T460"
+    files["sys_vendor"] = "LENOVO"
+    assert sysinfo._model() == "LENOVO ThinkPad T460"
+    files["product_name"] = "System Product Name"
+    assert sysinfo._model() == "LENOVO"

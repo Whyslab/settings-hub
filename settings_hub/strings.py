@@ -23,9 +23,9 @@ SEARCH_NOTHING = "Ничего не найдено"
 
 # Sidebar group titles, by registry group id.
 GROUPS = {
-    "general": "Общие",
-    "display": "Экран и вид",
-    "keyboard": "Клавиатура и окна",
+    "main": "Часто нужное",
+    "display": "Экран и окна",
+    "keyboard": "Клавиатура и мышь",
     "system": "Система",
 }
 
@@ -622,8 +622,10 @@ PAGES.update({
 
 HUB_GROUPS = {
     "appearance": "Внешний вид",
-    "behavior": "Поведение и задержки",
+    "behavior": "Поведение",
+    "advanced": "Дополнительно",
 }
+HUB_ADVANCED_HINT = "Задержки и размеры для тонкой подстройки; обычно трогать не нужно"
 
 # key -> (label, hint, extra search words)
 HUB_SETTINGS = {
@@ -1017,6 +1019,9 @@ POWER_DEVICES_LOOKING = "Ищу устройства…"
 POWER_DEVICES_NONE = "Устройств с батареей не видно"
 POWER_DEVICES_NONE_HINT = "Включите мышь или подключите наушники"
 POWER_DEVICE_KINDS = {"mouse": "Мышь", "headphones": "Наушники", "keyboard": "Клавиатура"}
+# Word stems in a device's own name that tell its kind (lower case).
+DEVICE_WORDS = {"mouse": ("мыш",), "keyboard": ("клавиат",)}
+UNIT_MS = "мс"
 POWER_DEVICE_CHARGING = "заряжается"
 POWER_DEVICE_ASLEEP = "спит — последнее значение"
 POWER_DEVICE_UNREADABLE = "не читается"
@@ -1061,7 +1066,7 @@ SYS_TITLES = {
     "cpu": "Процессор",
     "memory": "Память",
     "disk": "Диск",
-    "temperature": "Температура",
+    "temperature": "Температура процессора",
     "uptime": "Время работы",
 }
 SYS_MODEL = SYS_TITLES["model"]

@@ -39,23 +39,25 @@ class PageInfo:
         return ICON_DIR / self.icon
 
 
-GROUP_ORDER = ("display", "keyboard", "general", "system")  # the order of PAGES below
+GROUP_ORDER = ("main", "display", "keyboard", "system")  # the order of PAGES below
 
+# "main" holds the pages of the home screen's tiles, in the tiles' order, so the
+# sidebar starts with what is changed most often.
 PAGES: tuple[PageInfo, ...] = (
-    PageInfo("screen-sleep", "display", "screen-sleep.svg", "#007aff"),
+    PageInfo("screen-sleep", "main", "screen-sleep.svg", "#007aff"),
+    PageInfo("sound", "main", "sound.svg", "#ff2d55"),
+    PageInfo("network", "main", "network.svg", "#32ade6"),
+    PageInfo("power", "main", "power.svg", "#34c759"),
+    PageInfo("modes", "main", "modes.svg", "#ff9500"),
+    PageInfo("themes", "main", "themes.svg", "#ff375f"),
     PageInfo("wallpaper", "display", "wallpaper.svg", "#32ade6"),
-    PageInfo("themes", "display", "themes.svg", "#ff375f"),
     PageInfo("animations", "display", "animations.svg", "#af52de"),
+    PageInfo("windows", "display", "windows.svg", "#0a84ff"),
     PageInfo("binds", "keyboard", "binds.svg", "#8e8e93"),
     PageInfo("game-binds", "keyboard", "game-binds.svg", "#ff3b30"),
-    PageInfo("windows", "keyboard", "windows.svg", "#0a84ff"),
     PageInfo("input", "keyboard", "input.svg", "#5e5ce6"),
-    PageInfo("general", "general", "general.svg", "#8e8e93"),
+    PageInfo("general", "system", "general.svg", "#8e8e93"),
     PageInfo("system", "system", "system.svg", "#8e8e93"),
-    PageInfo("sound", "system", "sound.svg", "#ff2d55"),
-    PageInfo("network", "system", "network.svg", "#32ade6"),
-    PageInfo("power", "system", "power.svg", "#34c759"),
-    PageInfo("modes", "system", "modes.svg", "#ff9500"),
     PageInfo("history", "system", "history.svg", "#ff9500"),
 )
 

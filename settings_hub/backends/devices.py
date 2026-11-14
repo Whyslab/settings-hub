@@ -20,6 +20,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from .. import strings
+
 SYS_POWER = Path("/sys/class/power_supply")
 SYS_HID = Path("/sys/bus/hid/devices")
 TIMEOUT_S = 5
@@ -70,9 +72,9 @@ def _uevent(path: Path) -> dict[str, str]:
 
 def _kind_from_name(name: str) -> str:
     low = name.lower()
-    if any(word in low for word in ("mouse", "мыш")):
+    if any(word in low for word in ("mouse", *strings.DEVICE_WORDS["mouse"])):
         return "mouse"
-    if any(word in low for word in ("keyboard", "клавиат")):
+    if any(word in low for word in ("keyboard", *strings.DEVICE_WORDS["keyboard"])):
         return "keyboard"
     if any(word in low for word in ("headset", "headphone", "airpods", "buds")):
         return "headphones"

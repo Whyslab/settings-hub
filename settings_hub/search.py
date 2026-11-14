@@ -77,7 +77,7 @@ def _score(entry: _Entry, query: str) -> int:
     for word in words:
         if any(w.startswith(word) for w in title_words):
             # A row's label usually starts with the very word the person typed
-            # ("Анимация ручного размера"); its page must still come first.
+            # (a long row label that starts with the typed word); its page must still come first.
             total += 80 if page else 70
         elif any(w.startswith(word) for w in keyword_words):
             total += 60

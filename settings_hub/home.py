@@ -655,7 +655,7 @@ class Home:
             button.add_css_class("sh-small")
             inner = Gtk.Box(spacing=10)
             inner.append(icon(page.id, 18))
-            # Whole words on up to two lines: "Клавиатура и мышь" fits a narrow column.
+            # Whole words on up to two lines: a three-word title fits a narrow column.
             inner.append(Gtk.Label(label=registry.title(page.id), xalign=0, hexpand=True,
                                    wrap=True, wrap_mode=Pango.WrapMode.WORD, lines=2,
                                    ellipsize=Pango.EllipsizeMode.END, width_chars=6))

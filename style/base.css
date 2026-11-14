@@ -859,3 +859,32 @@ button.sh-small {
 button.sh-small:hover {
   background-color: var(--sh-trough);
 }
+
+/* The folded "Advanced" block of the General page (Gtk.Expander: node
+ * expander-widget > box > title > expander + label): a heading like a group
+ * title with an arrow that turns when it opens. */
+expander-widget.sh-advanced > box > title {
+  color: var(--sh-fg-dim);
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 16px 8px 7px 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+
+expander-widget.sh-advanced > box > title:hover {
+  color: var(--sh-fg);
+  background-color: var(--sh-hover);
+}
+
+expander-widget.sh-advanced > box > title > expander {
+  min-width: 14px;
+  min-height: 14px;
+  margin-right: 6px;
+  color: inherit;
+  -gtk-icon-source: -gtk-icontheme("pan-end-symbolic");
+}
+
+expander-widget.sh-advanced > box > title > expander:checked {
+  -gtk-icon-source: -gtk-icontheme("pan-down-symbolic");
+}

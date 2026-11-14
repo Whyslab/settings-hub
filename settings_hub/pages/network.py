@@ -115,10 +115,12 @@ class NetworkPage(Page):
             self.rows["wifi.saved"] = self.saved_group.add(
                 Row(strings.NET_SAVED_EMPTY, row_id="wifi.saved"))
         for index, saved in enumerate(info.saved):
-            button = Gtk.Button(label=strings.NET_CONNECT)
-            button.set_sensitive(not saved.active and bool(info.wifi_on))
-            button.connect("clicked", lambda *_a, name=saved.name:
-                           self.controller.connect(name))
+            button = None  # the network in use needs no "Connect": its subtitle says so
+            if not saved.active:
+                button = Gtk.Button(label=strings.NET_CONNECT)
+                button.set_sensitive(bool(info.wifi_on))
+                button.connect("clicked", lambda *_a, name=saved.name:
+                               self.controller.connect(name))
             subtitle = strings.NET_SAVED_ACTIVE if saved.active else strings.NET_SAVED_OFF
             row = self.saved_group.add(Row(saved.name, subtitle, suffix=button,
                                            row_id=f"saved.{saved.name}"))

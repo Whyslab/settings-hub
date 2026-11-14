@@ -1,6 +1,6 @@
 """A page built from the variable table: widgets, live values and edits.
 
-The same class serves "Окна и вид" and "Клавиатура и мышь"; pages/windows.py
+The same class serves the Windows and the Keyboard and mouse pages; pages/windows.py
 and pages/input.py only name it. Rows come from variables.grouped(page), the
 labels from strings, the logic from controllers.variables.Controller.
 """

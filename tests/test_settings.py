@@ -102,7 +102,10 @@ def test_reset_returns_what_changed_and_removes_it_from_the_file(tmp_path):
 
 def test_groups_and_fields_come_from_the_table(tmp_path):
     s = make(tmp_path)
-    assert s.groups() == ("appearance", "behavior")
+    assert s.groups() == ("appearance", "behavior", "advanced")
+    # the folded block holds only fine-tuning, not what most people look for
+    assert {"appearance.theme", "appearance.window_width", "behavior.start_page"}.isdisjoint(
+        f.key for f in s.fields_of("advanced"))
     assert {f.key for f in s.fields_of("appearance")} >= {"appearance.theme"}
     for field in s:
         assert field.group in settings.GROUPS

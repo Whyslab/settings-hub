@@ -45,8 +45,11 @@ def _os_name() -> str:
 def _model() -> str:
     vendor = _read("/sys/devices/virtual/dmi/id/sys_vendor")
     product = _read("/sys/devices/virtual/dmi/id/product_name")
-    parts = [p for p in (vendor, product) if p and p.lower() != "system product name"]
-    return " ".join(parts)
+    if product.lower() == "system product name":
+        product = ""
+    if vendor and product.lower().startswith(vendor.lower()):
+        return product  # "HP" + "HP ProBook 440 G7" is not "HP HP ProBook 440 G7"
+    return " ".join(p for p in (vendor, product) if p)
 
 
 def _cpu() -> tuple[str, int]:
@@ -81,9 +84,13 @@ def _uptime() -> int:
         return 0
 
 
-def _temperature() -> float | None:
-    best: float | None = None
-    base = Path("/sys/class/thermal")
+# Thermal zones that are the processor itself. Without one, the hottest zone is
+# shown, but zones that read 0 or more than 125 degrees are not real readings.
+CPU_ZONES = ("x86_pkg_temp", "cpu", "k10temp", "coretemp", "soc_thermal", "tcpu")
+
+
+def _temperature(base: Path = Path("/sys/class/thermal")) -> float | None:
+    hottest: float | None = None
     try:
         zones = sorted(base.glob("thermal_zone*"))
     except OSError:
@@ -94,9 +101,17 @@ def _temperature() -> float | None:
         except (OSError, ValueError):
             continue
         celsius = raw / 1000 if raw > 1000 else raw / 10 if raw > 200 else raw
-        if best is None or celsius > best:
-            best = celsius
-    return best
+        if not 0 < celsius <= 125:
+            continue
+        try:
+            kind = (zone / "type").read_text(encoding="utf-8").strip().lower()
+        except OSError:
+            kind = ""
+        if kind in CPU_ZONES or kind.startswith("cpu"):
+            return celsius
+        if hottest is None or celsius > hottest:
+            hottest = celsius
+    return hottest
 
 
 def _hyprland() -> str:

@@ -33,6 +33,9 @@ LUA_ACTIVE = (REAL / "hyprland.lua").exists()
 def read_only_hyprctl(args: list[str]) -> tuple[int, str]:
     """The real hyprctl, for `binds -j` only: anything else fails the test."""
     assert args == ["binds", "-j"], f"a live test may not run hyprctl {args}"
+    if not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        # Run outside the session (as the GUI tests are): nobody to ask, not a failure.
+        pytest.skip("no Hyprland session in this environment to read `binds -j` from")
     hyprctl = shutil.which("hyprctl")
     assert hyprctl, "hyprctl not installed"
     out = subprocess.run([hyprctl, *args], capture_output=True, text=True, timeout=10,

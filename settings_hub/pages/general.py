@@ -13,7 +13,7 @@ from typing import Any
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from .. import settings as hub_settings  # noqa: E402
 from .. import strings  # noqa: E402
@@ -23,6 +23,7 @@ from ..widgets.rows import Group, Row  # noqa: E402
 from .base import Page  # noqa: E402
 
 BACKEND = "settings"
+REVEAL_AFTER_UNFOLD_MS = 80
 
 
 def as_var(field: hub_settings.Field) -> Var:
@@ -49,8 +50,15 @@ class GeneralPage(Page):
             self.settings = hub_settings.Settings()
             hub_settings.register(self.ctx.history, self.settings)
         self.controls: dict[str, fields.Control] = {}
+        self.advanced: Gtk.Expander | None = None
         for group_id in self.settings.groups():
-            group = self.add_group(Group(strings.HUB_GROUPS[group_id]))
+            if group_id == "advanced":  # folded: delays and sizes few people touch
+                group = Group(None, strings.HUB_ADVANCED_HINT)
+                self.advanced = Gtk.Expander(label=strings.HUB_GROUPS[group_id], child=group)
+                self.advanced.add_css_class("sh-advanced")
+                self._box.append(self.advanced)
+            else:
+                group = self.add_group(Group(strings.HUB_GROUPS[group_id]))
             for field in self.settings.fields_of(group_id):
                 control = fields.make(as_var(field),
                                       lambda value, key=field.key: self._changed(key, value),
@@ -74,6 +82,18 @@ class GeneralPage(Page):
     def refresh(self) -> None:
         for key, control in self.controls.items():
             control.set(self.settings.get(key))
+
+    def reveal(self, row_id: str) -> None:
+        """A search result inside the folded block unfolds it first."""
+        field = hub_settings.BY_KEY.get(row_id)
+        folded = (self.advanced is not None and field is not None
+                  and field.group == "advanced" and not self.advanced.get_expanded())
+        if not folded:
+            super().reveal(row_id)
+            return
+        self.advanced.set_expanded(True)
+        # The rows get their place only after the next layout: scroll then.
+        GLib.timeout_add(REVEAL_AFTER_UNFOLD_MS, lambda: super(GeneralPage, self).reveal(row_id))
 
     # ---- signals --------------------------------------------------------
 
