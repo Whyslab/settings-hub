@@ -30,8 +30,10 @@ while a game window is focused: Hyprland itself does it from
 config-only` when focus leaves), so it works with the window closed; Lua config
 only. The framework:
 
-- the resident application, the window (sidebar with search and coloured
-  icons, rounded groups of rows), light and dark looks, keyboard control;
+- the resident application, the window: a home screen of tiles (screen and
+  sleep, sound, network, power, modes and themes shown and changed in place,
+  a button for every other page), then a sidebar with search and line icons
+  next to rounded groups of rows; light and dark looks, keyboard control;
 - search over pages (case-insensitive, `yo`/`ye`, wrong keyboard layout);
 - the change history with undo (one user action = one group of items);
 - loading of other projects' live modules under private names, and one
@@ -204,9 +206,16 @@ window's own file, `~/.config/hypr/settings-hub.conf`
   never leaks into the window underneath.
 - Keys: Ctrl+F search, Up/Down move, Enter opens, Tab jumps between the sidebar
   and the page, Esc hides, Ctrl+Z undoes the last change.
+- The home screen (`home.py`) opens by default ("Start page" on the General
+  page). A tile is a second view of the same controller its page uses, so a
+  change made on a tile is applied and undone exactly like one made on the page.
+  Typing in its search field hands the text to the sidebar, which appears with
+  the results.
 - The look does not depend on the system GTK theme: the process uses GTK's
   built-in theme, and `style/base.css` (loaded above the user's `gtk.css`) uses
   only literal colours and its own `--sh-*` variables.
+- The font is Onest (`style/fonts`, SIL Open Font License), added to fontconfig
+  for this process only; nothing is installed system-wide.
 
 ## Layout
 
@@ -216,7 +225,7 @@ settings_hub/           app, window, theme, registry, strings, search,
                         history, loader, workers, widgets/, pages/, backends/,
                         controllers/ (page logic without GTK), helpers/,
                         binds/ (parser, names, conflicts, writer, capture)
-style/                  base.css, icons/*.svg
+style/                  base.css, icons/*.svg, fonts/ (Onest, OFL)
 bin/settings-open       hotkey entry point (POSIX sh)
 install.sh, uninstall.sh
 tools/shot.sh           screenshot in an isolated session (Xvfb :99+)

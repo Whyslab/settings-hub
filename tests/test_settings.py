@@ -20,7 +20,7 @@ def test_defaults_are_used_when_the_file_is_missing(tmp_path):
     s = make(tmp_path)
     assert s.get("appearance.theme") == "system"
     assert s.get("appearance.window_width") == 920
-    assert s.get("behavior.start_page") == settings.START_PAGE_LAST
+    assert s.get("behavior.start_page") == settings.START_PAGE_HOME
     assert not s.path.exists()  # reading must not create the file
 
 
@@ -110,8 +110,8 @@ def test_groups_and_fields_come_from_the_table(tmp_path):
 
 
 def test_start_pages_are_real_pages_and_have_titles():
-    assert settings.START_PAGES[0] == settings.START_PAGE_LAST
-    for page_id in settings.START_PAGES[1:]:
+    assert settings.START_PAGES[:2] == (settings.START_PAGE_LAST, settings.START_PAGE_HOME)
+    for page_id in settings.START_PAGES[2:]:
         assert registry.get(page_id) is not None, page_id
         assert strings.PAGES[page_id]["title"], page_id
 

@@ -73,8 +73,9 @@ class Field:
 # Pages are named here as plain strings: importing the registry would create a
 # cycle (registry -> strings, search -> registry; settings is used by pages).
 START_PAGE_LAST = "last"
+START_PAGE_HOME = "home"  # the tiles (home.HOME)
 START_PAGES = (
-    START_PAGE_LAST, "screen-sleep", "wallpaper", "animations", "binds",
+    START_PAGE_LAST, START_PAGE_HOME, "screen-sleep", "wallpaper", "animations", "binds",
     "general", "windows", "input", "system", "sound", "network", "power",
     "modes", "history",
 )
@@ -97,7 +98,7 @@ FIELDS: tuple[Field, ...] = (
           group="appearance"),
     Field("appearance.remember_size", "bool", False, group="appearance"),
     # ---- behavior -------------------------------------------------------
-    Field("behavior.start_page", "choice", START_PAGE_LAST, choices=START_PAGES),
+    Field("behavior.start_page", "choice", START_PAGE_HOME, choices=START_PAGES),
     Field("behavior.preload_s", "int", 20, lo=0, hi=300, step=5),
     Field("behavior.refresh_s", "int", 5, lo=1, hi=60, step=1),
     Field("behavior.history_keep", "int", 1000, lo=100, hi=10000, step=100),

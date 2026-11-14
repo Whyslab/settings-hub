@@ -59,8 +59,6 @@ PAGES: tuple[PageInfo, ...] = (
     PageInfo("history", "system", "history.svg", "#ff9500"),
 )
 
-DEFAULT_PAGE = PAGES[0].id
-
 
 def get(page_id: str) -> PageInfo | None:
     for page in PAGES:

@@ -19,7 +19,8 @@
 #
 # Wallpaper: the pictures of tests/fixtures/wallpapers in $HOME/.config/hypr/wallpapers,
 # a stub wallpaper.sh that only logs, thumbnails made by magick into $HOME/.cache
-# (never the real cache), a stub wallpaper-theme that says "vivid".
+# (never the real cache), a stub wallpaper-theme that says "vivid" and lists the
+# themes of tests/fixtures/wallpaper_theme_*.json.
 # Animations: a copy of tests/fixtures/rofi (rofi-launcher's module and data) with a
 # stub bin/anim-preview.sh; its preview pictures are drawn into $HOME/.cache.
 # Binds: tests/fixtures/hypr/hyprland.conf in $HOME/.config/hypr; the stub hyprctl
@@ -180,6 +181,8 @@ printf 'desktop=off\nlock=on\nsddm=off\n' >"$tmp/.local/state/hypr-wallpaper/ran
 sed 's/MODE/vivid/' "$ROOT/tests/fixtures/wallpaper_theme_status.txt" >"$tmp/theme-status"
 cat >>"$stubs/wallpaper-theme" <<STUB
 [ "\$1" = status ] && cat "$tmp/theme-status"
+[ "\$1" = themes ] && cat "$ROOT/tests/fixtures/wallpaper_theme_themes.json"
+[ "\$1" = state ] && cat "$ROOT/tests/fixtures/wallpaper_theme_state.json"
 exit 0
 STUB
 

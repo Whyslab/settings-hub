@@ -4,6 +4,10 @@
  * colours and our own --sh-* variables are used here, never named @colours:
  * a gtk.css full of @define-color would otherwise leak in through the
  * built-in theme. Every node the window uses is described explicitly.
+ *
+ * The look is "Tiles" (design canvas of 10.11.2026): rounded cards, a home
+ * screen of tiles, line icons, Onest. The dark values below are the canvas's
+ * own colours; a theme from the Themes page overrides them (settings-hub.css).
  */
 
 window, tooltip, popover {
@@ -37,31 +41,31 @@ window, tooltip, popover {
 
 @media (prefers-color-scheme: dark) {
   window, tooltip, popover {
-    --sh-bg: #1e1e1f;
-    --sh-sidebar: #29292b;
-    --sh-border: #39393c;
-    --sh-card: #2a2a2c;
-    --sh-card-border: #353538;
-    --sh-sep: #3a3a3d;
-    --sh-fg: #f5f5f7;
-    --sh-fg-dim: #98989d;
-    --sh-accent: #0a84ff;
-    --sh-accent-fg: #ffffff;
-    --sh-hover: rgba(255, 255, 255, 0.06);
-    --sh-press: rgba(255, 255, 255, 0.10);
-    --sh-search: rgba(255, 255, 255, 0.08);
-    --sh-field: #1c1c1e;
-    --sh-field-border: #404043;
-    --sh-button: #3a3a3c;
-    --sh-button-border: #48484b;
-    --sh-switch-off: #3a3a3d;
-    --sh-trough: #3d3d40;
-    --sh-scroll: rgba(255, 255, 255, 0.32);
-    --sh-focus: rgba(10, 132, 255, 0.6);
-    --sh-highlight: rgba(10, 132, 255, 0.26);
-    --sh-selection: rgba(10, 132, 255, 0.42);
-    --sh-tooltip-bg: #3a3a3c;
-    --sh-tooltip-fg: #f5f5f7;
+    --sh-bg: #17181c;
+    --sh-sidebar: #1b1c21;
+    --sh-border: #2b2d34;
+    --sh-card: #212329;
+    --sh-card-border: #343741;
+    --sh-sep: #2d3039;
+    --sh-fg: #f1f2f5;
+    --sh-fg-dim: #a0a4ae;
+    --sh-accent: #6ea8ff;
+    --sh-accent-fg: #0d1b33;
+    --sh-hover: rgba(255, 255, 255, 0.05);
+    --sh-press: rgba(255, 255, 255, 0.09);
+    --sh-search: rgba(255, 255, 255, 0.06);
+    --sh-field: #1b1c21;
+    --sh-field-border: #343741;
+    --sh-button: #2d3039;
+    --sh-button-border: #3a3d47;
+    --sh-switch-off: #2d3039;
+    --sh-trough: #2d3039;
+    --sh-scroll: rgba(255, 255, 255, 0.28);
+    --sh-focus: rgba(110, 168, 255, 0.6);
+    --sh-highlight: rgba(110, 168, 255, 0.22);
+    --sh-selection: rgba(110, 168, 255, 0.4);
+    --sh-tooltip-bg: #2d3039;
+    --sh-tooltip-fg: #f1f2f5;
     --sh-shadow: rgba(0, 0, 0, 0.5);
   }
 }
@@ -87,8 +91,8 @@ window, tooltip, popover {
 window {
   color: var(--sh-fg);
   background-color: var(--sh-bg);
-  font-family: "Adwaita Sans", "Inter", "Noto Sans", sans-serif;
-  font-size: 13px;
+  font-family: "Onest", "Adwaita Sans", "Inter", "Noto Sans", sans-serif;
+  font-size: 13.5px;
 }
 
 selection,
@@ -117,9 +121,11 @@ separator {
 }
 
 .sh-sidebar entry {
-  margin: 14px 12px 8px 12px;
+  margin: 18px 12px 10px 12px;
   background-color: var(--sh-search);
-  border: 1px solid transparent;
+  border: 1px solid var(--sh-card-border);
+  border-radius: 12px;
+  min-height: 34px;
 }
 
 list.sh-nav {
@@ -128,11 +134,19 @@ list.sh-nav {
 }
 
 list.sh-nav > row {
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 10px;
+  padding: 5px 10px;
   margin: 1px 0;
-  min-height: 24px;
+  min-height: 26px;
   outline-offset: -2px;
+}
+
+list.sh-nav > row .sh-glyph {
+  color: var(--sh-fg-dim);
+}
+
+list.sh-nav > row:selected .sh-glyph {
+  color: var(--sh-accent-fg);
 }
 
 list.sh-nav > row:hover {
@@ -150,13 +164,9 @@ list.sh-nav > row:selected .sh-subtitle {
 
 .sh-nav-header {
   color: var(--sh-fg-dim);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  margin: 12px 8px 4px 8px;
-}
-
-.sh-nav-header.first {
-  margin-top: 2px;
+  margin: 14px 10px 4px 10px;
 }
 
 .sh-icon {
@@ -177,9 +187,10 @@ list.sh-nav > row:selected .sh-icon {
 }
 
 .sh-title {
-  font-size: 17px;
+  font-size: 24px;
   font-weight: 700;
-  margin: 18px 28px 6px 28px;
+  letter-spacing: -0.3px;
+  margin: 20px 28px 6px 28px;
 }
 
 .sh-page {
@@ -188,9 +199,9 @@ list.sh-nav > row:selected .sh-icon {
 
 .sh-group-title {
   color: var(--sh-fg-dim);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  margin: 14px 10px 6px 10px;
+  margin: 16px 12px 7px 12px;
 }
 
 .sh-group-note {
@@ -202,11 +213,11 @@ list.sh-nav > row:selected .sh-icon {
 list.sh-group {
   background-color: var(--sh-card);
   border: 1px solid var(--sh-card-border);
-  border-radius: 10px;
+  border-radius: 16px;
 }
 
 list.sh-group > row {
-  padding: 0 0 0 14px;
+  padding: 0 0 0 16px;
   border-radius: 0;
   outline-offset: -3px;
   transition: background-color 300ms ease-out;
@@ -225,8 +236,8 @@ list.sh-group > row.sh-highlight {
 }
 
 .sh-row-inner {
-  padding: 10px 14px 10px 0;
-  min-height: 24px;
+  padding: 11px 16px 11px 0;
+  min-height: 26px;
   border-bottom: 1px solid var(--sh-sep);
 }
 
@@ -252,9 +263,9 @@ spinbutton {
   color: var(--sh-fg);
   background-color: var(--sh-field);
   border: 1px solid var(--sh-field-border);
-  border-radius: 7px;
-  min-height: 26px;
-  padding: 0 8px;
+  border-radius: 10px;
+  min-height: 30px;
+  padding: 0 10px;
 }
 
 entry:focus-within,
@@ -296,9 +307,9 @@ button {
   color: var(--sh-fg);
   background-color: var(--sh-button);
   border: 1px solid var(--sh-button-border);
-  border-radius: 6px;
-  padding: 3px 12px;
-  min-height: 22px;
+  border-radius: 10px;
+  padding: 4px 14px;
+  min-height: 24px;
 }
 
 button:hover {
@@ -456,7 +467,7 @@ popover > contents {
   color: var(--sh-fg);
   background-color: var(--sh-card);
   border: 1px solid var(--sh-card-border);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: 0 6px 20px var(--sh-shadow);
   padding: 6px;
 }
@@ -511,20 +522,26 @@ window.message {
   }
 }
 
-/* A segmented control: buttons joined into one rounded strip. */
+/* A segmented control: buttons in one rounded strip (see .sh-seg below). */
+.sh-segmented {
+  background-color: var(--sh-trough);
+  border-radius: 12px;
+  padding: 3px;
+}
+
 .sh-segmented > button {
-  border-radius: 0;
-  border-right-width: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: 9px;
   padding: 2px 12px;
 }
 
-.sh-segmented > button:first-child {
-  border-radius: 6px 0 0 6px;
+.sh-segmented > button:hover {
+  background-color: var(--sh-hover);
 }
 
-.sh-segmented > button:last-child {
-  border-radius: 0 6px 6px 0;
-  border-right-width: 1px;
+.sh-segmented > button:active {
+  background-color: var(--sh-press);
 }
 
 scale marks mark label {
@@ -556,7 +573,7 @@ flowbox.sh-tiles > flowboxchild:selected {
 }
 
 .sh-thumb {
-  border-radius: 8px;
+  border-radius: 12px;
   background-color: var(--sh-trough);
   box-shadow: 0 0 0 1px var(--sh-card-border);
 }
@@ -600,11 +617,7 @@ flowbox.sh-tiles > flowboxchild.sh-current .sh-tile-name {
 .sh-segmented > button:checked {
   color: var(--sh-accent-fg);
   background-color: var(--sh-accent);
-  border-color: var(--sh-accent);
-}
-
-.sh-segmented > button:checked + button {
-  border-left-color: var(--sh-accent);
+  font-weight: 600;
 }
 
 .sh-segmented:disabled > button,
@@ -708,4 +721,141 @@ list.sh-group > row.sh-bind-disabled label {
 
 list.sh-group > row.sh-bind-disabled .sh-keys {
   text-decoration-line: line-through;
+}
+
+/* ---- home screen: tiles ------------------------------------------------ */
+/* Strips and badge squares use --sh-trough: in the light look --sh-button is
+   the same white as a card. */
+
+.sh-home {
+  padding: 18px 24px 18px 24px;
+}
+
+.sh-home-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+entry.sh-home-search {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 14px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.sh-tile {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 20px;
+  padding: 16px 18px 18px 18px;
+  min-height: 136px;
+}
+
+button.sh-tile-head {
+  background-color: transparent;
+  border: none;
+  border-radius: 12px;
+  padding: 2px;
+  margin: -2px;
+  min-height: 0;
+  outline-offset: 0;
+}
+
+button.sh-tile-head:hover,
+button.sh-tile-head:active {
+  background-color: transparent;
+}
+
+button.sh-tile-head:hover .sh-tile-title {
+  color: var(--sh-accent);
+}
+
+.sh-badge {
+  background-color: var(--sh-trough);
+  border-radius: 11px;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+.sh-badge .sh-glyph {
+  color: var(--sh-accent);
+}
+
+.sh-tile-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sh-small-text {
+  font-size: 12.5px;
+}
+
+.sh-big {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-feature-settings: "tnum";
+}
+
+.sh-mid {
+  font-size: 19px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+.sh-seg {
+  background-color: var(--sh-trough);
+  border-radius: 12px;
+  padding: 3px;
+}
+
+.sh-seg button {
+  background-color: transparent;
+  border: none;
+  border-radius: 9px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sh-seg button:hover {
+  background-color: var(--sh-hover);
+}
+
+.sh-seg button:checked {
+  color: var(--sh-accent-fg);
+  background-color: var(--sh-accent);
+  font-weight: 600;
+}
+
+.sh-seg button:disabled {
+  color: var(--sh-fg-dim);
+}
+
+button.sh-swatch {
+  padding: 0;
+  border: 1px solid var(--sh-card-border);
+  border-radius: 14px;
+  background-color: var(--sh-button);
+}
+
+button.sh-swatch:checked {
+  border: 2px solid var(--sh-accent);
+  background-color: var(--sh-button);
+}
+
+button.sh-small {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 16px;
+  min-height: 46px;
+  padding: 0 14px;
+  font-weight: 500;
+}
+
+button.sh-small:hover {
+  background-color: var(--sh-trough);
 }

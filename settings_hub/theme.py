@@ -11,13 +11,18 @@
    ~/.local/state/wallpaper-theme/settings-hub.css: --sh-* values for the dark
    look only. It is loaded above base.css and re-read whenever it changes, so
    the window recolours itself while open. An empty file changes nothing.
-5. Light/dark follows Gtk.Settings:gtk-interface-color-scheme (base.css has
+5. The font (Onest, style/fonts, SIL OFL) is added to fontconfig for this
+   process only, nothing is installed; without it base.css falls back to the
+   desktop's sans.
+6. Light/dark follows Gtk.Settings:gtk-interface-color-scheme (base.css has
    @media (prefers-color-scheme: dark)). If the platform does not say, the
    GNOME color-scheme setting is used. A forced scheme (for screenshots) wins.
 """
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import logging
 import os
 from pathlib import Path
@@ -34,6 +39,7 @@ log = logging.getLogger(__name__)
 
 THEME = "Default"
 CSS_PATH = registry.ROOT / "style" / "base.css"
+FONT_DIR = registry.ROOT / "style" / "fonts"
 PRIORITY = Gtk.STYLE_PROVIDER_PRIORITY_USER + 100
 
 
@@ -50,8 +56,36 @@ _GNOME = {"prefer-dark": Gtk.InterfaceColorScheme.DARK,
           "prefer-light": Gtk.InterfaceColorScheme.LIGHT}
 
 
+def load_fonts(directory: Path = FONT_DIR) -> int:
+    """Make the bundled fonts usable by this process; returns how many were added.
+
+    Before the first text is laid out: Pango reads the font list once.
+    """
+    try:
+        fc = ctypes.CDLL("libfontconfig.so.1")
+    except OSError:
+        name = ctypes.util.find_library("fontconfig")  # runs ldconfig: only as a fallback
+        try:
+            fc = ctypes.CDLL(name) if name else None
+        except OSError as exc:
+            log.warning("fontconfig: %s", exc)
+            fc = None
+    if fc is None or not hasattr(fc, "FcConfigAppFontAddFile"):
+        return 0
+    fc.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    fc.FcConfigAppFontAddFile.restype = ctypes.c_int
+    added = 0
+    for path in sorted(directory.glob("*.ttf")):
+        if fc.FcConfigAppFontAddFile(None, os.fsencode(path)):
+            added += 1
+        else:
+            log.warning("font not added: %s", path)
+    return added
+
+
 class Theme:
     def __init__(self, display: Gdk.Display, forced_scheme: str | None = None) -> None:
+        load_fonts()
         self.settings = Gtk.Settings.get_for_display(display)
         self._forced = SCHEMES.get(forced_scheme or "")
         self._gnome: Gio.Settings | None = None

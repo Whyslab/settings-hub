@@ -111,7 +111,9 @@ class Controller:
                     self.view.status(ok_text(change))
             self.refresh()
 
-        self.backend.queue(job, done, key="apply")
+        # Keyed by this controller (the home tile has one too): a shared key
+        # would let one replace the other's queued job and leave it `running`.
+        self.backend.queue(job, done, key=("apply", id(self)))
         return True
 
     def choose(self, theme_id: str) -> bool:

@@ -112,7 +112,10 @@ class Controller:
                         after[backend] = {}
             return mode_id, before, after, errors
 
-        self.workers.submit(WORKER, job, self._applied, key="apply")
+        # Keyed by this controller: the home tile and the page each have one,
+        # and a shared key would let one replace the other's queued job and
+        # leave its `pending` set for good.
+        self.workers.submit(WORKER, job, self._applied, key=("apply", id(self)))
 
     def _applied(self, result, error: BaseException | None) -> None:
         self.pending = False

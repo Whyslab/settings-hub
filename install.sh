@@ -157,6 +157,9 @@ put 644 "$SRC/style/base.css" "$APP_DIR/style/base.css"
 for f in "$SRC"/style/icons/*.svg; do
     put 644 "$f" "$APP_DIR/style/icons/$(basename "$f")"
 done
+for f in "$SRC"/style/fonts/*; do
+    put 644 "$f" "$APP_DIR/style/fonts/$(basename "$f")"
+done
 put 644 "$STAGE/pages.json" "$APP_DIR/pages.json"
 put 644 "$STAGE/open-failed.txt" "$APP_DIR/open-failed.txt"
 ok "program in $APP_DIR"

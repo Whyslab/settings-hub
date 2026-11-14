@@ -1,4 +1,7 @@
-"""The settings window: sidebar + page stack, keys, show/hide.
+"""The settings window: the home tiles, or sidebar + page, keys, show/hide.
+
+The home screen (home.py) fills the window on its own; the sidebar shows up
+once a page is open, or while the search shows results over the tiles.
 
 The window is created once at startup and only ever hidden, never destroyed.
 Keys (handled in the capture phase, before any child sees them):
@@ -6,7 +9,7 @@ Keys (handled in the capture phase, before any child sees them):
     Ctrl+F      focus the search field
     Up/Down     move in the sidebar or between rows (Down leaves the search field)
     Enter       open the selected page or search result
-    Tab         jump between the sidebar and the page
+    Tab         jump between the sidebar and the page (on the tiles: the next control)
     Esc         swallowed on press, hides the window on release
     Ctrl+Z      undo the last change (one history group)
 
@@ -32,6 +35,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import hypr, pages, registry, strings  # noqa: E402
 from .history import History  # noqa: E402
+from .home import HOME, Home  # noqa: E402
 from .settings import Settings  # noqa: E402
 from .widgets import keycapture  # noqa: E402
 from .widgets.sidebar import Sidebar  # noqa: E402
@@ -117,6 +121,8 @@ class Window(Gtk.ApplicationWindow):
         content.append(self.title)
         content.append(self.stack)
         content.append(self.status)
+        self.home = Home(self.ctx, self.show_page, self._search_from_home)
+        self.stack.add_named(self.home.widget, HOME)
 
         body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         body.append(self.sidebar)
@@ -186,14 +192,18 @@ class Window(Gtk.ApplicationWindow):
         try:
             page_id = self._state_file("last-page").read_text(encoding="utf-8").strip()
         except OSError:
-            return registry.DEFAULT_PAGE
-        return page_id if registry.get(page_id) is not None else registry.DEFAULT_PAGE
+            return HOME
+        return page_id if self.known(page_id) else HOME
 
     def start_page(self) -> str:
         chosen = str(self.settings.get("behavior.start_page"))
         if chosen == "last":
             return self.last_page()
-        return chosen if registry.get(chosen) is not None else registry.DEFAULT_PAGE
+        return chosen if self.known(chosen) else HOME
+
+    @staticmethod
+    def known(page_id: str) -> bool:
+        return page_id == HOME or registry.get(page_id) is not None
 
     # ---- pages ----------------------------------------------------------
 
@@ -209,15 +219,23 @@ class Window(Gtk.ApplicationWindow):
         started = time.perf_counter()
         if not page_id:
             page_id = self.current or self.start_page()
-        if registry.get(page_id) is None:
-            log.warning("unknown page %r, showing %s", page_id, registry.DEFAULT_PAGE)
-            page_id, row_id = registry.DEFAULT_PAGE, ""
-        page = self._page(page_id)
+        if not self.known(page_id):
+            log.warning("unknown page %r, showing %s", page_id, HOME)
+            page_id, row_id = HOME, ""
         changed = page_id != self.current
         self.current = page_id
+        self.sidebar.select_page(page_id)
+        self._show_sidebar()
+        if page_id == HOME:
+            self.stack.set_visible_child_name(HOME)
+            self.title.set_visible(False)
+            if changed and self.get_mapped():
+                self.home.refresh()
+            return
+        page = self._page(page_id)
         self.stack.set_visible_child_name(page_id)
         self.title.set_label(registry.title(page_id))
-        self.sidebar.select_page(page_id)
+        self.title.set_visible(True)
         if changed and self.get_mapped():
             page.refresh()
         if row_id:
@@ -227,6 +245,24 @@ class Window(Gtk.ApplicationWindow):
 
     def _on_sidebar_open(self, _sidebar, page_id: str, row_id: str) -> None:
         self.show_page(page_id, row_id)
+        self._show_sidebar()  # a search ended over the tiles
+        if not self.sidebar.get_visible():
+            focus = self.get_focus()
+            if focus is None or self.sidebar.contains_focus(focus):
+                # The search was emptied: the next letters start a new one.
+                self.home.entry.grab_focus()
+
+    def _show_sidebar(self) -> None:
+        """On the tiles the sidebar is hidden, unless it shows search results."""
+        self.sidebar.set_visible(self.current != HOME or self.sidebar.searching
+                                 or bool(self.sidebar.entry.get_text()))
+
+    def _search_from_home(self, text: str) -> None:
+        """Typed into the tiles' search field: the sidebar's search takes over."""
+        self.sidebar.set_visible(True)
+        self.sidebar.entry.set_text(self.sidebar.entry.get_text() + text)
+        self.sidebar.entry.grab_focus()
+        self.sidebar.entry.set_position(-1)  # no selection: the next letter adds
 
     def _start_prebuild(self) -> bool:
         self._prebuild_source = 0
@@ -281,11 +317,20 @@ class Window(Gtk.ApplicationWindow):
         except OSError as exc:
             log.warning("open.log: %s", exc)
         focus = self.get_focus()
-        if focus is None or (self._in_search_field(focus) and not self.sidebar.entry.get_text()):
-            self.sidebar.focus_list()  # like macOS: the search field is not focused on open
-        page = self._pages.get(self.current or "")
-        if page is not None:
-            page.refresh()
+        if self.current == HOME:
+            if not self.sidebar.entry.get_text() and (
+                    focus is None or self._in_search_field(focus)
+                    or self.sidebar.contains_focus(focus)):
+                self.home.focus_first()  # the search field is not focused on open
+            self.home.refresh()
+            self._show_sidebar()
+        else:
+            if focus is None or (self._in_search_field(focus)
+                                 and not self.sidebar.entry.get_text()):
+                self.sidebar.focus_list()  # like macOS: the search field is not focused on open
+            page = self._pages.get(self.current or "")
+            if page is not None:
+                page.refresh()
         if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             GLib.timeout_add(RESIZE_AFTER_MAP_MS, self._apply_size)
 
@@ -410,6 +455,9 @@ class Window(Gtk.ApplicationWindow):
             GLib.timeout_add_seconds(NETWORK_SETTLE_S, self._refresh_page)
 
     def _refresh_page(self) -> bool:
+        if self.current == HOME:
+            self.home.refresh()
+            return False
         page = self._pages.get(self.current or "")
         if page is not None:
             page.refresh()
@@ -433,7 +481,10 @@ class Window(Gtk.ApplicationWindow):
             self._esc_armed = True
             return True  # swallowed; the window hides on release
         if letter == "F":
-            self.sidebar.focus_search()
+            if self.sidebar.get_visible():
+                self.sidebar.focus_search()
+            else:
+                self.home.entry.grab_focus()
             return True
         if letter == "Z":
             if focus is not None and isinstance(focus.get_parent(), (Gtk.Entry, Gtk.SearchEntry)):
@@ -441,6 +492,14 @@ class Window(Gtk.ApplicationWindow):
             self.undo_last()
             return True
         if keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab):
+            if not self.sidebar.get_visible():
+                return False  # the tiles: plain focus order
+            if self.current == HOME:
+                if self.sidebar.contains_focus(focus):
+                    self.home.focus_first()
+                else:
+                    self.sidebar.focus_list()
+                return True
             if self.sidebar.contains_focus(focus):
                 page = self._pages.get(self.current or "")
                 if page is not None:
@@ -448,7 +507,8 @@ class Window(Gtk.ApplicationWindow):
             else:
                 self.sidebar.focus_list()
             return True
-        if keyval in (Gdk.KEY_Down, Gdk.KEY_KP_Down) and self._in_search_field(focus):
+        if (keyval in (Gdk.KEY_Down, Gdk.KEY_KP_Down) and self._in_search_field(focus)
+                and self.sidebar.contains_focus(focus)):
             self.sidebar.focus_list()
             return True
         return False
@@ -460,7 +520,7 @@ class Window(Gtk.ApplicationWindow):
 
     def _in_search_field(self, widget: Gtk.Widget | None) -> bool:
         while widget is not None:
-            if widget is self.sidebar.entry:
+            if widget is self.sidebar.entry or widget is self.home.entry:
                 return True
             widget = widget.get_parent()
         return False

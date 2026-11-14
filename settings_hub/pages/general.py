@@ -34,9 +34,10 @@ def as_var(field: hub_settings.Field) -> Var:
 
 def choice_labels(field: hub_settings.Field) -> list[tuple[str, str]]:
     if field.key == "behavior.start_page":
-        return [(hub_settings.START_PAGE_LAST, strings.HUB_START_LAST), *[
+        return [(hub_settings.START_PAGE_LAST, strings.HUB_START_LAST),
+                (hub_settings.START_PAGE_HOME, strings.HUB_START_HOME), *[
             (page_id, strings.PAGES[page_id]["title"])
-            for page_id in hub_settings.START_PAGES[1:] if page_id in strings.PAGES
+            for page_id in hub_settings.START_PAGES[2:] if page_id in strings.PAGES
         ]]
     return [(value, strings.HUB_CHOICES.get(value, value)) for value in field.choices]
 

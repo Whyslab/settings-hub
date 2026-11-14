@@ -69,6 +69,8 @@ EXPECTED = [
     ".local/share/settings-hub/settings_hub/widgets/sidebar.py",
     ".local/share/settings-hub/style/base.css",
     ".local/share/settings-hub/style/icons/history.svg",
+    ".local/share/settings-hub/style/fonts/Onest.ttf",
+    ".local/share/settings-hub/style/fonts/OFL.txt",
     ".local/share/settings-hub/pages.json",
     ".local/share/settings-hub/open-failed.txt",
     ".local/share/applications/settings-hub.desktop",

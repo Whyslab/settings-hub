@@ -690,6 +690,7 @@ HUB_CHOICES = {
 }
 
 HUB_START_LAST = "Как в прошлый раз"
+HUB_START_HOME = "Главная с плитками"
 HUB_APPLIED = "Сохранено: {name}"
 HUB_FAILED = "Не удалось сохранить: {error}"
 HUB_NOTHING_CHANGED = "Всё уже по умолчанию"
@@ -1214,3 +1215,29 @@ GB_FAILED = "Не удалось сохранить: {error}"
 GB_NO_RELOAD = ("Сохранено, но Hyprland не перечитал конфиг ({error}): "
                 "заработает после hyprctl reload")
 GB_FULL = "Список полон"
+
+
+# ---- home screen (tiles) ------------------------------------------------------
+
+HOME_TITLE = "Главная"  # the sidebar row that leads back to the tiles
+HOME_SEARCH = "Поиск по всем настройкам"
+HOME_OPEN = "Открыть «{title}»"
+HOME_ALL_OK = "Всё работает"
+HOME_SOMETHING_DOWN = "Есть сбой"
+HOME_NOW = "Сейчас: {power}"
+HOME_STEPS = {"dim": "приглушить", "lock": "заблокировать", "dpms": "погасить"}
+HOME_OFF = "выкл"
+HOME_NOT_SET_UP = "Не настроено"
+HOME_MUTED = "без звука"
+HOME_NO_SOUND = "Нет устройства вывода"
+HOME_WIFI_ON = "Wi-Fi: {ssid}"
+HOME_WIFI_NONE = "Wi-Fi не подключён"
+HOME_WIFI_OFF = "Wi-Fi выключен"
+HOME_BT_ON = "Bluetooth включён"
+HOME_BT_OFF = "Bluetooth выключен"
+HOME_BT_DEVICES = "Bluetooth: {names}"
+HOME_DEVICE = "{kind} {percent}%"
+HOME_BRIGHTNESS = "Яркость {percent}%"
+HOME_MODES_HINT = "Один щелчок меняет сразу несколько настроек"
+HOME_THEMES_HINT = "Цвета окон, панели и меню"
+HOME_THEMES_MISSING = "Программа тем не найдена"
