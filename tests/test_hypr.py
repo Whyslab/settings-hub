@@ -163,3 +163,48 @@ def test_maximized_window_is_fixed_only_when_not_maximized():
     assert fix() is False
     assert window.needs_fix("", 920, 640, True) is True
     assert window.MAXIMIZE_COMMAND[2].count("internal = 1, client = 1") == 1
+
+
+def test_turning_full_screen_on_shows_the_window_again():
+    """Maximizing a window already on screen hid the top bar (HyprPanel autoHide
+    "fullscreen", 15.11.2026); one shown again maps maximized by the rule."""
+    pytest.importorskip("gi")
+    from settings_hub import window
+
+    calls = []
+
+    class Fake:
+        current = "general"
+        maximized = True
+
+        def _maximized(self):
+            return self.maximized
+
+        def get_visible(self):
+            return True
+
+        def hide(self):
+            calls.append("hide")
+
+        def _send_rule(self):
+            calls.append("rule")
+
+        def _apply_size(self):
+            calls.append("check")
+
+        def _show_again(self):
+            calls.append("show")
+
+    added = []
+    real_idle = window.GLib.idle_add
+    window.GLib.idle_add = lambda fn: added.append(fn)
+    try:
+        fake = Fake()
+        window.Window.refit(fake)
+        assert calls == ["hide"] and len(added) == 1  # no maximize of a shown window
+        calls.clear()
+        fake.maximized = False
+        window.Window.refit(fake)
+        assert calls == ["rule", "check"]  # turned off: put back where it is
+    finally:
+        window.GLib.idle_add = real_idle
