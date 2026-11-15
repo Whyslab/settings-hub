@@ -52,6 +52,11 @@ SHAPES = {
     "power": '<rect x="3" y="8" width="16" height="8" rx="2"/><path d="M22 11v2"/>',
     "modes": '<path d="M5 17a8 8 0 1 1 14 0"/><path d="M12 13l3-4"/>',
     "history": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "monitor": '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    "notifications": ('<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/>'
+                      '<path d="M10 20.5a2 2 0 0 0 4 0"/>'),
+    "autostart": '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z"/>',
+    "updates": '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/>',
     "home": '<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
     "chevron": '<path d="M9 6l6 6-6 6"/>',
 }

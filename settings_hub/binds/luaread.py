@@ -198,6 +198,24 @@ hl.bind = function(keys, act, opts)
     end })
 end
 hl.unbind = function(keys) emit("unbind", keys) end
+-- Autostart: handlers of "hyprland.start" are kept and run after the config,
+-- with hl.exec_cmd recording its command and where it is; nothing is started.
+local starts, in_start = {}, false
+hl.on = function(event, fn)
+    if event == "hyprland.start" and type_(fn) == "function" then starts[#starts + 1] = fn end
+end
+hl.exec_cmd = function(cmd)
+    if not in_start then return end
+    local info = getinfo(2, "Sl")
+    pcall_(function()
+        local src, line = "", 0
+        local name = info and s_sub(info.source, 2) or ""
+        if info and s_sub(info.source, 1, 1) == "@" and (name == cfg or allowed(name)) then
+            src, line = name, info.currentline
+        end
+        emit("exec", tostring_(cmd), src, line)
+    end)
+end
 hl.define_submap = function(name, a, b)  -- (name, fn) or (name, reset, fn)
     local fn = type_(b) == "function" and b or a
     local prev = submap
@@ -210,6 +228,11 @@ ENV.hl = hl
 local f, err = real_loadfile(cfg, "t", ENV)
 local ok, why = false, err
 if f then ok, why = pcall_(f) end
+if ok then
+    in_start = true
+    for _, fn in ipairs_(starts) do pcall_(fn) end
+    in_start = false
+end
 for _, line in ipairs_(out) do write(line, "\n") end
 if full then ok, why = false, "too much output" end
 write("end\t", ok and "ok" or esc(tostring_(why)), "\n")
@@ -317,6 +340,43 @@ def parse_output(out: str) -> list[Record] | None:
 def read(lua: Path, roots: list[Path] | None = None,
          timeout: float = TIMEOUT_S) -> list[Record] | None:
     """The binds hyprland.lua makes, or None (no interpreter, it hangs, fails)."""
+    out = _run(lua, roots, timeout)
+    return None if out is None else parse_output(out)
+
+
+@dataclass(frozen=True)
+class Start:
+    """One command hyprland.lua runs at login (hl.exec_cmd in hyprland.start)."""
+
+    command: str
+    file: str  # "" when the call is not in a file the reader may name
+    line: int
+
+
+def parse_starts(out: str) -> list[Start] | None:
+    """The driver's lines -> the login commands, or None unless the config ran to its end."""
+    starts: list[Start] = []
+    finished = False
+    for line in out.split("\n"):
+        f = [_unescape(x) for x in line.split("\t")]
+        if f[0] == "exec" and len(f) == 4:
+            try:
+                starts.append(Start(f[1], f[2], int(f[3])))
+            except ValueError:
+                continue
+        elif f[0] == "end":
+            finished = len(f) > 1 and f[1] == "ok"
+    return starts if finished else None
+
+
+def read_starts(lua: Path, roots: list[Path] | None = None,
+                timeout: float = TIMEOUT_S) -> list[Start] | None:
+    """What hyprland.lua starts at login, or None (no interpreter, it hangs, fails)."""
+    out = _run(lua, roots, timeout)
+    return None if out is None else parse_starts(out)
+
+
+def _run(lua: Path, roots: list[Path] | None, timeout: float) -> str | None:
     exe = interpreter()
     if exe is None or not lua.is_file():
         return None
@@ -334,7 +394,7 @@ def read(lua: Path, roots: list[Path] | None = None,
     if proc.returncode != 0:
         log.info("reading %s with %s failed: %s", lua, exe, proc.stderr.strip()[:300])
         return None
-    return parse_output(proc.stdout)
+    return proc.stdout
 
 
 # ---- in .conf terms -----------------------------------------------------------

@@ -1246,3 +1246,201 @@ HOME_BRIGHTNESS = "Яркость {percent}%"
 HOME_MODES_HINT = "Один щелчок меняет сразу несколько настроек"
 HOME_THEMES_HINT = "Цвета окон, панели и меню"
 HOME_THEMES_MISSING = "Программа тем не найдена"
+
+# ---- the pages added on 15.11.2026: Monitor, Notifications, Autostart, Updates ----
+
+PAGES.update({
+    "monitor": {
+        "title": "Монитор",
+        "keywords": ["монитор", "экран", "дисплей", "разрешение", "масштаб", "частота",
+                     "герц", "hidpi", "второй экран", "крупнее", "мельче"],
+        "rows": {
+            "mode": ("Разрешение и частота", ["разрешение", "частота", "герц", "hz"]),
+            "scale": ("Масштаб", ["масштаб", "крупнее", "мельче", "размер", "scale"]),
+            "enabled": ("Включён", ["выключить", "отключить", "второй"]),
+        },
+    },
+    "notifications": {
+        "title": "Уведомления",
+        "keywords": ["уведомления", "не беспокоить", "dnd", "оповещения", "всплывающие",
+                     "тишина", "hyprpanel", "notify"],
+        "rows": {
+            "dnd": ("Не беспокоить", ["тишина", "dnd", "не беспокоить"]),
+            "notifications.position": ("Где всплывают", ["угол", "место", "позиция"]),
+            "notifications.timeout": ("Сколько видно", ["время", "секунды", "таймаут"]),
+            "notifications.active_monitor": ("На мониторе с фокусом", ["монитор", "экран"]),
+            "notifications.showActionsOnHover": ("Кнопки только при наведении",
+                                                 ["кнопки", "действия", "наведение"]),
+            "notifications.ignore": ("Не показывать от программ",
+                                     ["игнор", "скрыть", "программы", "заглушить"]),
+            "stored": ("Сохранённые уведомления", ["очистить", "удалить", "история"]),
+            "test": ("Пробное уведомление", ["проверить", "тест"]),
+        },
+    },
+    "autostart": {
+        "title": "Автозапуск",
+        "keywords": ["автозапуск", "при входе", "запуск", "старт", "автозагрузка",
+                     "startup", "exec"],
+        "rows": {
+            "own": ("Ваши программы", ["добавить", "убрать", "программы"]),
+            "add.app": ("Добавить программу", ["добавить", "приложение"]),
+            "add.command": ("Своя команда", ["команда", "скрипт"]),
+            "system": ("Из hyprland.lua", ["конфиг", "система", "hyprland"]),
+        },
+    },
+    "updates": {
+        "title": "Обновления",
+        "keywords": ["обновления", "обновить", "pacman", "yay", "пакеты", "ядро",
+                     "перезагрузка", "кэш", "сироты", "pacnew"],
+        "rows": {
+            "pending": ("Обновления пакетов", ["ждут", "сколько", "список"]),
+            "upgrade": ("Обновить систему", ["обновить", "pacman", "yay", "syu"]),
+            "reboot": ("Перезагрузка", ["перезагрузить", "ядро"]),
+            "last": ("Последнее полное обновление", ["когда", "дата"]),
+            "cache": ("Кэш пакетов", ["кэш", "почистить", "место", "paccache"]),
+            "orphans": ("Ненужные пакеты", ["сироты", "orphans", "зависимости"]),
+            "pacnew": ("Файлы .pacnew", ["pacnew", "pacdiff", "настройки"]),
+        },
+    },
+})
+
+# Monitor
+MON_GROUP = "{name} · {description}"
+MON_MODE = "Разрешение и частота"
+MON_MODE_VALUE = "{width}×{height}, {rate} Гц"
+MON_SCALE = "Масштаб"
+MON_SCALE_HINT = "Больше — крупнее текст и окна"
+MON_SCALE_VALUE = "{percent} %"
+MON_ENABLED = "Включён"
+MON_ENABLED_HINT = "Последний включённый экран выключить нельзя"
+MON_NOTE = ("Новые настройки сразу видны, и их нужно подтвердить. "
+            "Сохраняются и после перезагрузки")
+MON_CONFIRM = "Оставить новые настройки экрана?"
+MON_CONFIRM_DETAIL = "Если не ответить, через {seconds} с всё вернётся как было."
+MON_KEEP = "Оставить"
+MON_REVERT = "Вернуть"
+MON_REVERTED = "Вернул как было"
+MON_APPLIED = "Монитор: применено"
+MON_FAILED = "Монитор: не удалось — {error}"
+MON_READ_FAILED = "Не удалось прочитать мониторы: {error}"
+MON_NONE = "Мониторы не найдены: окно запущено не в Hyprland"
+MON_NOT_LUA = "Менять монитор отсюда можно в Hyprland 0.57+ с конфигом на Lua"
+MON_NOT_LOADED = ("Hyprland пока не читает настройки мониторов: "
+                  "переустановите настройки (install.sh)")
+MON_LABEL = "Монитор {name}"
+
+# Notifications
+NOTIF_SHOW_GROUP = "Показ"
+NOTIF_DND = "Не беспокоить"
+NOTIF_DND_HINT = "Уведомления копятся в панели, но не всплывают"
+NOTIF_POSITION = "Где всплывают"
+NOTIF_POSITION_HINT = "Угол или край экрана"
+NOTIF_POSITIONS = {
+    "top right": "Справа сверху", "top": "Сверху", "top left": "Слева сверху",
+    "right": "Справа", "left": "Слева",
+    "bottom right": "Справа снизу", "bottom": "Снизу", "bottom left": "Слева снизу",
+}
+NOTIF_TIMEOUT = "Сколько видно"
+NOTIF_TIMEOUT_HINT = "Секунд, пока уведомление не спрячется в панель"
+UNIT_S = "с"
+NOTIF_ACTIVE = "На мониторе с фокусом"
+NOTIF_ACTIVE_HINT = "Иначе — всегда на первом мониторе"
+NOTIF_HOVER = "Кнопки только при наведении"
+NOTIF_HOVER_HINT = "Кнопки действий видны, когда на уведомлении мышь"
+NOTIF_IGNORE_GROUP = "Не показывать от программ"
+NOTIF_IGNORE_NOTE = "Уведомления этих программ сразу закрываются: не всплывают и не сохраняются"
+NOTIF_IGNORE_EMPTY = "Список пуст"
+NOTIF_IGNORE_PICK = "Программа из недавних уведомлений"
+NOTIF_IGNORE_NO_RECENT = "Нет недавних программ"
+NOTIF_ADD = "Добавить"
+NOTIF_REMOVE = "Убрать"
+NOTIF_STORE_GROUP = "Сохранённые"
+NOTIF_STORED = "Сохранено уведомлений: {count}"
+NOTIF_STORED_UNKNOWN = "Сохранённые уведомления"
+NOTIF_STORED_HINT = "Их видно в меню уведомлений панели"
+NOTIF_CLEAR = "Очистить"
+NOTIF_CLEAR_ASK = "Удалить все сохранённые уведомления?"
+NOTIF_CLEAR_DETAIL = "Это нельзя отменить."
+NOTIF_CLEARED = "Уведомления очищены"
+NOTIF_TEST = "Проверить"
+NOTIF_TEST_ROW = "Пробное уведомление"
+NOTIF_TEST_HINT = "Показать, как уведомления выглядят сейчас"
+NOTIF_TEST_SUMMARY = "Проверка уведомлений"
+NOTIF_TEST_BODY = "Так уведомления выглядят сейчас"
+NOTIF_NO_PANEL = "HyprPanel не отвечает, а показывает уведомления она: менять пока нечего"
+NOTIF_APPLIED = "Применено: {name}"
+NOTIF_FAILED = "Не удалось: {error}"
+NOTIF_READ_FAILED = "Не удалось прочитать настройки уведомлений: {error}"
+NOTIF_LABELS = {
+    "dnd": NOTIF_DND,
+    "notifications.position": NOTIF_POSITION,
+    "notifications.timeout": NOTIF_TIMEOUT,
+    "notifications.active_monitor": NOTIF_ACTIVE,
+    "notifications.showActionsOnHover": NOTIF_HOVER,
+    "notifications.ignore": NOTIF_IGNORE_GROUP,
+}
+
+# Autostart
+AUTO_OWN_GROUP = "Ваши программы"
+AUTO_OWN_NOTE = "Запускаются при входе в систему; добавленная сейчас — со следующего входа"
+AUTO_EMPTY = "Пока пусто — добавьте программу ниже"
+AUTO_ADD_GROUP = "Добавить"
+AUTO_ADD_APP = "Программа"
+AUTO_ADD_APP_HINT = "Из установленных"
+AUTO_ADD_COMMAND = "Своя команда"
+AUTO_ADD_COMMAND_HINT = "Enter или «Добавить»"
+AUTO_COMMAND_PLACEHOLDER = "например, telegram-desktop -startintray"
+AUTO_ADD = "Добавить"
+AUTO_REMOVE = "Убрать"
+AUTO_SYSTEM_GROUP = "Из hyprland.lua"
+AUTO_SYSTEM_NOTE = "Эти строки меняются только в файле конфигурации; здесь они для справки"
+AUTO_SYSTEM_NONE = "В hyprland.lua автозапуска нет"
+AUTO_SYSTEM_UNREAD = "hyprland.lua не прочитан (нет lua5.4 или конфиг на .conf)"
+AUTO_NOT_LOADED = "Hyprland пока не читает этот список: переустановите настройки (install.sh)"
+AUTO_LABEL = "Автозапуск"
+AUTO_SAVED = "Автозапуск: сохранено"
+AUTO_FAILED = "Автозапуск: не удалось — {error}"
+AUTO_DUPLICATE = "Такая команда уже есть в списке"
+AUTO_BAD = "Пустая или слишком длинная команда"
+AUTO_FULL = "В списке уже {count} программ — больше нельзя"
+
+# Updates
+UPD_STATE_GROUP = "Состояние"
+UPD_PENDING = "Обновления пакетов"
+UPD_CHECKING = "Проверяю…"
+UPD_NONE = "Система обновлена"
+UPD_N = "Ждут обновления: {count}"
+UPD_AUR_N = "из них из AUR: {count}"
+UPD_FAILED = "Не удалось проверить: {error}"
+UPD_NO_TOOL = "Нет checkupdates (пакет pacman-contrib)"
+UPD_LIST_GROUP = "Что обновится"
+UPD_ITEM = "{old} → {new}"
+UPD_MORE = "…и ещё {count}"
+UPD_UPGRADE = "Обновить систему"
+UPD_UPGRADE_HINT = "Откроется терминал с «{command}»; пароль вводите там"
+UPD_UPGRADE_BUTTON = "Обновить"
+UPD_CHECK = "Проверить ещё раз"
+UPD_CHECK_HINT = "Свежий список с зеркал, несколько секунд"
+UPD_CHECK_BUTTON = "Проверить"
+UPD_REBOOT = "Перезагрузка"
+UPD_REBOOT_NEEDED = "Нужна: ядро обновлено, а работает старое ({running})"
+UPD_REBOOT_NO = "Не нужна"
+UPD_LAST = "Последнее полное обновление"
+UPD_LAST_TODAY = "{date}, сегодня"
+UPD_LAST_YESTERDAY = "{date}, вчера"
+UPD_LAST_DAYS = "{date}, дней назад: {days}"
+UPD_CLEAN_GROUP = "Уборка"
+UPD_CACHE = "Кэш пакетов"
+UPD_CACHE_VALUE = "{size} ГБ"
+UPD_CACHE_HINT = "«Почистить» оставит по две последние версии (paccache -rk2), в терминале"
+UPD_CACHE_BUTTON = "Почистить"
+UPD_ORPHANS = "Ненужные пакеты"
+UPD_ORPHANS_HINT = "Зависимости, которые больше ничему не нужны. Удаляйте сами, проверив список"
+UPD_PACNEW = "Файлы .pacnew"
+UPD_PACNEW_HINT = "Новые версии настроек после обновления; сравнить и слить — sudo pacdiff"
+UPD_NOTHING = "Нет"
+UPD_SOME = "{count}: {names}"
+UPD_TERMINAL_OPENED = "Открыт терминал — дальше там"
+UPD_TERMINAL_FAILED = "Не удалось открыть терминал: {error}"
+UPD_TERMINAL_TITLE = "Обновление системы"
+UPD_TERMINAL_DONE = "Готово. Enter — закрыть окно"

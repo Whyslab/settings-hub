@@ -69,6 +69,8 @@ HYPR_CONF=$HYPR_DIR/hyprland.conf
 OWN_CONF=$HYPR_DIR/settings-hub.conf
 OWN_VARS=$HYPR_DIR/settings-hub-vars.lua
 OWN_GAMES=$HYPR_DIR/settings-hub-games.lua
+OWN_AUTOSTART=$HYPR_DIR/settings-hub-autostart.lua
+OWN_MONITORS=$HYPR_DIR/settings-hub-monitors.lua
 HYPR_LUA=$HYPR_DIR/hyprland.lua
 OWN_LUA=$HYPR_DIR/settings-hub.lua
 OLD_DESKTOP=$DESKTOP_DIR/screen-sleep.desktop
@@ -189,7 +191,22 @@ else
         >"$STAGE/settings-hub-games.lua"
     put 644 "$STAGE/settings-hub-games.lua" "$OWN_GAMES"
 fi
-ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua, settings-hub-vars.lua, settings-hub-games.lua"
+# The Autostart and Monitor pages' files, the same way.
+if [ -f "$OWN_AUTOSTART" ]; then
+    record "file$TAB$OWN_AUTOSTART"
+else
+    printf '%s\n' "-- Autostart: nothing of the Settings window's own. It rewrites this file." \
+        >"$STAGE/settings-hub-autostart.lua"
+    put 644 "$STAGE/settings-hub-autostart.lua" "$OWN_AUTOSTART"
+fi
+if [ -f "$OWN_MONITORS" ]; then
+    record "file$TAB$OWN_MONITORS"
+else
+    printf '%s\n' "-- Monitors: as Hyprland decides. The Settings window rewrites this file." \
+        >"$STAGE/settings-hub-monitors.lua"
+    put 644 "$STAGE/settings-hub-monitors.lua" "$OWN_MONITORS"
+fi
+ok "settings-hub.desktop, settings-hub.conf, settings-hub.lua and the files it loads"
 
 # The line this install added to FILE earlier, as the old manifest has it.
 previous_line() { # FILE TEXT

@@ -123,6 +123,14 @@ LUA_GAMES = """\
 pcall(dofile, {games_file})
 """
 
+# The Autostart and Monitor pages' files, the same way (backends/autostart.py,
+# backends/monitor.py).
+LUA_MORE = """\
+-- Autostart and monitors (the Settings window writes these); missing files are fine.
+pcall(dofile, {autostart_file})
+pcall(dofile, {monitors_file})
+"""
+
 
 def lua_text(data_home: str, bin_home: str, config_home: str = "") -> str:
     """settings-hub.lua. Paths are shell-quoted inside the commands (exec_cmd
@@ -144,7 +152,12 @@ def lua_text(data_home: str, bin_home: str, config_home: str = "") -> str:
         vars_file=hypr.lua_str(os.path.join(config, "hypr", "settings-hub-vars.lua")),
     )
     games = hypr.lua_str(os.path.join(config, "hypr", "settings-hub-games.lua"))
-    return (head + LUA_BEGIN + "\n" + LUA_END + "\n" + LUA_GAMES.format(games_file=games))
+    more = LUA_MORE.format(
+        autostart_file=hypr.lua_str(os.path.join(config, "hypr", "settings-hub-autostart.lua")),
+        monitors_file=hypr.lua_str(os.path.join(config, "hypr", "settings-hub-monitors.lua")))
+    # the games file stays last: its unbinds must come after every bind
+    return (head + LUA_BEGIN + "\n" + LUA_END + "\n" + more
+            + LUA_GAMES.format(games_file=games))
 
 
 class WriterError(Exception):

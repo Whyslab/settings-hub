@@ -68,7 +68,7 @@ mkdir -p "$stubs" "$tmp/.config" "$tmp/.local/state" "$tmp/.local/share" "$tmp/.
 chmod 700 "$tmp/run"
 for name in hyprctl notify-send pkill pgrep systemctl systemd-inhibit wallpaper.sh \
     wallpaper-theme pactl nmcli bluetoothctl tailscale powerprofilesctl brightnessctl \
-    pacman; do
+    pacman hyprpanel gsettings checkupdates yay paru kitty foot; do
     printf '#!/bin/sh\necho "%s $*" >>"%s/calls.log"\n' "$name" "$tmp" >"$stubs/$name"
     chmod +x "$stubs/$name"
 done
@@ -100,7 +100,24 @@ elif args[:1] == ["submap"]:
     print("default")
 elif args[:2] == ["hyprsunset", "temperature"]:
     print("4300")
+elif args[:2] == ["monitors", "all"]:
+    print(json.dumps([{"name": "eDP-1", "description": "LG Display 0x060F",
+                       "width": 1920, "height": 1080, "refreshRate": 60.02, "scale": 1.5,
+                       "x": 0, "y": 0, "disabled": False,
+                       "availableModes": ["1920x1080@60.02Hz", "1920x1080@40.00Hz"]}]))
+elif args == ["-j", "version"]:
+    print(json.dumps({"version": "0.57.2"}))
 PY
+cat >>"$stubs/hyprpanel" <<'STUB'
+case "$1" in toggleDnd) echo Disabled ;; esac
+exit 0
+STUB
+cat >>"$stubs/gsettings" <<'STUB'
+echo "[<{'id': <uint32 2>, 'app-name': <'Telegram'>}>, <{'id': <uint32 1>, 'app-name': <'kitty'>}>]"
+STUB
+cat >>"$stubs/checkupdates" <<'STUB'
+printf 'linux 7.2.14-arch1-1 -> 7.2.15-arch1-1\nfirefox 147.0-1 -> 147.0.1-1\nmesa 1:26.1.0-1 -> 1:26.1.1-1\n'
+STUB
 chmod +x "$stubs/hyprctl"
 cat >>"$stubs/systemctl" <<'STUB'
 case " $* " in *" is-active "*) echo active ;; esac

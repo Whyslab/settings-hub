@@ -15,8 +15,9 @@ def test_ids_unique_and_well_formed():
     assert len(ids) == len(set(ids))
     assert all(re.fullmatch(r"[a-z0-9-]+", i) for i in ids)  # settings-open accepts these
     assert ids == ["screen-sleep", "sound", "network", "power", "modes", "themes",
-                   "wallpaper", "animations", "windows", "binds", "game-binds", "input",
-                   "general", "system", "history"]
+                   "monitor", "wallpaper", "animations", "windows",
+                   "binds", "game-binds", "input",
+                   "notifications", "autostart", "updates", "general", "system", "history"]
 
 
 def test_groups_are_runs_in_group_order():
