@@ -193,11 +193,6 @@
       "query": "cjy",
       "page": "screen-sleep",
       "row": "ac"
-    },
-    {
-      "query": "cnfnec",
-      "page": "screen-sleep",
-      "row": "now"
     }
   ]
 }

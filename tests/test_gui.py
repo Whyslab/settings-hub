@@ -81,7 +81,31 @@ def check(r: dict) -> None:
     assert i["ac_suspend_on"] is False and i["ac_suspend_spin_sensitive"] is False
     assert i["schedule_on"] is True
     assert i["label"] == "4300 K" and i["on_hour_text"] == "21"
-    assert i["ac_heading"] != i["battery_heading"]  # the active set is marked
+    assert i["shown_profile"] == "ac"  # the set in force is shown by default
+    assert all(i["ac_rows_visible"]) and not any(i["battery_rows_visible"])
+    assert i["power_text"] == "Сейчас питание от сети — действует этот набор"
+    assert i["alert_visible"] is False and i["night_more_expanded"] is False
+    c = r["after_click"]
+    assert c["shown_profile"] == "battery"
+    assert all(c["battery_rows_visible"]) and not any(c["ac_rows_visible"])
+    assert "включится при смене питания" in c["power_text"]
+    assert r["after_click_probes"] == ["ac"] and r["after_click_probe"] == "battery"
+    assert r["after_power_change"] == "ac"
+    assert r["alert_one_bad"] is False
+    d = r["alert_down"]
+    assert d["group"] is True and d["badge"] == "Не запущен"
+    assert d["rows"] == {"hyprsunset": False, "hypridle": True, "daemon": False}
+    assert r["alert_back"] is False
+    assert r["reveal_battery"] == "battery" and r["reveal_target_expanded"] is True
+    assert r["after_hidden"] == "ac"
+    assert r["first_probe_after_reveal"] == "battery"
+    assert r["caption_no_power"] is False
+    assert r["order_other_caption"] == "В наборе «От батареи» шаги идут не по возрастанию времени"
+    assert r["order_other_label_visible"] is False
+    assert r["order_two_lines"] == ("Сейчас питание от сети — действует этот набор\n"
+                                    "В наборе «От батареи» шаги идут не по возрастанию времени")
+    assert r["pick_after_failed_read"] == "battery"
+    assert r["typing_kept"] == "ac" and r["after_typing"] == "battery"
     assert i["setup_visible"] is False
     assert (r["dim_after_1s"], r["dim_after_2s"]) == (5, 9)
     assert r["pkill_calls"] == []  # on AC: the battery set is not applied

@@ -101,11 +101,95 @@ r["initial"] = {
     "label": w["night.value"].get_label(),
     "target": w["night.target"].get_value(),
     "on_hour_text": w["night.on.hour"].get_text(),
-    "battery_heading": page.profile_groups["battery"].heading.get_label(),
-    "ac_heading": page.profile_groups["ac"].heading.get_label(),
-    "hyprsunset_badge": page.checks["hyprsunset"][1].label.get_label(),
+    "shown_profile": page.shown_profile,
+    "ac_rows_visible": [row.get_visible() for row in page.profile_rows["ac"]],
+    "battery_rows_visible": [row.get_visible() for row in page.profile_rows["battery"]],
+    "power_text": w["status.power"].get_label(),
+    "alert_visible": page.alert_group.get_visible(),
+    "night_more_expanded": w["night.more"].get_expanded(),
     "setup_visible": page.setup_group.get_visible(),
 }
+
+# The switch shows the other set; a probe with the same power keeps it there.
+page.profile_buttons["battery"].set_active(True)
+r["after_click"] = {
+    "shown_profile": page.shown_profile,
+    "battery_rows_visible": [row.get_visible() for row in page.profile_rows["battery"]],
+    "ac_rows_visible": [row.get_visible() for row in page.profile_rows["ac"]],
+    "power_text": w["status.power"].get_label(),
+}
+probes = []
+real_show_probe = page.show_probe
+page.show_probe = lambda pr: (probes.append(pr.power), real_show_probe(pr))
+page.controller.refresh()
+spin(1.0)
+page.show_probe = real_show_probe
+r["after_click_probes"] = probes
+r["after_click_probe"] = page.shown_profile
+# Unplugged: the set now in force is shown again.
+probe = ssb.Probe(power="battery", hyprsunset=(True, ""), hypridle=True, daemon=(True, ""))
+page.show_probe(probe)
+probe.power = "ac"
+page.show_probe(probe)
+r["after_power_change"] = page.shown_profile
+# A service down: one bad probe is not enough, two in a row show its row.
+probe.hypridle = False
+page.show_probe(probe)
+r["alert_one_bad"] = page.alert_group.get_visible()
+page.show_probe(probe)
+r["alert_down"] = {
+    "group": page.alert_group.get_visible(),
+    "rows": {n: row.get_visible() for n, (row, _b) in page.checks.items()},
+    "badge": page.checks["hypridle"][1].label.get_label(),
+}
+probe.hypridle = True
+page.show_probe(probe)
+r["alert_back"] = page.alert_group.get_visible()
+# Search: the battery row switches the set, the target row unfolds the schedule.
+page.reveal("battery")
+r["reveal_battery"] = page.shown_profile
+page._hidden()  # what unmap runs: the next showing starts on the set in force
+r["after_hidden"] = page.shown_profile
+page.controller.set_visible(True)  # what map runs
+# The first probe of a page just built is no power change: a search result
+# that opened the battery set before it stays.
+page._power = page._last_power = ""
+page.reveal("battery")
+page.show_probe(ssb.Probe(power="ac", hyprsunset=(True, ""), hypridle=True,
+                          daemon=(True, "")))
+r["first_probe_after_reveal"] = page.shown_profile
+# A failed power reading leaves no stale caption.
+page.show_probe(ssb.Probe(power="", hyprsunset=(True, ""), hypridle=True,
+                          daemon=(True, "")))
+r["caption_no_power"] = w["status.power"].get_visible()
+# Steps out of order in the hidden set are told in the switch's caption.
+page.show_profile("ac")
+page.show_order("battery", True)
+r["order_other_caption"] = w["status.power"].get_label()
+r["order_other_label_visible"] = page.order_labels["battery"].get_visible()
+ok = dict(hyprsunset=(True, ""), hypridle=True, daemon=(True, ""))
+page.show_probe(ssb.Probe(power="ac", **ok))
+r["order_two_lines"] = w["status.power"].get_label()
+page.show_order("battery", False)
+# A failed power reading between two equal ones is no change: the pick stays.
+page.profile_buttons["battery"].set_active(True)
+for power in ("", "ac"):
+    page.show_probe(ssb.Probe(power=power, **ok))
+r["pick_after_failed_read"] = page.shown_profile
+# Typing in a minutes field: a power change waits until the field is left.
+page._typing = lambda: True
+page.show_probe(ssb.Probe(power="battery", **ok))
+page.profile_buttons["ac"].set_active(True)  # the pick made before unplugging
+page.show_probe(ssb.Probe(power="ac", **ok))
+page.show_probe(ssb.Probe(power="battery", **ok))
+r["typing_kept"] = page.shown_profile
+del page._typing
+page.show_probe(ssb.Probe(power="battery", **ok))
+r["after_typing"] = page.shown_profile
+page.reveal("target")
+spin(0.3)
+r["reveal_target_expanded"] = w["night.more"].get_expanded()
+page.show_profile("ac")
 
 # A timing edit through the widget: written 1.5 s after the change, not before.
 w["idle.battery.dim.minutes"].set_value(9)
@@ -215,7 +299,7 @@ Path(backend.ss.common.CONFIG_FILE).unlink()
 page.refresh()
 spin(0.2)
 r["missing_setup_visible"] = page.setup_group.get_visible()
-r["missing_main_visible"] = page.profile_groups["ac"].get_visible()
+r["missing_main_visible"] = page.idle_group.get_visible()
 r["missing_config_created"] = Path(backend.ss.common.CONFIG_FILE).exists()
 r["statuses"] = statuses[-5:]
 

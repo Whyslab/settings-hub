@@ -1,5 +1,9 @@
 """The "Screen and sleep" page: idle timings, stay awake, the night filter.
 
+Layout: a warning group on top only while a service is down; stay awake; one
+idle group whose switch shows the AC or the battery set (the set in force
+by default); the night filter with its schedule times and target folded.
+
 Only widgets live here; what to write and when is decided by
 controllers.screen_sleep.Controller, which this page serves as the view.
 Every widget the old window's abilities map to is registered in
@@ -21,6 +25,12 @@ from ..backends import screen_sleep as ss_backend  # noqa: E402
 from ..controllers import screen_sleep as ctl  # noqa: E402
 from ..widgets.rows import Group, Row  # noqa: E402
 from .base import Page  # noqa: E402
+from .general import REVEAL_AFTER_UNFOLD_MS  # noqa: E402
+from .wallpaper import segmented  # noqa: E402
+
+# A service shows up as broken only after this many bad probes in a row: one
+# slow answer must not push the whole page down for a probe.
+BAD_PROBES_TO_WARN = 2
 
 
 def _spin(lo: int, hi: int, step: int, width: int, pad: bool = False) -> Gtk.SpinButton:
@@ -73,8 +83,16 @@ class ScreenSleepPage(Page):
         self._steps: dict[str, tuple[Gtk.Switch, Gtk.SpinButton]] = {}
         self._times: dict[str, tuple[Gtk.SpinButton, Gtk.SpinButton]] = {}
         self._main: list[Gtk.Widget] = []
-        self.profile_groups: dict[str, Group] = {}
+        self.profile_rows: dict[str, list[Row]] = {p: [] for p in ctl.PROFILES}
         self.order_labels: dict[str, Gtk.Label] = {}
+        self._order_bad: dict[str, bool] = dict.fromkeys(ctl.PROFILES, False)
+        self.shown_profile = ctl.PROFILES[0]
+        self._power = ""  # the power source of the last probe, "" if unread
+        self._last_power = ""  # the last one read: a failed read is no change
+        self._follow_power = True  # until the switch is clicked; again once hidden
+        self._setup_ok = True
+        self._broken = False  # a service is down (BAD_PROBES_TO_WARN probes)
+        self._bad_probes: dict[str, int] = {}
         backend = self.ctx.backends.get(ss_backend.BACKEND)
         if backend is None:  # normally created by the app, with History appliers
             backend = ss_backend.Backend(self.ctx.workers)
@@ -83,11 +101,11 @@ class ScreenSleepPage(Page):
         self.backend = backend
 
         self._build_setup()
-        self._build_now()
+        self._build_alerts()
         self._build_caffeine()
-        for profile in ctl.PROFILES:
-            self._build_profile(profile)
+        self._build_idle()
         self._build_night()
+        self.show_profile(self.shown_profile)
 
         self.controller = ctl.Controller(backend, self.ctx.history, self,
                                          settings=self.ctx.settings)
@@ -113,19 +131,17 @@ class ScreenSleepPage(Page):
         self.widgets["setup.open-old"] = button
         self.setup_group.set_visible(False)
 
-    def _build_now(self) -> None:
-        group = self._add(Group(strings.SS_NOW_GROUP))
-        self.power_label = _dim("")
-        self.power_row = group.add(Row(strings.SS_POWER, suffix=self.power_label,
-                                       row_id="now"))
-        self.rows["now"] = self.power_row
-        self.widgets["status.power"] = self.power_label
+    def _build_alerts(self) -> None:
+        """Only a broken service is shown; the group is hidden while all run."""
+        self.alert_group = self.add_group(Group(strings.SS_ALERT_GROUP))
+        self.alert_group.set_visible(False)
         self.checks: dict[str, tuple[Row, StatusBadge]] = {}
         for name, title in (("hyprsunset", strings.SS_CHECK_HYPRSUNSET),
                             ("hypridle", strings.SS_CHECK_HYPRIDLE),
                             ("daemon", strings.SS_CHECK_DAEMON)):
             badge = StatusBadge()
-            row = group.add(Row(title, suffix=badge))
+            row = self.alert_group.add(Row(title, suffix=badge))
+            row.set_visible(False)
             self.checks[name] = (row, badge)
             self.widgets[f"status.{name}"] = badge
 
@@ -138,9 +154,19 @@ class ScreenSleepPage(Page):
         self.rows["caffeine"] = self.caffeine_row
         self.widgets["caffeine.switch"] = self.caffeine
 
-    def _build_profile(self, profile: str) -> None:
-        group = self._add(Group(strings.SS_PROFILES[profile]))
-        self.profile_groups[profile] = group
+    def _build_idle(self) -> None:
+        group = self._add(Group(strings.SS_IDLE_GROUP, strings.SS_PROFILE_NOTE))
+        self.idle_group = group
+        switch, self.profile_buttons = segmented(
+            {p: strings.SS_PROFILES[p] for p in ctl.PROFILES}, self._on_profile_button)
+        self.profile_row = group.add(Row(strings.SS_PROFILE_ROW, suffix=switch))
+        self.profile_row.subtitle_label.set_visible(False)
+        self.widgets["status.power"] = self.profile_row.subtitle_label
+        for profile in ctl.PROFILES:
+            self._build_profile(group, profile)
+
+    def _build_profile(self, group: Group, profile: str) -> None:
+        rows = self.profile_rows[profile]
         first = None
         for step in ctl.STEPS:
             switch = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -153,6 +179,7 @@ class ScreenSleepPage(Page):
             row = group.add(Row(strings.SS_STEPS[step], suffix=suffix,
                                 row_id=profile if first is None else None))
             first = first or row
+            rows.append(row)
             self._steps[f"idle.{profile}.{step}"] = (switch, spin)
             self.widgets[f"idle.{profile}.{step}.enabled"] = switch
             self.widgets[f"idle.{profile}.{step}.minutes"] = spin
@@ -169,7 +196,7 @@ class ScreenSleepPage(Page):
                            self.controller.preset(p, i))
             presets.append(button)
             self.widgets[f"idle.{profile}.preset.{preset_id}"] = button
-        group.add(Row(strings.SS_PRESETS_ROW, suffix=presets))
+        rows.append(group.add(Row(strings.SS_PRESETS_ROW, suffix=presets)))
 
         warning = Gtk.Label(label=strings.SS_ORDER_WARNING, xalign=0, wrap=True,
                             visible=False)
@@ -218,6 +245,20 @@ class ScreenSleepPage(Page):
         self.rows["schedule"] = self.schedule_row
         self.widgets["night.schedule"] = self.schedule
 
+        off = Gtk.Button(label=strings.SS_OFF_NOW)
+        off.connect("clicked", lambda *_: self.controller.off_now())
+        self.rows["off-now"] = group.add(Row(strings.SS_OFF_NOW, strings.SS_OFF_NOW_HINT,
+                                             suffix=off, row_id="off-now"))
+        self.widgets["night.off-now"] = off
+
+        # Start, end and target: set once, so folded until clicked.
+        group = Group()
+        self.night_more = Gtk.Expander(label=strings.SS_NIGHT_MORE, child=group)
+        self.night_more.add_css_class("sh-advanced")
+        self._box.append(self.night_more)
+        self._main.append(self.night_more)
+        self.widgets["night.more"] = self.night_more
+
         self.target = _spin(ctl.MIN_TEMP, ctl.MAX_TEMP, ctl.TARGET_STEP, 4)
         self.target.connect("value-changed", self._on_target)
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -248,19 +289,58 @@ class ScreenSleepPage(Page):
             for spin in (hour, minute):
                 spin.connect("value-changed", lambda *_a, k=f"night.{name}": self._on_time(k))
 
-        off = Gtk.Button(label=strings.SS_OFF_NOW)
-        off.connect("clicked", lambda *_: self.controller.off_now())
-        self.rows["off-now"] = group.add(Row(strings.SS_OFF_NOW, strings.SS_OFF_NOW_HINT,
-                                             suffix=off, row_id="off-now"))
-        self.widgets["night.off-now"] = off
-
     # ---- page protocol --------------------------------------------------
 
     def refresh(self) -> None:
         self.controller.refresh()
 
+    def reveal(self, row_id: str) -> None:
+        """A search result for the other set switches to it; one for the
+        folded schedule rows unfolds them first."""
+        if row_id in ctl.PROFILES:
+            self._follow_power = False
+            self.show_profile(row_id)
+        if row_id in ("target", "times") and not self.night_more.get_expanded():
+            self.night_more.set_expanded(True)
+            GLib.timeout_add(REVEAL_AFTER_UNFOLD_MS,
+                             lambda: super(ScreenSleepPage, self).reveal(row_id))
+            return
+        super().reveal(row_id)
+
+    def show_profile(self, profile: str) -> None:
+        """Show the rows of one set and hide the other's."""
+        self.shown_profile = profile
+        for name, rows in self.profile_rows.items():
+            for row in rows:
+                row.set_visible(name == profile)
+            self.order_labels[name].set_visible(name == profile and self._order_bad[name])
+        button = self.profile_buttons[profile]
+        if not button.get_active():
+            with self._quiet():
+                button.set_active(True)
+        self._show_power()
+
+    def _show_power(self) -> None:
+        """The caption of the switch: the power now, and a warning about the
+        hidden set, whose own warning label is not on screen."""
+        lines = []
+        if self._power in strings.SS_PROFILES:
+            lines.append((strings.SS_SET_IN_FORCE if self._power == self.shown_profile
+                          else strings.SS_SET_LATER).format(
+                              power=strings.SS_POWER_NAMES[self._power]))
+        lines += [strings.SS_ORDER_OTHER.format(profile=strings.SS_PROFILES[p])
+                  for p in ctl.PROFILES if p != self.shown_profile and self._order_bad[p]]
+        label = self.profile_row.subtitle_label
+        label.set_label("\n".join(lines))
+        label.set_visible(bool(lines))
+
     def _hidden(self) -> None:
         self.controller.set_visible(False)
+        # The next showing starts on the set in force. Done here, not on
+        # "map": a search result may open the other set before the map.
+        self._follow_power = True
+        if self._power in ctl.PROFILES:
+            self.show_profile(self._power)
         # Hiding the window must not lose a value typed but not yet entered.
         for _switch, spin in self._steps.values():
             spin.update()
@@ -296,6 +376,12 @@ class ScreenSleepPage(Page):
         if not self._quiet_depth:
             hour, minute = self._times[key]
             self.controller.edit(key, [int(hour.get_value()), int(minute.get_value())])
+
+    def _on_profile_button(self, profile: str) -> None:
+        if self._quiet_depth:
+            return
+        self._follow_power = False
+        self.show_profile(profile)
 
     def _on_caffeine(self, switch: Gtk.Switch, _pspec) -> None:
         self.caffeine_row.subtitle_label.set_label(
@@ -362,19 +448,31 @@ class ScreenSleepPage(Page):
             return False
         return any(w.get_state_flags() & Gtk.StateFlags.FOCUS_WITHIN for w in widgets)
 
+    def _typing(self) -> bool:
+        """A minutes field of the idle group has focus. Switches and buttons
+        keep focus after a click too, so only the fields count (as in focused)."""
+        return any(spin.get_state_flags() & Gtk.StateFlags.FOCUS_WITHIN
+                   for _switch, spin in self._steps.values())
+
     def show_order(self, profile: str, bad: bool) -> None:
-        self.order_labels[profile].set_visible(bad)
+        self._order_bad[profile] = bad
+        self.order_labels[profile].set_visible(bad and profile == self.shown_profile)
+        self._show_power()
 
     def show_probe(self, probe: ss_backend.Probe) -> None:
-        if probe.power in strings.SS_PROFILES:
-            self.power_label.set_label(strings.SS_POWER_NAMES[probe.power].capitalize())
-            self.power_row.subtitle_label.set_label(strings.SS_POWER_ACTIVE.format(
-                profile=strings.SS_PROFILES[probe.power]))
-            self.power_row.subtitle_label.set_visible(True)
-            for profile, group in self.profile_groups.items():
-                name = strings.SS_PROFILES[profile]
-                group.heading.set_label(strings.SS_PROFILE_NOW.format(profile=name)
-                                        if profile == probe.power else name)
+        # Plugged in or out: show the set now in force -- but not from under a
+        # field being typed in; then on a later probe. The first probe is no
+        # change: it must not undo a search result that opened the other set.
+        self._power = probe.power if probe.power in strings.SS_PROFILES else ""
+        if self._power:
+            if self._last_power and self._power != self._last_power:
+                self._follow_power = True
+            self._last_power = self._power
+        if self._power and self._follow_power and not self._typing():
+            self.show_profile(self._power)
+        else:
+            self._show_power()
+        broken = False
         for name, value in (("hyprsunset", probe.hyprsunset), ("hypridle", probe.hypridle),
                             ("daemon", probe.daemon)):
             row, badge = self.checks[name]
@@ -383,9 +481,17 @@ class ScreenSleepPage(Page):
             badge.show_state(ok)
             row.subtitle_label.set_label(message)
             row.subtitle_label.set_visible(bool(message) and not ok)
+            self._bad_probes[name] = 0 if ok else self._bad_probes.get(name, 0) + 1
+            down = self._bad_probes[name] >= BAD_PROBES_TO_WARN
+            row.set_visible(down)
+            broken = broken or down
+        self._broken = broken
+        self.alert_group.set_visible(broken and self._setup_ok)
 
     def show_setup(self, state: str, detail: str) -> None:
         ok = state == "ok"
+        self._setup_ok = ok
+        self.alert_group.set_visible(ok and self._broken)
         for group in self._main:
             group.set_visible(ok)
         self.setup_group.set_visible(not ok)
