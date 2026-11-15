@@ -62,5 +62,43 @@ for page_id in ("monitor", "notifications", "autostart", "updates"):
     spin(0.5)
     result[page_id] = texts(win._pages[page_id].widget)
 result["history_groups"] = len(history.groups())
+
+# Then pick another scale and another mode, answer nothing: each is tried live
+# and comes back by itself (the wait made short).
+import os  # noqa: E402
+
+from settings_hub.pages import monitor as monitor_page  # noqa: E402
+
+with open(os.environ["SH_TEST_CALL_LOG"], "a") as log:
+    log.write("== change ==\n")
+monitor_page.CONFIRM_S = 1
+win.show_page("monitor")
+spin(0.5)
+
+
+def dropdowns(widget) -> list:
+    out = []
+    child = widget.get_first_child()
+    while child is not None:
+        if isinstance(child, Gtk.DropDown):
+            out.append(child)
+        out += dropdowns(child)
+        child = child.get_next_sibling()
+    return out
+
+
+def pick(nth: int, label: str) -> None:
+    dd = dropdowns(win._pages["monitor"].widget)[nth]
+    model = dd.get_model()
+    labels = [model.get_string(i) for i in range(model.get_n_items())]
+    dd.set_selected(labels.index(label))
+    spin(3.5)
+    workers.wait_idle(10)
+    spin(0.5)
+
+
+pick(1, "125 %")
+pick(0, "1920×1080, 40 Гц")
+result["history_after_change"] = len(history.groups())
 out_path.write_text(json.dumps(result, ensure_ascii=False))
 workers.stop_all(timeout=2)

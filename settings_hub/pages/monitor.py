@@ -93,7 +93,9 @@ class MonitorPage(Page):
 
                 modes = Gtk.DropDown.new_from_strings([mode_label(m) for m in monitor.modes])
                 modes.set_selected(monitor.modes.index(current["mode"]))
-                modes.connect("notify::selected", lambda dd, m=monitor: self._picked_mode(m, dd))
+                # notify:: passes (widget, pspec): the pspec must not land on m
+                modes.connect("notify::selected",
+                              lambda dd, _p, m=monitor: self._picked_mode(m, dd))
                 row = group.add(Row(strings.MON_MODE, suffix=modes,
                                     row_id=f"mode.{monitor.name}"))
                 if index == 0:
@@ -105,7 +107,7 @@ class MonitorPage(Page):
                 closest = min(range(len(scales)), key=lambda i: abs(scales[i] - monitor.scale))
                 scale_dd.set_selected(closest)
                 scale_dd.connect("notify::selected",
-                                 lambda dd, m=monitor, sc=scales: self._picked_scale(m, dd, sc))
+                                 lambda dd, _p, m=monitor, sc=scales: self._picked_scale(m, dd, sc))
                 row = group.add(Row(strings.MON_SCALE, strings.MON_SCALE_HINT, suffix=scale_dd,
                                     row_id=f"scale.{monitor.name}"))
                 if index == 0:

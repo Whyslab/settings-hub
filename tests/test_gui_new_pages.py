@@ -2,6 +2,8 @@
 
 Opening a page must change nothing: no `hyprctl eval`, no HyprPanel config
 written, Do Not Disturb as it was (it is read by flipping it twice).
+Then picking another scale and mode on the Monitor page must try each live
+and, with no answer, put it back (this once crashed on a click: 15.11).
 """
 
 import json
@@ -37,6 +39,7 @@ def test_new_pages_open_without_changing_anything(tmp_path, xvfb):  # noqa: F811
     stub(stubs, "hyprctl", f"""case "$*" in
   "monitors all -j") echo '{MONITORS}' ;;
   "-j version") echo '{{"version": "0.57.2"}}' ;;
+  eval*) echo ok ;;
 esac""", log)
     stub(stubs, "hyprpanel", f"""case "$*" in
   toggleDnd) if [ "$(cat {dnd})" = on ]; then echo off >{dnd}; echo Disabled;
@@ -54,14 +57,15 @@ esac""", log)
                XDG_STATE_HOME=str(home / ".local" / "state"),
                XDG_CACHE_HOME=str(home / ".cache"), DISPLAY=xvfb, GDK_BACKEND="x11",
                GSK_RENDERER="cairo", NO_AT_BRIDGE="1", GTK_A11Y="none",
-               PYTHONDONTWRITEBYTECODE="1", PATH=f"{stubs}:{os.environ['PATH']}")
+               PYTHONDONTWRITEBYTECODE="1", SH_TEST_CALL_LOG=str(log),
+               PATH=f"{stubs}:{os.environ['PATH']}")
     done = subprocess.run(
         ["dbus-run-session", f"--config-file={bus}", "--", "/usr/bin/python3",
          str(ROOT / "tests" / "gui_new_pages.py"), str(ROOT), str(state), str(out)],
         env=env, capture_output=True, text=True, timeout=90)
     assert done.returncode == 0, done.stderr[-3000:]
     assert "Traceback" not in done.stderr, done.stderr[-3000:]
-    calls = log.read_text()
+    calls, changed = log.read_text().split("== change ==\n")
     assert "hyprctl eval" not in calls and "clearNotifications" not in calls, calls
     assert "notify-send" not in calls and "kitty" not in calls, calls
     assert calls.count("hyprpanel toggleDnd") % 2 == 0 and dnd.read_text().strip() == "on"
@@ -70,6 +74,12 @@ esac""", log)
     assert not (hypr / "settings-hub-autostart.lua").exists()
     r = json.loads(out.read_text())
     assert r["history_groups"] == 0
+    # picking a scale, then a mode: tried live, then put back with no answer
+    evals = [line for line in changed.splitlines() if line.startswith("hyprctl eval")]
+    assert len(evals) == 4, changed
+    assert "scale = 1.25" in evals[0] and "scale = 1.5" in evals[1], evals
+    assert "1920x1080@40" in evals[2] and "1920x1080@60.02" in evals[3], evals
+    assert r["history_after_change"] == 0
     assert any("1920×1080, 60.02 Гц" in t for t in r["monitor"]), r["monitor"]
     assert any(t == "150 %" for t in r["monitor"]), r["monitor"]
     assert "kitty" in r["notifications"], r["notifications"]  # a recent sender to ignore
