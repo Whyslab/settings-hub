@@ -24,6 +24,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -34,6 +36,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import hypr, pages, registry, strings  # noqa: E402
+from .binds.writer import WINDOW_CLASS, main_rule_match  # noqa: E402
 from .history import History  # noqa: E402
 from .home import HOME, Home  # noqa: E402
 from .settings import Settings  # noqa: E402
@@ -74,6 +77,48 @@ UNFULLSCREEN_COMMAND = ["hyprctl", "dispatch",
                         "hl.dsp.window.fullscreen_state({ internal = 0, client = 0, "
                         f"window = {hypr.lua_str(CLASS_MATCH)} }})"]
 RESIZE_AFTER_MAP_MS = 60
+RULE_TIMEOUT_S = 0.3  # it answers in ~8 ms; a stuck Hyprland must not freeze the window
+SIZE_SLACK = 2  # px: Hyprland may round a logical size on a scaled monitor
+
+
+def rule_code(width: int, height: int) -> str:
+    """The main window's rule with the size it is about to be shown at.
+
+    The rule in settings-hub.lua has no size (it can be changed on the General
+    page), and without one the window came up at a size of Hyprland's choosing
+    (634x679 instead of 920x640) and only then was resized and re-centered,
+    in the middle of its open animation: the window jumped (15.11.2026).
+
+    Hyprland 0.57 does not replace a rule of the same name: it takes the
+    match fields and *appends* the effects, the last size winning. So a few
+    effects pile up per showing until the next config reload, which drops
+    them and the size with them (game binds reload on leaving a game) --
+    that is why it is sent before every showing (~8 ms), not once. Removing
+    a field here does not remove it from the live rule before a reload.
+    """
+    return (f'hl.window_rule({{ name = "settings-hub", match = {main_rule_match()}, '
+            f'float = true, center = true, size = "{int(width)} {int(height)}" }})')
+
+
+def needs_fix(clients_json: str, width: int, height: int) -> bool:
+    """Whether the main window is not as the rule should have put it: tiled,
+    maximized or fullscreen, or of another size. Unreadable = fix it; not
+    there = hidden again already (Esc right after opening): leave it, a .conf
+    "centerwindow" would move whatever window is active instead."""
+    try:
+        clients = json.loads(clients_json)
+        ours = [c for c in clients if re.fullmatch(WINDOW_CLASS, c.get("class", ""))
+                and c.get("initialTitle") == strings.APP_TITLE and not c.get("hidden")]
+        if not ours:
+            return False
+        if len(ours) > 1:
+            return True
+        c = ours[0]
+        w, h = c["size"]
+        return (not c["floating"] or c.get("fullscreen", 0) != 0
+                or abs(w - width) > SIZE_SLACK or abs(h - height) > SIZE_SLACK)
+    except (ValueError, KeyError, TypeError):
+        return True
 NETWORK_SETTLE_S = 6
 
 
@@ -297,6 +342,8 @@ class Window(Gtk.ApplicationWindow):
         if not page_id:
             page_id = (self.current if was_visible else "") or self.start_page()
         self.show_page(page_id, row_id)
+        if not was_visible and os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+            self._send_rule()
         self.present()
         if was_visible and not self.is_active() and os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             # With misc:focus_on_activate = 0, present() does not take focus
@@ -334,15 +381,54 @@ class Window(Gtk.ApplicationWindow):
         if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             GLib.timeout_add(RESIZE_AFTER_MAP_MS, self._apply_size)
 
+    def _send_rule(self) -> None:
+        """Give Hyprland the size before the window maps (see rule_code).
+
+        Waits for the answer (~8 ms) so the rule is in place before present().
+        A .conf Hyprland has no `eval`; there the check after the map fixes it.
+        """
+        try:
+            done = subprocess.run(["hyprctl", "eval", rule_code(*self._initial_size())],
+                                  capture_output=True, text=True, timeout=RULE_TIMEOUT_S)
+            if done.stdout.strip() != "ok":
+                log.info("window rule: %s", (done.stdout or done.stderr).strip()[:200])
+        except (OSError, subprocess.SubprocessError) as exc:
+            log.warning("window rule: %s", exc)
+
     def _apply_size(self) -> bool:
         """Floating, not maximized, the size the General page names, centered.
 
-        Always all four: GTK may not know yet that Hyprland tiled or maximized
-        the window, and a window floated back gets a size of Hyprland's choosing.
+        Only when the window is not so already: the rule normally put it there,
+        and resizing and centering it again in the middle of the open animation
+        is what made the opening jerky. When it is needed, all four: GTK may
+        not know that Hyprland tiled or maximized the window, and a window
+        floated back gets a size of Hyprland's choosing.
         """
         width, height = self._initial_size()
-        self._run_in_order([FLOAT_COMMAND, UNFULLSCREEN_COMMAND,
-                            resize_command(width, height), CENTER_COMMAND])
+        try:
+            process = Gio.Subprocess.new(
+                ["hyprctl", "-j", "clients"],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE)
+        except GLib.Error as exc:
+            log.warning("window state: %s", exc.message)
+            process = None
+
+        def fix() -> None:
+            self._run_in_order([FLOAT_COMMAND, UNFULLSCREEN_COMMAND,
+                                resize_command(width, height), CENTER_COMMAND])
+
+        def read(proc, result) -> None:
+            try:
+                _ok, out, _err = proc.communicate_utf8_finish(result)
+            except GLib.Error:
+                out = ""
+            if needs_fix(out or "", width, height):
+                fix()
+
+        if process is None:
+            fix()
+        else:
+            process.communicate_utf8_async(None, None, read)
         return False
 
     def _run_in_order(self, commands: list[list[str]]) -> None:

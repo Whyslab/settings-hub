@@ -86,3 +86,51 @@ def test_window_float_command_is_idempotent():
     lua = window.FLOAT_COMMAND[4]
     assert 'action = "enable"' in lua
     assert '"set"' not in lua and '"toggle"' not in lua
+
+
+def _client(**over):
+    c = {"class": "io.github.whyslab.SettingsHub", "initialTitle": "Настройки",
+         "hidden": False, "floating": True, "fullscreen": 0, "size": [920, 640]}
+    c.update(over)
+    return c
+
+
+def test_window_rule_carries_the_size_and_replaces_the_installed_one():
+    """Without a size the window mapped at 634x679 and was resized mid-animation
+    (15.11.2026); the same name replaces the rule of settings-hub.lua."""
+    pytest.importorskip("gi")
+    from settings_hub import window
+    from settings_hub.binds import writer
+
+    code = window.rule_code(1000, 700)
+    assert 'size = "1000 700"' in code
+    assert "float = true" in code and "center = true" in code
+    match = writer.main_rule_match()
+    assert f"match = {match}," in code
+    assert 'initial_title = "^(Настройки)$"' in match  # dialogs keep their own size
+    installed = writer.lua_text("/d", "/b", "/c")
+    rule = installed.split("hl.window_rule({", 2)[1]
+    assert '"settings-hub",' in rule and f"match  = {match}," in rule
+
+
+def test_window_is_fixed_after_the_map_only_when_it_is_off():
+    pytest.importorskip("gi")
+    import json
+
+    from settings_hub import window
+
+    def fix(*clients, size=(920, 640)):
+        return window.needs_fix(json.dumps(list(clients)), *size)
+
+    assert fix(_client()) is False
+    assert fix(_client(size=[921, 639])) is False  # rounding on a scaled monitor
+    assert fix(_client(), _client(initialTitle="Удалить?", size=[400, 200])) is False
+    assert fix(_client(floating=False)) is True
+    assert fix(_client(fullscreen=1)) is True
+    assert fix(_client(size=[634, 679])) is True
+    assert fix(_client(), size=(1000, 700)) is True
+    assert fix() is False  # hidden again already: nothing to fix
+    assert fix(_client(hidden=True)) is False
+    assert fix(_client(), _client()) is True  # two main windows: unclear, fix
+    assert window.needs_fix("", 920, 640) is True  # hyprctl failed
+    assert fix({"class": "kitty"}) is False  # only other windows: ours is hidden

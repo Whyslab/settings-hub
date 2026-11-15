@@ -89,7 +89,9 @@ def check(r: dict) -> None:
     assert c["shown_profile"] == "battery"
     assert all(c["battery_rows_visible"]) and not any(c["ac_rows_visible"])
     assert "включится при смене питания" in c["power_text"]
-    assert r["after_click_probes"] == ["ac"] and r["after_click_probe"] == "battery"
+    # at least one probe came (a slow machine may fit a periodic one in too), all on AC
+    assert r["after_click_probes"] and set(r["after_click_probes"]) == {"ac"}
+    assert r["after_click_probe"] == "battery"
     assert r["after_power_change"] == "ac"
     assert r["alert_one_bad"] is False
     d = r["alert_down"]

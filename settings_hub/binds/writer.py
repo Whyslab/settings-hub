@@ -69,13 +69,20 @@ bind   = SUPER CTRL ALT, Escape, submap, reset
 submap = reset
 """
 WINDOW_CLASS = r"^(settings-hub|io\.github\.whyslab\.SettingsHub)$"
+MAIN_TITLE = "^(" + re.escape(strings.APP_TITLE) + ")$"
+
+
+def main_rule_match() -> str:
+    """The Lua match table of the main window's rule: settings-hub.lua writes
+    it, and the window sends it again with its size (window.rule_code)."""
+    return (f"{{ class = {hypr.lua_str(WINDOW_CLASS)}, "
+            f"initial_title = {hypr.lua_str(MAIN_TITLE)} }}")
 
 
 def conf_text(data_home: str, bin_home: str, block: list[str] | None = None) -> str:
     """settings-hub.conf: the generated part, then the binds block (`block`: the
     lines between the markers, kept verbatim; empty if None)."""
-    title = "^(" + re.escape(strings.APP_TITLE) + ")$"
-    head = HEADER.format(data=data_home, bin=bin_home, cls=WINDOW_CLASS, title=title)
+    head = HEADER.format(data=data_home, bin=bin_home, cls=WINDOW_CLASS, title=MAIN_TITLE)
     return head + "\n".join([BEGIN, *(block or []), END]) + "\n"
 
 
@@ -92,7 +99,7 @@ hl.on("hyprland.start", function()
 end)
 hl.window_rule({{
     name   = "settings-hub",
-    match  = {{ class = {cls}, initial_title = {title} }},
+    match  = {main_match},
     float  = true,
     center = true,
 }})
@@ -139,13 +146,12 @@ def lua_text(data_home: str, bin_home: str, config_home: str = "") -> str:
     config_home: where settings-hub-vars.lua lives (default ~/.config); the
     window's variable pages write that file and this line loads it last.
     """
-    title = "^(" + re.escape(strings.APP_TITLE) + ")$"
     config = config_home or os.path.join(os.path.expanduser("~"), ".config")
     app = shlex.quote(f"{data_home}/settings-hub/app.py")
     opener = shlex.quote(f"{bin_home}/settings-open")
     head = LUA_HEADER.format(
         daemon=hypr.lua_str(f"python3 {app} --daemon"),
-        cls=hypr.lua_str(WINDOW_CLASS), title=hypr.lua_str(title),
+        cls=hypr.lua_str(WINDOW_CLASS), main_match=main_rule_match(),
         open_screen=hypr.lua_str(f"{opener} screen-sleep"),
         open_wallpaper=hypr.lua_str(f"{opener} wallpaper"),
         open_any=hypr.lua_str(opener),
