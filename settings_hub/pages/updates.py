@@ -51,7 +51,7 @@ def last_text(day: date | None, today: date | None = None) -> str:
 
 class UpdatesPage(Page):
     def build(self) -> None:
-        self._checked_at = 0.0
+        self._checked_at: float | None = None  # None: never checked, check on show
         self._checking = False
         self._packages: list[upd.Package] | None = None
 
@@ -61,7 +61,8 @@ class UpdatesPage(Page):
         self.rows["pending"] = self.pending_row
         self.upgrade_button = Gtk.Button(label=strings.UPD_UPGRADE_BUTTON)
         self.upgrade_button.add_css_class("suggested-action")
-        self.upgrade_button.connect("clicked", lambda *_: self._terminal(upd.upgrade_command()))
+        self.upgrade_button.connect("clicked", lambda *_: self._terminal(upd.upgrade_command(),
+                                                                       strings.UPD_TERMINAL_TITLE))
         self.rows["upgrade"] = state.add(Row(
             strings.UPD_UPGRADE,
             strings.UPD_UPGRADE_HINT.format(command=upd.upgrade_command()),
@@ -82,7 +83,8 @@ class UpdatesPage(Page):
         self.cache_label = Gtk.Label(label="—")
         self.cache_label.add_css_class("sh-dim")
         cache_button = Gtk.Button(label=strings.UPD_CACHE_BUTTON)
-        cache_button.connect("clicked", lambda *_: self._terminal(upd.cache_command()))
+        cache_button.connect("clicked", lambda *_: self._terminal(upd.cache_command(),
+                                                                  strings.UPD_CACHE_TITLE))
         box = Gtk.Box(spacing=12)
         box.append(self.cache_label)
         box.append(cache_button)
@@ -98,7 +100,8 @@ class UpdatesPage(Page):
     # ---- page protocol --------------------------------------------------
 
     def refresh(self) -> None:
-        stale = time.monotonic() - self._checked_at > RECHECK_S
+        stale = (self._checked_at is None
+                 or time.monotonic() - self._checked_at > RECHECK_S)
         self._check(force=stale)
 
     # ---- reading --------------------------------------------------------
@@ -120,7 +123,10 @@ class UpdatesPage(Page):
             self._checking = False
             self.check_button.set_sensitive(True)
         if error is not None or info is None:
-            self.pending_row.subtitle_label.set_label(strings.UPD_FAILED.format(error=error))
+            if checked:
+                self.pending_row.subtitle_label.set_label(strings.UPD_FAILED.format(error=error))
+            else:
+                self.ctx.status(strings.UPD_FAILED.format(error=error))
             return
         if checked:
             self._checked_at = time.monotonic()
@@ -179,9 +185,8 @@ class UpdatesPage(Page):
 
     # ---- actions --------------------------------------------------------
 
-    def _terminal(self, command: str) -> None:
-        argv = upd.terminal_command(command, strings.UPD_TERMINAL_TITLE,
-                                    strings.UPD_TERMINAL_DONE)
+    def _terminal(self, command: str, title: str) -> None:
+        argv = upd.terminal_command(command, title, strings.UPD_TERMINAL_DONE)
         if argv is None:
             self.ctx.status(strings.UPD_TERMINAL_FAILED.format(error="kitty"))
             return
@@ -192,7 +197,7 @@ class UpdatesPage(Page):
             self.ctx.status(strings.UPD_TERMINAL_FAILED.format(error=exc))
             return
         self.ctx.status(strings.UPD_TERMINAL_OPENED)
-        self._checked_at = 0.0  # the next show checks again: the list has changed
+        self._checked_at = None  # the next show checks again: the list has changed
 
 
 PAGE = UpdatesPage

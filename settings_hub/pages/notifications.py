@@ -101,10 +101,18 @@ class NotificationsPage(Page):
     def refresh(self) -> None:
         self.ctx.workers.submit(nb.WORKER, self.backend.probe, self._show, key="probe")
 
+    def _reread(self) -> None:
+        """After our own write: everything but Do Not Disturb, whose state is known
+        (reading it flips it twice, so not after every change)."""
+        self.ctx.workers.submit(nb.WORKER, lambda: self.backend.probe(with_dnd=False),
+                                self._show, key="probe")
+
     def _show(self, info: nb.Info | None, error: BaseException | None) -> None:
         if error is not None or info is None:
             self.ctx.status(strings.NOTIF_READ_FAILED.format(error=error))
             return
+        if not info.dnd_read and self.info is not None:
+            info.dnd, info.panel = self.info.dnd, info.panel or self.info.panel
         self.info = info
         self.banner.set_visible(not info.panel)
         for key, ctl in self.controls.items():
@@ -155,6 +163,8 @@ class NotificationsPage(Page):
             self._settle = GLib.timeout_add(SETTLE_MS, self._timeout_rested, int(value) * 1000)
             return
         before = self.info.dnd if key == nb.DND else self.info.values[key]
+        if key == nb.DND and before is None:
+            before = not value  # unknown: the switch showed the opposite of what was picked
         self._write(key, before, value)
 
     def _timeout_rested(self, value: int) -> bool:
@@ -168,6 +178,12 @@ class NotificationsPage(Page):
             self._pending.discard(key)
             return
         self._pending.add(key)
+        self._seq = getattr(self, "_seq", 0) + 1
+        # What it will be: a quick second change starts from this, not from the old read.
+        if key == nb.DND:
+            self.info.dnd = after
+        else:
+            self.info.values[key] = after
 
         def job() -> None:
             self.backend.apply({key: after})
@@ -176,12 +192,14 @@ class NotificationsPage(Page):
             self._pending.discard(key)
             if error is not None:
                 self.ctx.status(strings.NOTIF_FAILED.format(error=error))
-            else:
-                self.ctx.history.record([(nb.BACKEND, key, label(key), before, after)])
-                self.ctx.status(strings.NOTIF_APPLIED.format(name=label(key)))
-            self.refresh()
+                self.refresh()  # the real state, Do Not Disturb included
+                return
+            self.ctx.history.record([(nb.BACKEND, key, label(key), before, after)])
+            self.ctx.status(strings.NOTIF_APPLIED.format(name=label(key)))
+            self._reread()
 
-        self.ctx.workers.submit(nb.WORKER, job, done, key=("write", key))
+        # a key of its own: a queued change is never replaced, so none is left out of History
+        self.ctx.workers.submit(nb.WORKER, job, done, key=("write", self._seq))
 
     def _add_ignored(self) -> None:
         index = self.app_dropdown.get_selected()
@@ -189,7 +207,7 @@ class NotificationsPage(Page):
         if index == Gtk.INVALID_LIST_POSITION or index >= len(recent):
             return
         before = list(self.ignore)
-        self.ignore = before + [recent[index]]
+        self.ignore = before + [recent[index].strip()]
         self._show_ignore()
         self._write(nb.IGNORE, before, list(self.ignore))
 

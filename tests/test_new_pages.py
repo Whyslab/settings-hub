@@ -177,7 +177,7 @@ def test_autostart_command_from_desktop_exec():
 
 def test_autostart_normalize_drops_bad_and_duplicate_items():
     state = ab.normalize({"items": [
-        {"name": "A", "command": "a  --x"}, {"command": "a --x"}, {"command": ""},
+        {"name": "A", "command": " a --x"}, {"command": "a --x"}, {"command": ""},
         {"command": "b 'open"}, "junk", {"name": 5, "command": "c"}]})
     assert state == {"items": [{"name": "A", "command": "a --x"}, {"name": "", "command": "c"}]}
     assert ab.normalize(None) == {"items": []}
@@ -254,7 +254,7 @@ def test_monitor_parse_and_scales():
     (m,) = mb.parse_monitors(MONITORS)
     assert m.modes == ["1920x1080@60.02", "1920x1080@40.00"]
     assert m.setting() == {"mode": "1920x1080@60.02", "scale": 1.5, "position": "0x0",
-                           "enabled": True}
+                           "enabled": True, "transform": 0}
     assert mb.scales_for(1920, 1080, 1.5) == [1.0, 1.2, 1.25, 1.5, 1.6, 2.0, 2.5, 3.0]
     assert 1.5 not in mb.scales_for(2560, 1440, 1.0) and 1.6 in mb.scales_for(2560, 1440, 1)
     assert mb.parse_monitors("garbage") == [] and mb.parse_monitors('[{"name": "a;b"}]') == []
@@ -264,7 +264,9 @@ def test_monitor_lua_call_is_checked_and_quoted():
     setting = {"mode": "1920x1080@60.02", "scale": 1.25, "position": "0x0", "enabled": True}
     assert mb.lua_call("eDP-1", setting) == (
         'hl.monitor({ output = "eDP-1", mode = "1920x1080@60.02", position = "0x0", '
-        "scale = 1.25 })")
+        "scale = 1.25, transform = 0 })")
+    assert "transform = 1 })" in mb.lua_call("eDP-1", {**setting, "transform": 1})
+    assert mb.clean_setting({**setting, "transform": 9}) is None
     assert mb.lua_call("HDMI-A-1", {**setting, "enabled": False}) == \
         'hl.monitor({ output = "HDMI-A-1", disabled = true })'
     assert mb.clean_setting({**setting, "mode": '1920x1080"); os.exit() --'}) is None
@@ -303,3 +305,81 @@ def test_new_files_are_loaded_before_the_games_file():
     from settings_hub.binds import writer
     text = writer.lua_text("/d", "/b", "/c")
     assert text.index(ab.LUA_FILE) < text.index(mb.LUA_FILE) < text.index("settings-hub-games")
+
+
+class FlakyPanel(Panel):
+    """toggleDnd flips, but the answer of call number `lose` never arrives."""
+
+    def __init__(self, dnd, lose):
+        super().__init__(dnd=dnd)
+        self.n, self.lose = 0, lose
+
+    def __call__(self, argv):
+        rc, out = super().__call__(argv)
+        if argv[:2] == ["hyprpanel", "toggleDnd"]:
+            self.n += 1
+            if self.n == self.lose:
+                return 124, ""
+        return rc, out
+
+
+@pytest.mark.parametrize("lose", [1, 2])
+def test_notifications_a_lost_answer_makes_dnd_unknown_not_guessed(lose):
+    assert nb.Backend(None, runner=FlakyPanel(True, lose)).read_dnd() is None
+
+
+def test_notifications_set_dnd_needs_no_read_and_ends_in_the_wanted_state():
+    for start in (False, True):
+        for want in (False, True):
+            panel = Panel(dnd=start)
+            nb.Backend(None, runner=panel).set_dnd(want)
+            assert panel.dnd is want
+            assert len(panel.calls) == (1 if start != want else 2)
+
+
+def test_notifications_sender_with_a_quote():
+    text = "[<{'id': <uint32 1>, 'app-name': <\"Bob's app\">}>]"
+    assert nb.parse_stored(text) == (1, ["Bob's app"])
+
+
+def test_autostart_keeps_spacing_inside_quotes_and_refuses_new_lines():
+    assert ab.clean_command('  notify-send "a  b" ') == 'notify-send "a  b"'
+    assert ab.clean_command("a\nb") is None
+
+
+def test_autostart_short_note_is_one_clipped_sentence():
+    assert ab.short_note("Обои: демон и восстановление") == "Обои"
+    assert ab.short_note("Окно пароля (polkit). Его служба") == "Окно пароля (polkit)"
+    assert len(ab.short_note("x" * 300)) == ab.NOTE_MAX
+
+
+@pytest.mark.skipif(luaread.interpreter() is None, reason="no lua5.4 / lua")
+def test_binds_reader_does_not_run_start_handlers(tmp_path):
+    lua = tmp_path / "hyprland.lua"
+    lua.write_text('hl.on("hyprland.start", function() hl.exec_cmd("x") end)\n')
+    assert "exec\t" not in luaread._run(lua, None, 2)
+    assert "exec\t" in luaread._run(lua, None, 2, starts=True)
+
+
+def test_monitor_restore_falls_back_to_a_reload(tmp_path):
+    setting = {"mode": "1920x1080@60.02", "scale": 1.5, "position": "0x0", "enabled": True}
+
+    class Stubborn(Hypr):
+        def __call__(self, args):
+            if args == ["reload", "config-only"]:
+                self.calls.append(args)
+                return 0, "ok"
+            return super().__call__(args)
+
+    hypr = Stubborn("error: busy")
+    mb.Backend(None, hyprctl=hypr).restore("eDP-1", setting)
+    assert sum(c[0] == "eval" for c in hypr.calls) == 3 and hypr.calls[-1] == ["reload",
+                                                                                "config-only"]
+
+
+def test_monitor_disabled_output_reporting_0x0_still_has_a_mode():
+    raw = json.loads(MONITORS)
+    raw[0].update(width=0, height=0, disabled=True)
+    (m,) = mb.parse_monitors(json.dumps(raw))
+    assert m.setting()["mode"] == "1920x1080@60.02" and not m.enabled
+    assert mb.clean_setting({**m.setting(), "enabled": True}) is not None

@@ -140,6 +140,9 @@ BACKENDS = {
     "power": "Питание",
     "game-binds": "Игровые бинды",
     "themes": "Темы",
+    "monitor": "Монитор",
+    "notifications": "Уведомления",
+    "autostart": "Автозапуск",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1401,6 +1404,7 @@ AUTO_LABEL = "Автозапуск"
 AUTO_SAVED = "Автозапуск: сохранено"
 AUTO_FAILED = "Автозапуск: не удалось — {error}"
 AUTO_DUPLICATE = "Такая команда уже есть в списке"
+AUTO_IN_CONFIG = "Это уже запускается из hyprland.lua — второй раз не нужно"
 AUTO_BAD = "Пустая или слишком длинная команда"
 AUTO_FULL = "В списке уже {count} программ — больше нельзя"
 
@@ -1443,4 +1447,5 @@ UPD_SOME = "{count}: {names}"
 UPD_TERMINAL_OPENED = "Открыт терминал — дальше там"
 UPD_TERMINAL_FAILED = "Не удалось открыть терминал: {error}"
 UPD_TERMINAL_TITLE = "Обновление системы"
+UPD_CACHE_TITLE = "Чистка кэша пакетов"
 UPD_TERMINAL_DONE = "Готово. Enter — закрыть окно"

@@ -109,16 +109,22 @@ def clean_setting(raw: Any) -> dict[str, Any] | None:
         return None
     if not isinstance(enabled, bool):
         return None
-    w, h, rate = parse_mode(mode)
-    return {"mode": mode_text(w, h, rate), "scale": round(float(scale), 4),
-            "position": position, "enabled": enabled}
+    transform = raw.get("transform", 0)
+    if isinstance(transform, bool) or not isinstance(transform, int) or not 0 <= transform <= 7:
+        return None
+    parsed = parse_mode(mode)
+    assert parsed is not None  # checked above
+    return {"mode": mode_text(*parsed), "scale": round(float(scale), 4),
+            "position": position, "enabled": enabled, "transform": transform}
 
 
 def lua_call(name: str, setting: dict[str, Any]) -> str:
     if not setting["enabled"]:
         return f"hl.monitor({{ output = {lua_str(name)}, disabled = true }})"
+    # transform is carried: a rule without it would turn a rotated screen back
     return (f"hl.monitor({{ output = {lua_str(name)}, mode = {lua_str(setting['mode'])}, "
-            f"position = {lua_str(setting['position'])}, scale = {setting['scale']:g} }})")
+            f"position = {lua_str(setting['position'])}, scale = {setting['scale']:g}, "
+            f"transform = {setting.get('transform', 0)} }})")
 
 
 def build_lua(state: dict[str, dict[str, Any]]) -> str:
@@ -139,11 +145,12 @@ class Monitor:
     y: int
     enabled: bool
     modes: list[str] = field(default_factory=list)  # "1920x1080@60.02"
+    transform: int = 0
 
     def setting(self) -> dict[str, Any]:
         return {"mode": mode_text(self.width, self.height, self.rate),
                 "scale": round(self.scale, 4), "position": f"{self.x}x{self.y}",
-                "enabled": self.enabled}
+                "enabled": self.enabled, "transform": self.transform}
 
 
 def parse_monitors(text: str) -> list[Monitor]:
@@ -168,9 +175,14 @@ def parse_monitors(text: str) -> list[Monitor]:
                 width=int(m["width"]), height=int(m["height"]),
                 rate=float(m.get("refreshRate") or 60), scale=float(m.get("scale") or 1),
                 x=int(m.get("x") or 0), y=int(m.get("y") or 0),
-                enabled=not m.get("disabled", False), modes=modes)
+                enabled=not m.get("disabled", False), modes=modes,
+                transform=int(m.get("transform") or 0) % 8)
         except (KeyError, TypeError, ValueError):
             continue
+        if monitor.width < 10 or monitor.height < 10:  # a disabled output may say 0x0
+            if not modes:
+                continue
+            monitor.width, monitor.height, monitor.rate = parse_mode(modes[0]) or (0, 0, 60.0)
         current = mode_text(monitor.width, monitor.height, monitor.rate)
         if current not in monitor.modes:
             monitor.modes.insert(0, current)
@@ -260,6 +272,21 @@ class Backend:
         rc, out = self.hyprctl(["eval", lua_call(name, clean)])
         if out.strip() != "ok":
             raise RuntimeError(out.strip() or f"hyprctl eval: {rc}")
+
+    def restore(self, name: str, setting: dict[str, Any], tries: int = 3) -> None:
+        """Put a setting back live; when Hyprland does not take it, reload the
+        config (the unconfirmed setting is in no file, so that brings back the
+        saved one). RuntimeError only if even that fails."""
+        error: Exception | None = None
+        for _attempt in range(tries):
+            try:
+                self.try_live(name, setting)
+                return
+            except (RuntimeError, ValueError) as exc:
+                error = exc
+        rc, out = self.hyprctl(["reload", "config-only"])
+        if rc != 0 or out.strip() != "ok":
+            raise RuntimeError(f"{error}; hyprctl reload: {out.strip() or rc}")
 
     def save(self, name: str, setting: dict[str, Any]) -> None:
         clean = clean_setting(setting)

@@ -67,8 +67,8 @@ def command_from_exec(exec_line: str) -> str:
 def clean_command(text: Any) -> str | None:
     if not isinstance(text, str):
         return None
-    text = " ".join(text.split())  # one line: Lua strings and the page show it so
-    if not text or len(text) > MAX_COMMAND:
+    text = text.strip()  # spacing inside is kept: it may be inside quotes
+    if not text or len(text) > MAX_COMMAND or any(c in text for c in "\n\r\0"):
         return None
     try:
         shlex.split(text)  # exec_cmd runs it through sh: unbalanced quotes would fail there
@@ -124,10 +124,29 @@ def _atomic_write(path: Path, text: str) -> None:
         raise
 
 
+NOTE_MAX = 80
+OWN_FILES = ("settings-hub.lua", LUA_FILE)  # the window's own lines are not the config's
+
+
+def short_note(comment: str) -> str:
+    """The first sentence of a comment, clipped: a comment block above a line
+    may be a paragraph, or be about something else entirely."""
+    text = " ".join(comment.split())
+    for stop in (". ", ": ", "; "):
+        if stop in text:
+            text = text.split(stop, 1)[0]
+    return text if len(text) <= NOTE_MAX else text[:NOTE_MAX - 1].rstrip() + "…"
+
+
+def short_command(command: str) -> str:
+    home = str(Path.home())
+    return command.replace(home + "/", "~/") if home not in ("", "/") else command
+
+
 @dataclass(frozen=True)
 class SystemStart:
     command: str
-    name: str  # from the comment on or above its line ("" if none)
+    name: str  # first sentence of the comment on or above its line ("" if none)
     file: str
     line: int
 
@@ -147,7 +166,7 @@ def system_starts(lua: Path, own: Path) -> list[SystemStart] | None:
     files: dict[str, list[str]] = {}
     out = []
     for s in starts:
-        if s.file and Path(s.file).name == own.name:
+        if s.file and Path(s.file).name in OWN_FILES + (own.name,):
             continue
         name = ""
         if s.file:
@@ -157,7 +176,7 @@ def system_starts(lua: Path, own: Path) -> list[SystemStart] | None:
                 except OSError:
                     files[s.file] = []
             trailing, above = luaread.comments(files[s.file], s.line)
-            name = trailing or above
+            name = short_note(trailing or above)
         out.append(SystemStart(s.command, name, s.file, s.line))
     return out
 

@@ -59,6 +59,7 @@ if _VERSION ~= "Lua 5.4" and _VERSION ~= "Lua 5.3" then  -- older ones ignore lo
     os.exit(3)
 end
 local cfg = arg[1]
+local want_starts = os.getenv("SETTINGS_HUB_LUA_STARTS") == "1"  -- read before the sandbox
 local roots = {}
 for i = 2, #arg do roots[#roots + 1] = arg[i] end
 local s_gsub, s_sub, s_find = string.gsub, string.sub, string.find
@@ -228,7 +229,7 @@ ENV.hl = hl
 local f, err = real_loadfile(cfg, "t", ENV)
 local ok, why = false, err
 if f then ok, why = pcall_(f) end
-if ok then
+if ok and want_starts then  -- the Binds reader never runs them: no time spent there
     in_start = true
     for _, fn in ipairs_(starts) do pcall_(fn) end
     in_start = false
@@ -372,16 +373,19 @@ def parse_starts(out: str) -> list[Start] | None:
 def read_starts(lua: Path, roots: list[Path] | None = None,
                 timeout: float = TIMEOUT_S) -> list[Start] | None:
     """What hyprland.lua starts at login, or None (no interpreter, it hangs, fails)."""
-    out = _run(lua, roots, timeout)
+    out = _run(lua, roots, timeout, starts=True)
     return None if out is None else parse_starts(out)
 
 
-def _run(lua: Path, roots: list[Path] | None, timeout: float) -> str | None:
+def _run(lua: Path, roots: list[Path] | None, timeout: float,
+         starts: bool = False) -> str | None:
     exe = interpreter()
     if exe is None or not lua.is_file():
         return None
     dirs = safe_roots(roots if roots is not None else default_roots(lua), spelled=True)
     env = {k: os.environ[k] for k in ENV_KEYS if k in os.environ}
+    if starts:
+        env["SETTINGS_HUB_LUA_STARTS"] = "1"
     limit = shutil.which("prlimit")  # memory and CPU caps; preexec_fn is unsafe in threads
     cmd = [limit, f"--as={MEMORY_B}", f"--cpu={TIMEOUT_S + 1}", "--"] if limit else []
     try:

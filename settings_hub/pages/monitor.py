@@ -114,7 +114,8 @@ class MonitorPage(Page):
                 if len(info.monitors) > 1:
                     switch = Gtk.Switch(active=monitor.enabled, valign=Gtk.Align.CENTER)
                     # the last screen that is on cannot be turned off from itself
-                    switch.set_sensitive(not (monitor.enabled and enabled_count <= 1))
+                    switch.set_sensitive(info.lua and not (monitor.enabled
+                                                           and enabled_count <= 1))
                     switch.connect("notify::active",
                                    lambda sw, _p, m=monitor: self._picked_enabled(m, sw))
                     row = group.add(Row(strings.MON_ENABLED, strings.MON_ENABLED_HINT,
@@ -168,8 +169,9 @@ class MonitorPage(Page):
         dialog = Gtk.AlertDialog(
             message=strings.MON_CONFIRM,
             detail=strings.MON_CONFIRM_DETAIL.format(seconds=CONFIRM_S),
+            # Enter means Revert: a person facing a black screen may press it
             buttons=[strings.MON_KEEP, strings.MON_REVERT], cancel_button=1,
-            default_button=0, modal=True)
+            default_button=1, modal=True)
 
         def answered(dlg, result) -> None:
             try:
@@ -206,7 +208,7 @@ class MonitorPage(Page):
                             else strings.MON_REVERTED)
             self.refresh()
 
-        self.ctx.workers.submit(mb.WORKER, lambda: self.backend.try_live(name, before), done,
+        self.ctx.workers.submit(mb.WORKER, lambda: self.backend.restore(name, before), done,
                                 key="revert")
 
 

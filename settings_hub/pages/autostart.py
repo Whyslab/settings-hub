@@ -106,10 +106,11 @@ class AutostartPage(Page):
         elif not info.system:
             self.rows["system"] = self.system_group.add(Row(strings.AUTO_SYSTEM_NONE,
                                                             row_id="system"))
+        self._system = [s.command for s in info.system or []]
         for index, start in enumerate(info.system or []):
-            title = start.name or start.command
-            row = Row(title, start.command if start.name else None)
-            row.subtitle_label.set_selectable(True)
+            # the command is the truth; the comment near it is only a hint
+            row = Row(ab.short_command(start.command), start.name or None)
+            row.title_label.set_selectable(True)
             self.system_group.add(row)
             if index == 0:
                 self.rows["system"] = row
@@ -138,6 +139,9 @@ class AutostartPage(Page):
         items = self.state["items"]
         if any(i["command"] == clean for i in items):
             self.ctx.status(strings.AUTO_DUPLICATE)
+            return False
+        if clean in getattr(self, "_system", []):
+            self.ctx.status(strings.AUTO_IN_CONFIG)
             return False
         if len(items) >= ab.MAX_ITEMS:
             self.ctx.status(strings.AUTO_FULL.format(count=ab.MAX_ITEMS))

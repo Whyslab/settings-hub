@@ -7,9 +7,12 @@
   not know are left alone, and a key at its default is removed rather than
   written (HyprPanel then uses its own default, as before).
 * Do Not Disturb is HyprPanel's own state with no way to read it except
-  `hyprpanel toggleDnd`, which flips it and answers "Enabled" or "Disabled".
-  Reading flips it twice (the first answer is the opposite of the state);
-  setting flips it once when it differs. Both take a few milliseconds.
+  `hyprpanel toggleDnd`, which flips it and answers "Enabled" or "Disabled"
+  (GSettings' io.astal.notifd dont-disturb does not follow it: checked
+  15.11.2026). Setting needs no read: flip, and if the answer is not the
+  wanted state (someone changed it meanwhile), flip once more. Reading flips
+  twice and is done only when the page is shown; an answer that does not come
+  makes the state unknown (None) rather than guessed.
 * Stored notifications are in GSettings (io.astal.notifd notifications):
   counted and their senders listed for the ignore list; `hyprpanel
   clearNotifications` removes them.
@@ -101,7 +104,8 @@ def clean(key: str, value: Any) -> Any:
     raise KeyError(key)
 
 
-_APP = re.compile(r"'app-name': <'((?:[^'\\]|\\.)*)'>")
+# GVariant prints a string with ' in it in double quotes: <"Bob's app">
+_APP = re.compile(r"""'app-name': <(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")>""")
 _ID = re.compile(r"'id': <uint32 \d+>")
 
 
@@ -109,7 +113,8 @@ def parse_stored(text: str) -> tuple[int, list[str]]:
     """GSettings' printed notifications -> (how many, senders newest-first-ish)."""
     apps: list[str] = []
     for m in _APP.finditer(text):
-        name = m.group(1).replace("\\'", "'").replace("\\\\", "\\")
+        raw = m.group(1) if m.group(1) is not None else m.group(2)
+        name = re.sub(r"\\(.)", r"\1", raw).strip()
         if name and name not in apps:
             apps.append(name)
     return len(_ID.findall(text)), apps[:APPS_MAX]
@@ -118,7 +123,8 @@ def parse_stored(text: str) -> tuple[int, list[str]]:
 @dataclass
 class Info:
     panel: bool = False  # HyprPanel answers
-    dnd: bool | None = None
+    dnd: bool | None = None  # None: unknown, or not read (dnd_read False)
+    dnd_read: bool = False
     values: dict[str, Any] = field(default_factory=dict)  # config keys, defaults filled in
     stored: int | None = None
     apps: list[str] = field(default_factory=list)  # senders of stored notifications
@@ -191,19 +197,21 @@ class Backend:
 
     def read_dnd(self) -> bool | None:
         first = self._toggle()
-        if first is None:
+        if first is None:  # it may or may not have flipped: unknown
             return None
         second = self._toggle()
-        if second is None:  # the first flip stuck: it is now `first`
-            return first
+        if second is None or second == first:  # lost, or something else flipped it too
+            return None
         return second
 
     def set_dnd(self, on: bool) -> None:
-        now = self.read_dnd()
-        if now is None:
-            raise RuntimeError("hyprpanel toggleDnd: no answer")
-        if now != on and self._toggle() != on:
-            raise RuntimeError("hyprpanel toggleDnd: the state did not change")
+        for _attempt in range(2):
+            answer = self._toggle()
+            if answer is None:
+                raise RuntimeError("hyprpanel toggleDnd: no answer")
+            if answer == on:
+                return
+        raise RuntimeError("hyprpanel toggleDnd: the state did not change")
 
     # ---- History's Applier -------------------------------------------------
 
@@ -232,7 +240,7 @@ class Backend:
         info = Info(values=self.values())
         if shutil.which("hyprpanel"):
             if with_dnd:
-                info.dnd = self.read_dnd()
+                info.dnd, info.dnd_read = self.read_dnd(), True
                 info.panel = info.dnd is not None
             else:
                 rc, _out = self.run(["hyprpanel", "isInhibiting"])
