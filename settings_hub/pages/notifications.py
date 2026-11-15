@@ -105,7 +105,7 @@ class NotificationsPage(Page):
         """After our own write: everything but Do Not Disturb, whose state is known
         (reading it flips it twice, so not after every change)."""
         self.ctx.workers.submit(nb.WORKER, lambda: self.backend.probe(with_dnd=False),
-                                self._show, key="probe")
+                                self._show, key="reread")
 
     def _show(self, info: nb.Info | None, error: BaseException | None) -> None:
         if error is not None or info is None:

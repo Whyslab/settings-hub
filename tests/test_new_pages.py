@@ -361,7 +361,7 @@ def test_binds_reader_does_not_run_start_handlers(tmp_path):
     assert "exec\t" in luaread._run(lua, None, 2, starts=True)
 
 
-def test_monitor_restore_falls_back_to_a_reload(tmp_path):
+def test_monitor_restore_falls_back_to_a_reload(tmp_path, monkeypatch):
     setting = {"mode": "1920x1080@60.02", "scale": 1.5, "position": "0x0", "enabled": True}
 
     class Stubborn(Hypr):
@@ -372,7 +372,10 @@ def test_monitor_restore_falls_back_to_a_reload(tmp_path):
             return super().__call__(args)
 
     hypr = Stubborn("error: busy")
+    pauses = []
+    monkeypatch.setattr(mb.time, "sleep", pauses.append)
     mb.Backend(None, hyprctl=hypr).restore("eDP-1", setting)
+    assert pauses == [mb.RETRY_PAUSE_S] * 2  # a pause between tries, none before the first
     assert sum(c[0] == "eval" for c in hypr.calls) == 3 and hypr.calls[-1] == ["reload",
                                                                                 "config-only"]
 
@@ -383,3 +386,56 @@ def test_monitor_disabled_output_reporting_0x0_still_has_a_mode():
     (m,) = mb.parse_monitors(json.dumps(raw))
     assert m.setting()["mode"] == "1920x1080@60.02" and not m.enabled
     assert mb.clean_setting({**m.setting(), "enabled": True}) is not None
+
+
+# ---- second review ---------------------------------------------------------------
+
+
+def test_notifications_dnd_read_and_set_never_interleave():
+    """History reads DND on the main thread while the page sets it on a worker:
+    without the lock the flips mix and both believe a wrong state."""
+    import threading
+
+    gate = threading.Event()
+    entered = threading.Event()
+
+    class SlowPanel(Panel):
+        def __call__(self, argv):
+            if argv[:2] == ["hyprpanel", "toggleDnd"] and not gate.is_set():
+                entered.set()
+                gate.wait(2)
+            return super().__call__(argv)
+
+    panel = SlowPanel(dnd=False)
+    b = nb.Backend(None, runner=panel)
+    seen = []
+    reader = threading.Thread(target=lambda: seen.append(b.read_dnd()))
+    reader.start()
+    assert entered.wait(2)  # the read is between its flips
+    setter = threading.Thread(target=lambda: b.set_dnd(True))
+    setter.start()
+    setter.join(0.2)
+    assert setter.is_alive()  # waits for the read to finish
+    gate.set()
+    reader.join(2)
+    setter.join(2)
+    assert seen == [False] and panel.dnd is True
+
+
+def test_notifications_unknown_dnd_in_history_is_left_alone():
+    panel = Panel(dnd=True)
+    nb.Backend(None, runner=panel).apply({nb.DND: None})
+    assert panel.dnd is True and panel.calls == []
+
+
+def test_notifications_a_lost_dnd_answer_is_not_a_missing_panel(monkeypatch):
+    monkeypatch.setattr(nb.shutil, "which", lambda _name: "/usr/bin/hyprpanel")
+    info = nb.Backend(None, runner=FlakyPanel(False, 1), config=None).probe()
+    assert info.dnd is None and info.panel is True
+    info = nb.Backend(None, runner=Panel(up=False), config=None).probe()
+    assert info.dnd is None and info.panel is True  # isInhibiting still answers
+
+
+def test_notifications_sender_escapes_other_than_quotes_are_kept():
+    text = r"[<{'id': <uint32 1>, 'app-name': <'Caf\u00e9 \'x\''>}>]"
+    assert nb.parse_stored(text) == (1, [r"Caf\u00e9 'x'"])

@@ -29,6 +29,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -114,7 +115,7 @@ def parse_stored(text: str) -> tuple[int, list[str]]:
     apps: list[str] = []
     for m in _APP.finditer(text):
         raw = m.group(1) if m.group(1) is not None else m.group(2)
-        name = re.sub(r"\\(.)", r"\1", raw).strip()
+        name = re.sub(r"""\\(['"\\])""", r"\1", raw).strip()  # only quote escapes
         if name and name not in apps:
             apps.append(name)
     return len(_ID.findall(text)), apps[:APPS_MAX]
@@ -136,6 +137,9 @@ class Backend:
         self.workers = workers
         self.run = runner or run
         self.config = config or config_path()
+        # Reading DND flips it twice: History (main thread) and the page (worker)
+        # must not interleave their flips, or both end up believing a wrong state.
+        self._dnd_lock = threading.Lock()
 
     # ---- the config file ---------------------------------------------------
 
@@ -196,6 +200,10 @@ class Backend:
         return answer == "Enabled"
 
     def read_dnd(self) -> bool | None:
+        with self._dnd_lock:
+            return self._read_dnd()
+
+    def _read_dnd(self) -> bool | None:
         first = self._toggle()
         if first is None:  # it may or may not have flipped: unknown
             return None
@@ -205,6 +213,10 @@ class Backend:
         return second
 
     def set_dnd(self, on: bool) -> None:
+        with self._dnd_lock:
+            self._set_dnd(on)
+
+    def _set_dnd(self, on: bool) -> None:
         for _attempt in range(2):
             answer = self._toggle()
             if answer is None:
@@ -231,7 +243,8 @@ class Backend:
         config = {k: v for k, v in values.items() if k in DEFAULTS}
         if config:
             self.write(config)
-        if DND in values:
+        # None: the state was unknown when it was logged; leave it as it is
+        if values.get(DND) is not None:
             self.set_dnd(bool(values[DND]))
 
     # ---- the page ------------------------------------------------------------
@@ -241,10 +254,11 @@ class Backend:
         if shutil.which("hyprpanel"):
             if with_dnd:
                 info.dnd, info.dnd_read = self.read_dnd(), True
-                info.panel = info.dnd is not None
-            else:
+            if info.dnd is None:  # one lost answer does not mean the panel is gone
                 rc, _out = self.run(["hyprpanel", "isInhibiting"])
                 info.panel = rc == 0
+            else:
+                info.panel = True
         rc, out = self.run(["gsettings", "get", "io.astal.notifd", "notifications"])
         if rc == 0:
             info.stored, info.apps = parse_stored(out)
