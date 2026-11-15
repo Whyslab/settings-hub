@@ -20,6 +20,7 @@ def test_defaults_are_used_when_the_file_is_missing(tmp_path):
     s = make(tmp_path)
     assert s.get("appearance.theme") == "system"
     assert s.get("appearance.window_width") == 920
+    assert s.get("appearance.maximized") is True  # opens maximized unless turned off
     assert s.get("behavior.start_page") == settings.START_PAGE_HOME
     assert not s.path.exists()  # reading must not create the file
 

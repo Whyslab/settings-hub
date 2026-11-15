@@ -92,6 +92,7 @@ FIELDS: tuple[Field, ...] = (
           group="advanced"),
     Field("appearance.status_ms", "int", 5000, lo=1000, hi=15000, step=500,
           group="advanced"),
+    Field("appearance.maximized", "bool", True, group="appearance"),
     Field("appearance.window_width", "int", 920, lo=600, hi=2400, step=10,
           group="appearance"),
     Field("appearance.window_height", "int", 640, lo=400, hi=1400, step=10,

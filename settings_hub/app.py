@@ -199,6 +199,9 @@ class App(Gtk.Application):
             height = int(self.settings.get("appearance.window_height"))
             if not self.window.settings.get("appearance.remember_size"):
                 self.window.set_default_size(width, height)
+        elif key == "appearance.maximized":
+            if self.window.get_visible() and os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+                self.window.refit()  # at once, not on the next opening
         elif key == "behavior.history_keep":
             self.window.history.keep = int(value)
         elif key == "behavior.preload_s":

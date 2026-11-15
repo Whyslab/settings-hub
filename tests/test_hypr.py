@@ -102,7 +102,7 @@ def test_window_rule_carries_the_size_and_replaces_the_installed_one():
     from settings_hub import window
     from settings_hub.binds import writer
 
-    code = window.rule_code(1000, 700)
+    code = window.rule_code(1000, 700, False)
     assert 'size = "1000 700"' in code
     assert "float = true" in code and "center = true" in code
     match = writer.main_rule_match()
@@ -120,7 +120,7 @@ def test_window_is_fixed_after_the_map_only_when_it_is_off():
     from settings_hub import window
 
     def fix(*clients, size=(920, 640)):
-        return window.needs_fix(json.dumps(list(clients)), *size)
+        return window.needs_fix(json.dumps(list(clients)), *size, False)
 
     assert fix(_client()) is False
     assert fix(_client(size=[921, 639])) is False  # rounding on a scaled monitor
@@ -132,5 +132,34 @@ def test_window_is_fixed_after_the_map_only_when_it_is_off():
     assert fix() is False  # hidden again already: nothing to fix
     assert fix(_client(hidden=True)) is False
     assert fix(_client(), _client()) is True  # two main windows: unclear, fix
-    assert window.needs_fix("", 920, 640) is True  # hyprctl failed
+    assert window.needs_fix("", 920, 640, False) is True  # hyprctl failed
     assert fix({"class": "kitty"}) is False  # only other windows: ours is hidden
+
+
+def test_window_rule_sends_maximize_both_ways():
+    """0.57 appends a same-name rule's effects, the last value winning: a rule
+    without `maximize` would leave an earlier `maximize = true` in force."""
+    pytest.importorskip("gi")
+    from settings_hub import window
+
+    assert "maximize = true" in window.rule_code(920, 640, True)
+    assert "maximize = false" in window.rule_code(920, 640, False)
+    assert 'size = "920 640"' in window.rule_code(920, 640, True)  # for un-maximizing
+
+
+def test_maximized_window_is_fixed_only_when_not_maximized():
+    pytest.importorskip("gi")
+    import json
+
+    from settings_hub import window
+
+    def fix(*clients):
+        return window.needs_fix(json.dumps(list(clients)), 920, 640, True)
+
+    assert fix(_client(fullscreen=1, size=[1260, 650])) is False  # its size is Hyprland's
+    assert fix(_client(fullscreen=1, floating=False)) is True  # tiled: un-maximize gives a tile
+    assert fix(_client()) is True  # floating at the General page's size
+    assert fix(_client(fullscreen=2)) is True  # real full screen hides the bar
+    assert fix() is False
+    assert window.needs_fix("", 920, 640, True) is True
+    assert window.MAXIMIZE_COMMAND[2].count("internal = 1, client = 1") == 1

@@ -76,12 +76,19 @@ FLOAT_COMMAND = hypr.dual_dispatch(
 UNFULLSCREEN_COMMAND = ["hyprctl", "dispatch",
                         "hl.dsp.window.fullscreen_state({ internal = 0, client = 0, "
                         f"window = {hypr.lua_str(CLASS_MATCH)} }})"]
+# "Open full screen" on the General page: maximized (mode 1), the bar stays.
+# Not the window's own maximize request: hyprland.lua suppresses that event for
+# every window (kitty kept reopening maximized, 30.09.2026). Lua only, as above.
+MAXIMIZE_COMMAND = ["hyprctl", "dispatch",
+                    "hl.dsp.window.fullscreen_state({ internal = 1, client = 1, "
+                    f"window = {hypr.lua_str(CLASS_MATCH)} }})"]
+MAXIMIZED = 1  # Hyprland's fullscreen mode: 0 none, 1 maximized, 2 full screen
 RESIZE_AFTER_MAP_MS = 60
 RULE_TIMEOUT_S = 0.3  # it answers in ~8 ms; a stuck Hyprland must not freeze the window
 SIZE_SLACK = 2  # px: Hyprland may round a logical size on a scaled monitor
 
 
-def rule_code(width: int, height: int) -> str:
+def rule_code(width: int, height: int, maximized: bool) -> str:
     """The main window's rule with the size it is about to be shown at.
 
     The rule in settings-hub.lua has no size (it can be changed on the General
@@ -95,14 +102,20 @@ def rule_code(width: int, height: int) -> str:
     them and the size with them (game binds reload on leaving a game) --
     that is why it is sent before every showing (~8 ms), not once. Removing
     a field here does not remove it from the live rule before a reload.
+    So `maximize` is always sent, false too: the last value wins.
+
+    Maximized, the window still floats at this size underneath: un-maximizing
+    it (SUPER+CTRL+Up) gives the size from the General page.
     """
     return (f'hl.window_rule({{ name = "settings-hub", match = {main_rule_match()}, '
-            f'float = true, center = true, size = "{int(width)} {int(height)}" }})')
+            f'float = true, center = true, size = "{int(width)} {int(height)}", '
+            f'maximize = {"true" if maximized else "false"} }})')
 
 
-def needs_fix(clients_json: str, width: int, height: int) -> bool:
+def needs_fix(clients_json: str, width: int, height: int, maximized: bool) -> bool:
     """Whether the main window is not as the rule should have put it: tiled,
-    maximized or fullscreen, or of another size. Unreadable = fix it; not
+    maximized or fullscreen, or of another size -- or, when it should be
+    maximized, not maximized (its size is then Hyprland's). Unreadable = fix it; not
     there = hidden again already (Esc right after opening): leave it, a .conf
     "centerwindow" would move whatever window is active instead."""
     try:
@@ -114,6 +127,8 @@ def needs_fix(clients_json: str, width: int, height: int) -> bool:
         if len(ours) > 1:
             return True
         c = ours[0]
+        if maximized:  # tiled too: un-maximizing must give the floating size
+            return not c["floating"] or c.get("fullscreen", 0) != MAXIMIZED
         w, h = c["size"]
         return (not c["floating"] or c.get("fullscreen", 0) != 0
                 or abs(w - width) > SIZE_SLACK or abs(h - height) > SIZE_SLACK)
@@ -217,11 +232,18 @@ class Window(Gtk.ApplicationWindow):
         except (OSError, ValueError, KeyError, TypeError):
             return width, height
 
+    def _maximized(self) -> bool:
+        return bool(self.settings.get("appearance.maximized"))
+
     def _on_unmap(self, _win) -> None:
-        """Keep the last size and page (both only when the settings ask for it)."""
+        """Keep the last size and page (both only when the settings ask for it).
+
+        Not the size of a maximized window: it would come back as a floating
+        window the size of the whole screen once "full screen" is turned off.
+        """
         try:
             self.state_dir.mkdir(parents=True, exist_ok=True)
-            if self.settings.get("appearance.remember_size"):
+            if self.settings.get("appearance.remember_size") and not self._maximized():
                 width, height = self.get_width(), self.get_height()
                 self._state_file("window.json").write_text(
                     json.dumps({"width": width, "height": height}) + "\n",
@@ -381,6 +403,12 @@ class Window(Gtk.ApplicationWindow):
         if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             GLib.timeout_add(RESIZE_AFTER_MAP_MS, self._apply_size)
 
+    def refit(self) -> None:
+        """Put the shown window as the settings now say (full screen or not).
+        The rule first: a window mapped later must not get the old state back."""
+        self._send_rule()
+        self._apply_size()
+
     def _send_rule(self) -> None:
         """Give Hyprland the size before the window maps (see rule_code).
 
@@ -388,7 +416,8 @@ class Window(Gtk.ApplicationWindow):
         A .conf Hyprland has no `eval`; there the check after the map fixes it.
         """
         try:
-            done = subprocess.run(["hyprctl", "eval", rule_code(*self._initial_size())],
+            done = subprocess.run(["hyprctl", "eval",
+                                   rule_code(*self._initial_size(), self._maximized())],
                                   capture_output=True, text=True, timeout=RULE_TIMEOUT_S)
             if done.stdout.strip() != "ok":
                 log.info("window rule: %s", (done.stdout or done.stderr).strip()[:200])
@@ -396,7 +425,8 @@ class Window(Gtk.ApplicationWindow):
             log.warning("window rule: %s", exc)
 
     def _apply_size(self) -> bool:
-        """Floating, not maximized, the size the General page names, centered.
+        """Floating, not maximized, the size the General page names, centered --
+        or maximized, when the General page asks for full screen.
 
         Only when the window is not so already: the rule normally put it there,
         and resizing and centering it again in the middle of the open animation
@@ -405,6 +435,7 @@ class Window(Gtk.ApplicationWindow):
         floated back gets a size of Hyprland's choosing.
         """
         width, height = self._initial_size()
+        maximized = self._maximized()
         try:
             process = Gio.Subprocess.new(
                 ["hyprctl", "-j", "clients"],
@@ -414,15 +445,21 @@ class Window(Gtk.ApplicationWindow):
             process = None
 
         def fix() -> None:
-            self._run_in_order([FLOAT_COMMAND, UNFULLSCREEN_COMMAND,
-                                resize_command(width, height), CENTER_COMMAND])
+            if maximized:  # floating first: floating a window takes its maximize away.
+                # Size and center too: a .conf Hyprland cannot maximize (Lua only),
+                # there the window at least keeps the General page's size.
+                self._run_in_order([FLOAT_COMMAND, resize_command(width, height),
+                                    CENTER_COMMAND, MAXIMIZE_COMMAND])
+            else:
+                self._run_in_order([FLOAT_COMMAND, UNFULLSCREEN_COMMAND,
+                                    resize_command(width, height), CENTER_COMMAND])
 
         def read(proc, result) -> None:
             try:
                 _ok, out, _err = proc.communicate_utf8_finish(result)
             except GLib.Error:
                 out = ""
-            if needs_fix(out or "", width, height):
+            if needs_fix(out or "", width, height, maximized):
                 fix()
 
         if process is None:
