@@ -104,3 +104,32 @@ def test_home_tiles_and_the_sidebar_around_them(tmp_path, xvfb):  # noqa: F811
     writes = [c for c in calls if re.search(
         r"\bset-|\bset\b|radio \w+ (on|off)|power (on|off)|dispatch|keyword|eval", c)]
     assert not writes, writes
+
+
+@pytest.mark.live
+def test_window_starts_with_remember_size_on(tmp_path, xvfb):  # noqa: F811
+    """With "remember the size" on the window did not start at all (16.11.2026)."""
+    home = tmp_path / "home"
+    state = home / ".local" / "state" / "settings-hub"
+    state.mkdir(parents=True)
+    (state / "window.json").write_text('{"width": 1111, "height": 777}\n')
+    config = home / ".config" / "settings-hub"
+    config.mkdir(parents=True)
+    (config / "settings.json").write_text('{"appearance.remember_size": true}\n')
+    bus = tmp_path / "bus.conf"
+    bus.write_text(BUS)
+    out = tmp_path / "size.json"
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE")}
+    env.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"),
+               XDG_DATA_HOME=str(home / ".local" / "share"),
+               XDG_STATE_HOME=str(home / ".local" / "state"),
+               XDG_CACHE_HOME=str(home / ".cache"), DISPLAY=xvfb, GDK_BACKEND="x11",
+               GSK_RENDERER="cairo", NO_AT_BRIDGE="1", GTK_A11Y="none",
+               PYTHONDONTWRITEBYTECODE="1")
+    done = subprocess.run(
+        ["dbus-run-session", f"--config-file={bus}", "--", "/usr/bin/python3",
+         str(ROOT / "tests" / "gui_window_size.py"), str(ROOT), str(state), str(out)],
+        env=env, capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr[-3000:]
+    assert json.loads(out.read_text()) == {"width": 1111, "height": 777}

@@ -151,11 +151,12 @@ class Window(Gtk.ApplicationWindow):
                  settings: Settings | None = None) -> None:
         super().__init__(application=app, title=strings.APP_TITLE)
         self.settings = settings if settings is not None else Settings()
+        # Before _initial_size: with "remember the size" on it reads window.json there.
+        self.state_dir = state_dir
         self.set_default_size(*self._initial_size())
         self.set_hide_on_close(True)
         self.set_decorated(False)
         self.history = history
-        self.state_dir = state_dir
         self.ctx = pages.Context(history, workers, self.show_status, self.undo_last,
                                  dict(backends or {}), self.settings, self.return_to,
                                  self.undo_group)
