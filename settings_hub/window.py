@@ -407,23 +407,14 @@ class Window(Gtk.ApplicationWindow):
     def refit(self) -> None:
         """Put the shown window as the settings now say (full screen or not).
 
-        Turned on: shown again, so Hyprland maximizes it as it maps. Maximizing
-        a window already on screen hid the top bar: HyprPanel's autoHide
-        "fullscreen" takes any change of a window's fullscreen mode, maximized
-        too, while a window that maps maximized leaves the bar alone, also on
-        refocus (15.11.2026). Turned off: the rule first, so a window mapped
-        later does not get the old state back, then the check puts it back.
+        The rule first, so a window mapped later gets the new state, then the
+        check maximizes or floats the shown window in place. (Until 18.11.2026
+        turning it on hid and showed the window again: HyprPanel's autoHide
+        "fullscreen" hid the bar on any maximize. autoHide is "never" now --
+        Hyprland hides the bar itself, only for real full screen.)
         """
-        if self._maximized() and self.get_visible():
-            self.hide()
-            GLib.idle_add(self._show_again)
-            return
         self._send_rule()
         self._apply_size()
-
-    def _show_again(self) -> bool:
-        self.open_page(self.current or "")
-        return False
 
     def _send_rule(self) -> None:
         """Give Hyprland the size before the window maps (see rule_code).
