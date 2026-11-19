@@ -13,6 +13,7 @@ Not collected by pytest (no test_ prefix): it needs the system's PyGObject.
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -144,6 +145,37 @@ r["an_visible_at_end"] = win.get_visible()
 r["an_reloads"] = len([c for c in calls() if c == "hyprctl reload"])
 r["an_statuses"] = statuses[-3:]
 r["strings_ok"] = strings.AN_PREVIEW != ""
+
+# ---- Window minimize (SUPER+H), the block at the end of the page ------------------
+minimize_file = Path(os.environ["XDG_CONFIG_HOME"]) / "minimize" / "animation.json"
+r["ma_selected"] = apage.m_ids[apage.m_dropdown.get_selected()]
+r["ma_hint"] = apage.m_row.subtitle_label.get_label()
+r["ma_speed"] = [s for s, b in apage.m_speed.items() if b.get_active()]
+before = len(history.groups())
+apage.m_dropdown.set_selected(apage.m_ids.index("dissolve"))
+until(lambda: len(history.groups()) > before)
+apage.m_speed["slow"].set_active(True)
+until(lambda: len(history.groups()) > before + 1)
+spin(0.3)
+r["ma_file"] = json.loads(minimize_file.read_text())
+r["ma_groups"] = [[e.key for e in g.entries] for g in history.groups()][-2:]
+apage.m_dropdown.set_selected(apage.m_ids.index("none"))
+until(lambda: len(history.groups()) > before + 2)
+spin(0.3)
+r["ma_speed_row_sensitive_none"] = apage.m_speed_row.get_sensitive()
+r["ma_preview_sensitive_none"] = apage.m_preview.get_sensitive()
+apage.m_dropdown.set_selected(apage.m_ids.index("fly"))
+until(lambda: len(history.groups()) > before + 3)
+spin(0.3)
+seen = []
+win.connect("notify::visible", lambda w, _p: seen.append(w.get_visible()))
+apage.m_preview.emit("clicked")
+log = Path(os.environ["MINIMIZE_STUB_LOG"])
+until(lambda: log.exists() and log.read_text().strip() != "")
+spin(0.5)
+r["ma_preview_calls"] = log.read_text().splitlines()
+r["ma_window_hidden"] = seen   # the animation plays on this window: it is not hidden
+r["ma_preview_sensitive_after"] = apage.m_preview.get_sensitive()
 
 workers.stop_all(2)
 out_path.write_text(json.dumps(r, ensure_ascii=False, indent=1))

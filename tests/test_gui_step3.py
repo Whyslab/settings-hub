@@ -7,10 +7,11 @@ one; everything else is a stub. No synthetic input.
 
 import json
 import os
+import shutil
 import subprocess
 
 import pytest
-from conftest import ROOT, load_json
+from conftest import FIXTURES, ROOT, load_json
 from step3_env import World
 from test_gui import BUS, xvfb  # noqa: F401 -- the fixture is used by name
 
@@ -24,8 +25,12 @@ def run(world: World, display: str, tmp_path) -> dict:
     bus = tmp_path / "bus.conf"
     bus.write_text(BUS)
     out = tmp_path / "gui.json"
+    minimize = tmp_path / "minimize"
+    shutil.copytree(FIXTURES / "minimize", minimize)
     env = dict(os.environ, DISPLAY=display, GDK_BACKEND="x11", GSK_RENDERER="cairo",
-               NO_AT_BRIDGE="1", GTK_A11Y="none", PYTHONDONTWRITEBYTECODE="1")
+               NO_AT_BRIDGE="1", GTK_A11Y="none", PYTHONDONTWRITEBYTECODE="1",
+               SETTINGS_HUB_MINIMIZE_DIR=str(minimize),
+               MINIMIZE_STUB_LOG=str(tmp_path / "minimize.log"))
     done = subprocess.run(
         ["dbus-run-session", f"--config-file={bus}", "--", "/usr/bin/python3",
          str(ROOT / "tests" / "gui_step3.py"), str(ROOT), str(world.root),
@@ -67,3 +72,12 @@ def test_wallpaper_and_animations_pages(tmp_path, monkeypatch, xvfb):  # noqa: F
     assert r["an_conf_exists"] is True and r["an_reloads"] == 3
     assert r["an_preview_calls"] == ["anim-preview.sh cat open var -", "reopen 0"]
     assert r["an_visibility"][:1] == [False] and r["an_visible_at_end"] is True
+    # Window minimize.
+    assert "minimize" in r["an_rows"]
+    assert r["ma_selected"] == "fly" and r["ma_speed"] == ["normal"]
+    assert r["ma_hint"].startswith("Окно уменьшается")
+    assert r["ma_file"] == {"style": "dissolve", "speed": "slow"}
+    assert r["ma_groups"] == [["style"], ["speed"]]
+    assert r["ma_speed_row_sensitive_none"] is False and r["ma_preview_sensitive_none"] is False
+    assert r["ma_preview_calls"] == ["preview fly slow"]
+    assert r["ma_window_hidden"] == [] and r["ma_preview_sensitive_after"] is True

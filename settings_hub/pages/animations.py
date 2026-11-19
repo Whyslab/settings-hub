@@ -17,7 +17,9 @@ from gi.repository import Gtk, Pango  # noqa: E402
 
 from .. import strings  # noqa: E402
 from ..backends import animations as an  # noqa: E402
+from ..backends import minimize_anim as ma  # noqa: E402
 from ..controllers import animations as ctl  # noqa: E402
+from ..controllers import minimize_anim as mctl  # noqa: E402
 from ..widgets.rows import Group, Row  # noqa: E402
 from .base import Page  # noqa: E402
 from .wallpaper import FixedPicture, segmented, texture_from  # noqa: E402
@@ -76,6 +78,7 @@ class AnimationsPage(Page):
             self._build_presets()
             for category in backend.categories:
                 self._build_category(category)
+        self._build_minimize()
         self.refresh()
 
     # ---- building -------------------------------------------------------
@@ -141,10 +144,46 @@ class AnimationsPage(Page):
         self.speed_buttons[category] = buttons
         group.add(Row(strings.AN_SPEED_ROW, suffix=box))
 
+    def _build_minimize(self) -> None:
+        """Сворачивание (SUPER+H): своя программа, не rofi — блок живёт и без модуля rofi."""
+        mbackend = self.ctx.backends.get(ma.BACKEND)
+        if mbackend is None:
+            mbackend = ma.Backend(self.ctx.workers)
+            ma.register(self.ctx.history, mbackend)
+            self.ctx.backends[ma.BACKEND] = mbackend
+        self.mbackend = mbackend
+        self.mcontroller = mctl.Controller(mbackend, self.ctx.history, self)
+        self.m_ids: list[str] = []
+        self.m_dropdown: Gtk.DropDown | None = None
+        self.m_speed: dict[str, Gtk.ToggleButton] = {}
+        group = self.add_group(Group(strings.MA_GROUP, strings.MA_NOTE))
+        self.m_group = group
+        self.m_error = group.add(Row(strings.MA_SETUP_ERROR, " "))
+        self.m_error.set_visible(False)
+        if mbackend.state()[0] != "ok":
+            return
+        styles = mbackend.styles()
+        self.m_ids = [c.id for c in styles]
+        dropdown = Gtk.DropDown.new_from_strings([c.name for c in styles])
+        dropdown.set_valign(Gtk.Align.CENTER)
+        dropdown.connect("notify::selected", lambda d, _p: self._on_minimize_style(d))
+        self.m_dropdown = dropdown
+        self.m_preview = Gtk.Button(label=strings.AN_PREVIEW, tooltip_text=strings.MA_PREVIEW_HINT)
+        self.m_preview.connect("clicked", lambda *_: self.mcontroller.preview())
+        suffix = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        suffix.append(dropdown)
+        suffix.append(self.m_preview)
+        self.m_row = group.add(Row(strings.MA_STYLE_ROW, " ", suffix=suffix, row_id="minimize"))
+        self.rows["minimize"] = self.m_row
+        box, self.m_speed = segmented({s: mbackend.speed_title(s) for s in mbackend.speeds},
+                                      self._on_minimize_speed)
+        self.m_speed_row = group.add(Row(strings.AN_SPEED_ROW, suffix=box))
+
     # ---- page protocol --------------------------------------------------
 
     def refresh(self) -> None:
         self.controller.refresh()
+        self.mcontroller.refresh()
 
     @contextmanager
     def _quiet(self):
@@ -167,6 +206,17 @@ class AnimationsPage(Page):
     def _on_speed(self, category: str, speed: str) -> None:
         if not self._quiet_depth:
             self.controller.choose_speed(category, speed)
+
+    def _on_minimize_style(self, dropdown: Gtk.DropDown) -> None:
+        if self._quiet_depth:
+            return
+        index = dropdown.get_selected()
+        if 0 <= index < len(self.m_ids):
+            self.mcontroller.choose_style(self.m_ids[index])
+
+    def _on_minimize_speed(self, speed: str) -> None:
+        if not self._quiet_depth:
+            self.mcontroller.choose_speed(speed)
 
     # ---- the controller's view ------------------------------------------
 
@@ -207,6 +257,34 @@ class AnimationsPage(Page):
                 key = an.speed_key(category)
                 if key in keys and state[key] in self.speed_buttons[category]:
                     self.speed_buttons[category][state[key]].set_active(True)
+
+    def show_minimize_setup(self, state: str, detail: str) -> None:
+        ok = state == "ok" and self.m_dropdown is not None
+        self.m_error.set_visible(not ok)
+        if not ok:
+            self.m_error.subtitle_label.set_label(detail or " ")
+
+    def show_minimize(self, state: dict[str, Any], keys: set[str]) -> None:
+        if self.m_dropdown is None:
+            return
+        with self._quiet():
+            if "style" in keys and state["style"] in self.m_ids:
+                self.m_dropdown.set_selected(self.m_ids.index(state["style"]))
+                hint = self.mbackend.style_description(state["style"])
+                self.m_row.subtitle_label.set_label(hint)
+                self.m_row.subtitle_label.set_visible(bool(hint))
+                # Без анимации скорость и показ ни к чему.
+                moving = state["style"] != "none"
+                self.m_speed_row.set_sensitive(moving)
+                self.m_preview.set_sensitive(moving and not self.mcontroller.previewing)
+            if "speed" in keys and state["speed"] in self.m_speed:
+                self.m_speed[state["speed"]].set_active(True)
+
+    def set_minimize_busy(self, busy: bool) -> None:
+        if self.m_dropdown is not None:
+            index = self.m_dropdown.get_selected()
+            none = 0 <= index < len(self.m_ids) and self.m_ids[index] == "none"
+            self.m_preview.set_sensitive(not busy and not none)
 
     def hide_window(self) -> None:
         for button in self.preview_buttons:

@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+"""Stand-in for the minimize tool in tests: records its arguments, animates nothing."""
+import os
+import sys
+
+log = os.environ.get("MINIMIZE_STUB_LOG")
+if log:
+    with open(log, "a") as f:
+        f.write(" ".join(sys.argv[1:]) + "\n")
+sys.exit(int(os.environ.get("MINIMIZE_STUB_RC", "0")))

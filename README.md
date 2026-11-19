@@ -146,6 +146,13 @@ window's status line.
   rofi grid) and shows the window again.
 - History: `preset`, `override.<category>`, `speed.<category>`; a preset is one
   group with every category it reset.
+- *Window minimize* (SUPER+H and restoring from the panel button) is not
+  rofi's: it belongs to the minimize tool in `~/.local/share/minimize`
+  (`SETTINGS_HUB_MINIMIZE_DIR` in tests). Its `anim.py` is loaded by file path,
+  the choice goes to `~/.config/minimize/animation.json` (History backend
+  `minimize_anim`: `style`, `speed`). *Look* does not hide the window: it runs
+  `minimize preview`, which plays the animation on this window. The block
+  works without the rofi module.
 
 ## Binds
 
