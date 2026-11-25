@@ -145,7 +145,7 @@ class AnimationsPage(Page):
         group.add(Row(strings.AN_SPEED_ROW, suffix=box))
 
     def _build_minimize(self) -> None:
-        """Сворачивание (SUPER+H): своя программа, не rofi — блок живёт и без модуля rofi."""
+        """Minimize (SUPER+H): its own program, not rofi; works without the rofi module."""
         mbackend = self.ctx.backends.get(ma.BACKEND)
         if mbackend is None:
             mbackend = ma.Backend(self.ctx.workers)
@@ -273,7 +273,7 @@ class AnimationsPage(Page):
                 hint = self.mbackend.style_description(state["style"])
                 self.m_row.subtitle_label.set_label(hint)
                 self.m_row.subtitle_label.set_visible(bool(hint))
-                # Без анимации скорость и показ ни к чему.
+                # With no animation, speed and preview make no sense.
                 moving = state["style"] != "none"
                 self.m_speed_row.set_sensitive(moving)
                 self.m_preview.set_sensitive(moving and not self.mcontroller.previewing)

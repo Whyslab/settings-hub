@@ -405,6 +405,11 @@ MA_LABEL_SPEED = "Сворачивание окон: скорость"
 MA_APPLIED = "Сворачивание: «{name}»"
 MA_SPEED_APPLIED = "Сворачивание: {speed}"
 MA_PREVIEW_NONE = "Без анимации показывать нечего"
+MA_ERR_MISSING = "нет {path}"
+MA_ERR_LOAD = "не загрузить {path}"
+MA_ERR_NAME = "в {path} нет {name}"
+MA_ERR_STYLE = "неизвестная анимация: {value}"
+MA_ERR_SPEED = "неизвестная скорость: {value}"
 MA_FAILED = "Не удалось сохранить: {error}"
 
 # ---- Binds page --------------------------------------------------------------

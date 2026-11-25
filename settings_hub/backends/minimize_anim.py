@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .. import strings
 from ..workers import Dispatch, Workers, glib_dispatch
 
 log = logging.getLogger(__name__)
@@ -71,23 +72,23 @@ class Backend:
             if self._module is None:
                 path = self.directory / "anim.py"
                 if not path.is_file():
-                    raise MinimizeAnimError(f"нет {path}")
+                    raise MinimizeAnimError(strings.MA_ERR_MISSING.format(path=path))
                 spec = importlib.util.spec_from_file_location(MODULE_NAME, path)
                 if spec is None or spec.loader is None:
-                    raise MinimizeAnimError(f"не загрузить {path}")
+                    raise MinimizeAnimError(strings.MA_ERR_LOAD.format(path=path))
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 for name in ("STYLES", "ORDER", "SPEEDS", "SPEED_ORDER", "SPEED_TITLES",
                              "load", "save"):
                     if not hasattr(module, name):
-                        raise MinimizeAnimError(f"в {path} нет {name}")
+                        raise MinimizeAnimError(strings.MA_ERR_NAME.format(path=path, name=name))
                 self._module = module
             return self._module
 
     def state(self) -> tuple[str, str]:
         try:
             self.mod  # noqa: B018
-        except Exception as exc:  # noqa: BLE001 -- чужой файл: любая ошибка — «не работает», а не падение страницы
+        except Exception as exc:  # noqa: BLE001 -- foreign file: any error means "not working", never a crashed page
             return "error", str(exc)
         return "ok", ""
 
@@ -127,9 +128,9 @@ class Backend:
     def check(self, values: dict[str, Any]) -> None:
         for key, value in values.items():
             if key == "style" and value not in self.mod.STYLES:
-                raise MinimizeAnimError(f"неизвестная анимация: {value}")
+                raise MinimizeAnimError(strings.MA_ERR_STYLE.format(value=value))
             if key == "speed" and value not in self.mod.SPEEDS:
-                raise MinimizeAnimError(f"неизвестная скорость: {value}")
+                raise MinimizeAnimError(strings.MA_ERR_SPEED.format(value=value))
             if key not in KEYS:
                 raise KeyError(key)
 

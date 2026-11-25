@@ -30,7 +30,7 @@ class Controller:
         self.history = history
         self.view = view
         self.pending: set[str] = set()
-        self.chosen: dict[str, str] = {}   # выбранное, но, может, ещё не записанное
+        self.chosen: dict[str, str] = {}   # chosen, maybe not written yet
         self.previewing = False
         backend.on_external.append(lambda _keys: self.refresh())
 
@@ -76,7 +76,7 @@ class Controller:
     def preview(self) -> None:
         if self.previewing:
             return
-        # Только что выбранное ещё может стоять в очереди на запись.
+        # A fresh choice may still be queued for writing.
         state = dict(self.backend.read_all(),
                      **{k: v for k, v in self.chosen.items() if k in self.pending})
         if state["style"] == "none":

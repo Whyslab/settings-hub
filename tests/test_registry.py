@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 
+import pytest
 from conftest import ROOT
 
 from settings_hub import registry, strings
@@ -29,6 +30,7 @@ def test_groups_are_runs_in_group_order():
 
 
 def test_main_group_is_the_home_tiles_in_their_order():
+    pytest.importorskip("gi")  # home.py builds GTK widgets
     from settings_hub.home import TILE_PAGES
     assert tuple(p.id for p in registry.PAGES if p.group == "main") == TILE_PAGES
 
