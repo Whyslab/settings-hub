@@ -14,13 +14,16 @@ which shows the results.
 
 from __future__ import annotations
 
+import time
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk, Pango  # noqa: E402
 
+from . import home_items, registry, strings  # noqa: E402
 from . import modes as hub_modes  # noqa: E402
-from . import registry, strings  # noqa: E402
+from . import settings as hub_settings  # noqa: E402
 from .backends import audio as aud  # noqa: E402
 from .backends import devices as dev  # noqa: E402
 from .backends import network as net  # noqa: E402
@@ -38,10 +41,13 @@ from .pages.sound import VOLUME_SETTLE_MS  # noqa: E402
 from .widgets.icons import icon  # noqa: E402
 
 HOME = "home"  # the window's id for this screen; not a registry page
-TILE_PAGES = ("screen-sleep", "sound", "network", "power", "modes", "themes")
+TILE_PAGES = hub_settings.HOME_TILES  # the default order; the setting "home.tiles" picks
+TILE_COLUMNS = 4
+WIDE_TILES = {"screen-sleep": 2, "themes": 2}  # columns; the others take one
 SMALL_COLUMNS = 5
 THEME_SWATCHES = 4
 SWATCH_W, SWATCH_H = 60, 58  # the smallest; they share the tile's width
+RUN_AGAIN_S = 1.0  # a command tile clicked again sooner does not start it twice
 CLICK_LOCK_S = 5  # a picked button waits for the refresh, at most this long
 
 
@@ -625,6 +631,7 @@ class ThemesTile(Tile):
 class Home:
     def __init__(self, ctx, open_page, start_search) -> None:
         self.ctx = ctx
+        self.settings = ctx.settings
         self.open_page = open_page  # (page_id, row_id)
         self._start_search = start_search  # (text)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -634,6 +641,13 @@ class Home:
         title = Gtk.Label(label=strings.APP_TITLE, xalign=0, hexpand=True)
         title.add_css_class("sh-home-title")
         header.append(title)
+        self.edit_button = Gtk.Button(valign=Gtk.Align.CENTER)
+        self.edit_button.add_css_class("sh-home-edit")
+        self.edit_button.set_child(icon("edit", 18))
+        self.edit_button.set_tooltip_text(strings.HOME_EDIT)
+        self.edit_button.update_property([Gtk.AccessibleProperty.LABEL], [strings.HOME_EDIT])
+        self.edit_button.connect("clicked", lambda *_: self.edit(True))
+        header.append(self.edit_button)
         self.entry = Gtk.SearchEntry(placeholder_text=strings.HOME_SEARCH)
         self.entry.add_css_class("sh-home-search")
         self.entry.set_size_request(300, -1)
@@ -642,17 +656,101 @@ class Home:
         header.append(self.entry)
         box.append(header)
 
-        grid = Gtk.Grid(column_spacing=14, row_spacing=12, column_homogeneous=True)
-        grid.add_css_class("sh-home-tiles")
-        self.tiles: list[Tile] = [ScreenTile(self), SoundTile(self), NetworkTile(self),
-                                  PowerTile(self), ModesTile(self), ThemesTile(self)]
-        places = ((0, 0, 2), (2, 0, 1), (3, 0, 1), (0, 1, 1), (1, 1, 1), (2, 1, 2))
-        for tile, (col, row, span) in zip(self.tiles, places, strict=True):
-            grid.attach(tile, col, row, span, 1)
-        box.append(grid)
+        self.grid = Gtk.Grid(column_spacing=14, row_spacing=12, column_homogeneous=True)
+        self.grid.add_css_class("sh-home-tiles")
+        self.all_tiles: dict[str, Tile] = {t.page_id: t for t in (
+            ScreenTile(self), SoundTile(self), NetworkTile(self),
+            PowerTile(self), ModesTile(self), ThemesTile(self))}
+        self.tiles: list[Tile] = []
+        self._fillers: list[Gtk.Widget] = []
+        self._refreshed: set[str] = set()
+        box.append(self.grid)
+        # Pinned rows, command tiles and a button for every other page; rebuilt
+        # whenever the home lists change.
+        self.extra = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box.append(self.extra)
 
+        self.stack = Gtk.Stack(hhomogeneous=False, vhomogeneous=False)
+        self.stack.add_named(box, "tiles")
+        self.editor = None  # made on the first "Edit" (home_edit.Editor)
+        self.widget = Gtk.ScrolledWindow(vexpand=True, hexpand=True)
+        # Sideways too: a window narrower than the tiles scrolls instead of growing.
+        self.widget.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.widget.set_child(self.stack)
+        self._relayout_queued = False
+        self._last_run: dict[tuple[str, str], float] = {}
+        self.pin_buttons: dict[str, Gtk.Button] = {}
+        self.pin_switches: dict[str, list[Gtk.Switch]] = {}
+        self.command_buttons: list[Gtk.Button] = []
+        self._layout()
+        self.settings.subscribe(self._on_setting)
+
+    # ---- layout ----------------------------------------------------------------
+
+    def _layout(self) -> bool:
+        self._relayout_queued = False
+        for widget in [*self.all_tiles.values(), *self._fillers]:
+            if widget.get_parent() is self.grid:
+                self.grid.remove(widget)
+        self._fillers = []
+        before = set(self.tiles)
+        order = [p for p in self.settings.get("home.tiles") if p in self.all_tiles]
+        self.tiles = [self.all_tiles[p] for p in order]
+        col = row = 0
+        for tile in self.tiles:
+            span = WIDE_TILES.get(tile.page_id, 1)
+            if col + span > TILE_COLUMNS:
+                self._fill_row(col, row)  # a wide tile that does not fit leaves a hole
+                col, row = 0, row + 1
+            self.grid.attach(tile, col, row, span, 1)
+            col += span
+        if self.tiles:  # empty cells keep each column a quarter wide
+            self._fill_row(col, row)
+        self.grid.set_visible(bool(self.tiles))
+        if self._refreshed:  # a tile switched back on shows fresh values, not old ones
+            for tile in self.tiles:
+                if tile not in before:
+                    tile.refresh()
+        self._fill_extra()
+        return False  # also an idle callback: once
+
+    def _fill_row(self, col: int, row: int) -> None:
+        for empty in range(col, TILE_COLUMNS):
+            filler = Gtk.Box()
+            self._fillers.append(filler)
+            self.grid.attach(filler, empty, row, 1, 1)
+
+    def _section(self, title: str) -> Gtk.Grid:
+        heading = Gtk.Label(label=title, xalign=0)
+        heading.add_css_class("sh-group-title")
+        self.extra.append(heading)
+        grid = Gtk.Grid(column_spacing=12, row_spacing=10, column_homogeneous=True)
+        self.extra.append(grid)
+        return grid
+
+    @staticmethod
+    def _place(grid: Gtk.Grid, widgets: list[Gtk.Widget]) -> None:
+        for index, widget in enumerate(widgets):
+            grid.attach(widget, index % SMALL_COLUMNS, index // SMALL_COLUMNS, 1, 1)
+        for empty in range(len(widgets), SMALL_COLUMNS):  # one short row keeps widths
+            grid.attach(Gtk.Box(), empty, 0, 1, 1)
+
+    def _fill_extra(self) -> None:
+        while (child := self.extra.get_first_child()) is not None:
+            self.extra.remove(child)
+        self.pin_buttons = {}
+        self.pin_switches = {}
+        self.command_buttons = []
+        pins = home_items.valid_pins(self.settings.get("home.pins"))
+        if pins:
+            self._place(self._section(strings.HOME_PINS), [self._pin_tile(p) for p in pins])
+        commands = self.settings.get("home.commands")
+        if commands:
+            self._place(self._section(strings.HOME_COMMANDS),
+                        [self._command_tile(c) for c in commands])
+        shown = {t.page_id for t in self.tiles}
+        others = [p for p in registry.PAGES if p.id not in shown]
         small = Gtk.Grid(column_spacing=12, row_spacing=10, column_homogeneous=True)
-        others = [p for p in registry.PAGES if p.id not in TILE_PAGES]
         for index, page in enumerate(others):
             button = Gtk.Button()
             button.add_css_class("sh-small")
@@ -666,18 +764,129 @@ class Home:
             button.set_tooltip_text(registry.title(page.id))
             button.connect("clicked", lambda *_a, pid=page.id: self.open_page(pid, ""))
             small.attach(button, index % SMALL_COLUMNS, index // SMALL_COLUMNS, 1, 1)
-        box.append(small)
+        self.extra.append(small)
 
-        self.widget = Gtk.ScrolledWindow(vexpand=True, hexpand=True)
-        # Sideways too: a window narrower than the tiles scrolls instead of growing.
-        self.widget.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        self.widget.set_child(box)
+    @staticmethod
+    def _two_lines(top: str, below: str) -> Gtk.Box:
+        texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True,
+                        valign=Gtk.Align.CENTER)
+        name = Gtk.Label(label=top, xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR,
+                         lines=2, ellipsize=Pango.EllipsizeMode.END, width_chars=6)
+        texts.append(name)
+        dim = Gtk.Label(label=below, xalign=0, ellipsize=Pango.EllipsizeMode.END,
+                        width_chars=6)
+        dim.add_css_class("sh-dim")
+        dim.add_css_class("sh-small-text")
+        texts.append(dim)
+        return texts
+
+    def _pin_tile(self, pin: home_items.Pin) -> Gtk.Button:
+        button = Gtk.Button()
+        button.add_css_class("sh-small")
+        button.add_css_class("sh-pin")
+        inner = Gtk.Box(spacing=10)
+        inner.append(icon(pin.page_id, 18))
+        inner.append(self._two_lines(pin.row_title, pin.page_title))
+        if pin.switch:
+            switch = Gtk.Switch(valign=Gtk.Align.CENTER, can_target=False, can_focus=False,
+                                active=bool(self.settings.get(pin.switch)))
+            inner.append(switch)
+            self.pin_switches.setdefault(pin.switch, []).append(switch)
+            button.set_tooltip_text(pin.row_title)
+            button.connect("clicked", lambda *_a, k=pin.switch: self.flip(k))
+        else:
+            button.set_tooltip_text(strings.HOME_PIN_OPEN.format(page=pin.page_title,
+                                                                 row=pin.row_title))
+            button.connect("clicked", lambda *_a, p=pin: self.open_page(p.page_id, p.row_id))
+        button.set_child(inner)
+        self.pin_buttons[pin.address] = button
+        return button
+
+    def _command_tile(self, command: dict) -> Gtk.Button:
+        button = Gtk.Button()
+        button.add_css_class("sh-small")
+        button.add_css_class("sh-command")
+        inner = Gtk.Box(spacing=10)
+        inner.append(icon("command", 18))
+        inner.append(self._two_lines(command["name"], command["cmd"]))
+        button.set_child(inner)
+        button.set_tooltip_text(strings.HOME_RUN.format(cmd=command["cmd"]))
+        button.connect("clicked", lambda *_a, c=command: self.run(c))
+        self.command_buttons.append(button)
+        return button
+
+    # ---- changes ---------------------------------------------------------------
+
+    def change(self, key: str, value) -> bool:
+        """Set a window setting and log it in History; False if it was refused."""
+        before = self.settings.get(key)
+        try:
+            self.settings.set(key, value)
+        except (KeyError, ValueError):
+            return False
+        after = self.settings.get(key)
+        if before != after:
+            self.ctx.history.record([(hub_settings.SettingsApplier.backend, key,
+                                      strings.HUB_SETTINGS[key][0], before, after)])
+        return True
+
+    def flip(self, key: str) -> None:
+        if self.change(key, not self.settings.get(key)):
+            self.ctx.status(strings.HUB_APPLIED.format(name=strings.HUB_SETTINGS[key][0]))
+
+    def run(self, command: dict) -> None:
+        now = time.monotonic()
+        key = (command["name"], command["cmd"])
+        if now - self._last_run.get(key, -RUN_AGAIN_S) < RUN_AGAIN_S:
+            return  # a double click starts it once
+        try:
+            home_items.run_command(command["cmd"])
+        except OSError as exc:  # a retry right away is allowed
+            self.ctx.status(strings.HOME_RUN_FAILED.format(name=command["name"], error=exc))
+            return
+        self._last_run[key] = now
+        self.ctx.status(strings.HOME_RAN.format(name=command["name"]))
+
+    def _on_setting(self, key: str, value) -> None:
+        if key.startswith("home."):
+            if not self._relayout_queued:  # after the click that changed it has finished
+                self._relayout_queued = True
+                GLib.idle_add(self._layout)
+            if self.editor is not None:
+                self.editor.fill_later()
+            return
+        for switch in self.pin_switches.get(key, []):  # flipped elsewhere, or undone
+            switch.set_active(bool(value))
+
+    @property
+    def editing(self) -> bool:
+        return self.stack.get_visible_child_name() == "edit"
+
+    def edit(self, on: bool) -> None:
+        """Show the editor of the home lists in place of the tiles, or go back."""
+        if on and self.editor is None:
+            from .home_edit import Editor
+            self.editor = Editor(self)
+            self.stack.add_named(self.editor.widget, "edit")
+        if on:
+            self.editor.fill()
+        self.stack.set_visible_child_name("edit" if on else "tiles")
+        if not on:
+            self.edit_button.grab_focus()
+
+    def _refresh_tile(self, tile: Tile) -> None:
+        self._refreshed.add(tile.page_id)  # the window has shown the tiles at least once
+        tile.refresh()
 
     def refresh(self) -> None:
         for tile in self.tiles:
-            tile.refresh()
+            self._refresh_tile(tile)
 
     def focus_first(self) -> bool:
+        if self.editing:
+            return self.editor.done.grab_focus()
+        if not self.tiles:
+            return self.entry.grab_focus()
         return self.tiles[0].top.get_first_child().grab_focus()
 
     def _typed(self, entry: Gtk.SearchEntry) -> None:

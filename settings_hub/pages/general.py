@@ -112,7 +112,7 @@ class GeneralPage(Page):
         self.ctx.status(strings.HUB_APPLIED.format(name=strings.HUB_SETTINGS[key][0]))
 
     def _reset(self) -> None:
-        items = self.settings.reset()
+        items = self.settings.reset(groups=hub_settings.GROUPS)  # not the home screen's lists
         if not items:
             self.ctx.status(strings.HUB_NOTHING_CHANGED)
             return

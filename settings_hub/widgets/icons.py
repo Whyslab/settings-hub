@@ -59,6 +59,12 @@ SHAPES = {
     "updates": '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/>',
     "home": '<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
     "chevron": '<path d="M9 6l6 6-6 6"/>',
+    "appearance": '<path d="M4 19l5-14h1l5 14M6.2 13.5h7.6"/><path d="M17 11v8M15 14.5h4"/>',
+    "panel": ('<rect x="3" y="4" width="18" height="16" rx="2"/>'
+              '<path d="M3 9h18M6.5 6.5h.01M10 6.5h4"/>'),
+    "command": ('<rect x="3" y="5" width="18" height="14" rx="2"/>'
+                '<path d="M7 10l3 2-3 2M12 15h5"/>'),
+    "edit": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
 }
 
 SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '

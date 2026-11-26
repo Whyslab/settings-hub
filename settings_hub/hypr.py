@@ -37,7 +37,7 @@ def dual_dispatch(lua: str, *legacy: str) -> list[str]:
     inside the script text.
     """
     script = ('case "$(hyprctl dispatch "$1")" in '
-              '*"Invalid dispatcher"*) shift; hyprctl dispatch "$@" ;; esac')
+              '"Invalid dispatcher"*) shift; hyprctl dispatch "$@" ;; esac')
     return ["sh", "-c", script, "sh", lua, *legacy]
 
 

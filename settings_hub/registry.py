@@ -93,6 +93,8 @@ def rows(page_id: str) -> dict[str, tuple[str, list[str]]]:
     out = dict(strings.PAGES[page_id]["rows"])
     if page_id == "general":
         for field in settings.FIELDS:
+            if field.group in settings.HIDDEN_GROUPS:
+                continue  # no row on the page
             label, _hint, words = strings.HUB_SETTINGS[field.key]
             out[field.key] = (label, list(words))
     for var in variables.for_page(page_id):

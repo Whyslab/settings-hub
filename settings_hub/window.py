@@ -625,11 +625,18 @@ class Window(Gtk.ApplicationWindow):
             if self.sidebar.contains_focus(focus) and self.sidebar.clear_search():
                 self._esc_armed = False
                 return True
+            if self.current == HOME and self.home.editing:  # out of the editor, not away
+                self._esc_armed = False
+                if not self.home.editor.clear_typing(focus):
+                    self.home.edit(False)
+                return True
             self._esc_armed = True
             return True  # swallowed; the window hides on release
         if letter == "F":
             if self.sidebar.get_visible():
                 self.sidebar.focus_search()
+            elif self.home.editing:
+                self.home.editor.search.grab_focus()
             else:
                 self.home.entry.grab_focus()
             return True

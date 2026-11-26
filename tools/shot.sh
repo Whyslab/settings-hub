@@ -18,6 +18,7 @@
 #   --no-ss-config  no screen-sleep config.json (the page offers the old window)
 #   --row      then scroll the page to this row (the window's "page#row" open)
 #   SHOT_FONT  (environment) the interface font, e.g. "Adwaita Sans 16.5"
+#   SHOT_SETTINGS  (environment) a settings.json for the window (home tiles, pins)
 #
 # Wallpaper: the pictures of tests/fixtures/wallpapers in $HOME/.config/hypr/wallpapers,
 # a stub wallpaper.sh that only logs, thumbnails made by magick into $HOME/.cache
@@ -68,6 +69,10 @@ tmp=$(mktemp -d)
 stubs=$tmp/stubs
 mkdir -p "$stubs" "$tmp/.config" "$tmp/.local/state" "$tmp/.local/share" "$tmp/.cache" "$tmp/run"
 chmod 700 "$tmp/run"
+if [ -n "${SHOT_SETTINGS:-}" ]; then  # the window's own settings.json to start with
+    mkdir -p "$tmp/.config/settings-hub"
+    cp "$SHOT_SETTINGS" "$tmp/.config/settings-hub/settings.json"
+fi
 for name in hyprctl notify-send pkill pgrep systemctl systemd-inhibit wallpaper.sh \
     wallpaper-theme pactl nmcli bluetoothctl tailscale powerprofilesctl brightnessctl \
     pacman hyprpanel gsettings checkupdates yay paru kitty foot; do

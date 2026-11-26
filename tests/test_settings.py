@@ -109,7 +109,7 @@ def test_groups_and_fields_come_from_the_table(tmp_path):
         f.key for f in s.fields_of("advanced"))
     assert {f.key for f in s.fields_of("appearance")} >= {"appearance.theme"}
     for field in s:
-        assert field.group in settings.GROUPS
+        assert field.group in settings.GROUPS + settings.HIDDEN_GROUPS
         assert field.key in strings.HUB_SETTINGS
 
 

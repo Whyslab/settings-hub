@@ -240,6 +240,16 @@ window's own file, `~/.config/hypr/settings-hub.conf`
   change made on a tile is applied and undone exactly like one made on the page.
   Typing in its search field hands the text to the sidebar, which appears with
   the results.
+- The pencil next to the search opens the home editor (`home_edit.py`; Esc or
+  "Done" goes back): which big tiles are shown and in what order (a tile turned
+  off becomes a small page button), pinned rows (any row the search finds; an
+  on/off setting of the window itself gets a switch on its tile, anything else
+  opens its page at that row) and command tiles (a name and a command, run on a
+  click through `hyprctl dispatch hl.dsp.exec_cmd`, or `exec` under a `.conf`;
+  the command travels as an argument, never as shell text). The three lists are
+  settings (`home.tiles`, `home.pins`, `home.commands` in `settings.json`), so
+  every change is saved at once and undone with Ctrl+Z; the General page's
+  reset leaves them alone.
 - The look does not depend on the system GTK theme: the process uses GTK's
   built-in theme, and `style/base.css` (loaded above the user's `gtk.css`) uses
   only literal colours and its own `--sh-*` variables.

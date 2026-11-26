@@ -19,7 +19,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import tempfile
+import unicodedata
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,8 +29,60 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-KINDS = ("int", "float", "bool", "choice", "str")
+KINDS = ("int", "float", "bool", "choice", "str", "list")
 GROUPS = ("appearance", "behavior", "advanced")  # "advanced" is folded on the page
+# Fields with no row on the General page (edited elsewhere: the home screen).
+HIDDEN_GROUPS = ("home",)
+
+# The big tiles of the home screen, in their default order (home.py builds them).
+HOME_TILES = ("screen-sleep", "sound", "network", "power", "modes", "themes")
+PIN = re.compile(r"[a-z0-9-]{1,40}#[A-Za-z0-9_.:-]{1,80}")  # "page#row", as settings-open takes it
+NAME_MAX, COMMAND_MAX = 40, 300
+BAD_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+
+
+def _plain(text: Any, limit: int, label: bool = False) -> str:
+    """A one-line string of 1..limit characters, trimmed; ValueError otherwise.
+
+    Control, format (bidi overrides, zero-width), surrogate and line-break
+    characters are refused: a tile must show exactly what runs. The message
+    leaves the value out (a command may hold a token; it goes to the log).
+    """
+    if not isinstance(text, str):
+        raise ValueError("not a string")
+    text = text.strip()
+    if not text or len(text) > limit:
+        raise ValueError(f"not 1..{limit} characters ({len(text)})")
+    # A label (never run) may hold Nerd Font icons (private use) and emoji joined by ZWJ.
+    allowed = {"Co"} if label else set()
+    if any(unicodedata.category(c) in BAD_CATEGORIES - allowed
+           and not (label and c == "\u200d") for c in text):
+        raise ValueError("control, format or line-break characters")
+    return text
+
+
+def _tile(item: Any) -> str:
+    if item not in HOME_TILES:
+        raise ValueError("not a tile")
+    return item
+
+
+def _pin(item: Any) -> str:
+    if not isinstance(item, str) or not PIN.fullmatch(item):
+        raise ValueError("not page#row")
+    return item
+
+
+def _command(item: Any) -> dict[str, str]:
+    if not isinstance(item, dict):
+        raise ValueError("not a command")
+    cmd = _plain(item.get("cmd"), COMMAND_MAX)
+    if cmd.startswith("-"):  # hyprctl would read it as its own option
+        raise ValueError("a command cannot start with -")
+    return {"name": _plain(item.get("name"), NAME_MAX, label=True), "cmd": cmd}
+
+
+ITEMS: dict[str, Callable[[Any], Any]] = {"tile": _tile, "pin": _pin, "command": _command}
 
 
 @dataclass(frozen=True)
@@ -43,9 +97,14 @@ class Field:
     step: int | float | None = None
     choices: tuple[str, ...] = ()
     group: str = "behavior"
+    items: str = ""  # a list: what each item is (ITEMS); hi is the most items
 
-    def coerce(self, value: Any) -> Any:
-        """value as this field stores it, or ValueError."""
+    def coerce(self, value: Any, lenient: bool = False) -> Any:
+        """value as this field stores it, or ValueError.
+
+        lenient (reading the file): a list keeps its good items and drops the
+        bad ones, so one hand-edited command does not cost the other eleven.
+        """
         if self.kind == "bool":
             if not isinstance(value, bool):
                 raise ValueError(f"{self.key}: not a boolean: {value!r}")
@@ -63,6 +122,25 @@ class Field:
             if value not in self.choices:
                 raise ValueError(f"{self.key}: not one of {self.choices}: {value!r}")
             return value
+        if self.kind == "list":
+            if not isinstance(value, list):
+                raise ValueError(f"{self.key}: not a list")
+            if self.hi is not None and len(value) > self.hi:
+                if not lenient:
+                    raise ValueError(f"{self.key}: more than {self.hi} items")
+                value = value[:int(self.hi)]
+            out: list[Any] = []
+            for index, item in enumerate(value):
+                try:
+                    checked = ITEMS[self.items](item)
+                except ValueError as exc:
+                    if not lenient:
+                        raise ValueError(f"{self.key}[{index}]: {exc}") from None
+                    log.warning("settings %s[%d] dropped: %s", self.key, index, exc)
+                    continue
+                if checked not in out:  # a tile or a pin once
+                    out.append(checked)
+            return out
         if self.kind == "str":
             if not isinstance(value, str) or len(value) > 200:
                 raise ValueError(f"{self.key}: not a short string: {value!r}")
@@ -110,6 +188,11 @@ FIELDS: tuple[Field, ...] = (
     Field("behavior.series_still_ms", "int", 600, lo=200, hi=2000, step=50, group="advanced"),
     Field("behavior.guard_s", "int", 10, lo=2, hi=60, step=1, group="advanced"),
     Field("behavior.search_limit", "int", 20, lo=5, hi=50, step=5, group="advanced"),
+    # ---- the home screen (its own editor) -------------------------------
+    Field("home.tiles", "list", list(HOME_TILES), hi=len(HOME_TILES), items="tile",
+          group="home"),
+    Field("home.pins", "list", [], hi=20, items="pin", group="home"),
+    Field("home.commands", "list", [], hi=12, items="command", group="home"),
 )
 
 BY_KEY: dict[str, Field] = {f.key: f for f in FIELDS}
@@ -140,7 +223,9 @@ class Settings:
         field = self.fields.get(key)
         if field is None:
             raise KeyError(key)
-        return self._values[key]
+        value = self._values[key]
+        # a copy: a caller changing the list must not change the setting behind its back
+        return json.loads(json.dumps(value)) if isinstance(value, (list, dict)) else value
 
     def default(self, key: str) -> Any:
         return self.fields[key].default
@@ -190,13 +275,17 @@ class Settings:
                 log.exception("settings subscriber for %s", key)
         return before
 
-    def reset(self, key: str | None = None) -> list[tuple[str, Any, Any]]:
-        """Put one field (or all of them) back to the default.
+    def reset(self, key: str | None = None,
+              groups: tuple[str, ...] | None = None) -> list[tuple[str, Any, Any]]:
+        """Put one field (or all of them, or those of `groups`) back to the default.
 
         Returns (key, before, after) for every value that changed; nothing is
         written when they all are at their defaults already.
         """
-        keys = [key] if key is not None else list(self.fields)
+        if key is not None:
+            keys = [key]
+        else:
+            keys = [k for k, f in self.fields.items() if groups is None or f.group in groups]
         items: list[tuple[str, Any, Any]] = []
         for name in keys:
             before = self._values[name]
@@ -239,7 +328,7 @@ class Settings:
             if field is None:
                 continue  # a field this version does not have (or a typo)
             try:
-                self._values[key] = field.coerce(value)
+                self._values[key] = field.coerce(value, lenient=True)
             except ValueError as exc:
                 log.warning("settings %s: %s", self.path, exc)
 
@@ -257,7 +346,7 @@ class Settings:
             except BaseException:
                 Path(tmp).unlink(missing_ok=True)
                 raise
-        except OSError as exc:  # a read-only config dir must not break the window
+        except (OSError, ValueError) as exc:  # a read-only config dir must not break the window
             log.warning("settings %s: %s", self.path, exc)
 
 

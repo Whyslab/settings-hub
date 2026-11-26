@@ -895,3 +895,17 @@ expander-widget.sh-advanced > box > title > expander {
 expander-widget.sh-advanced > box > title > expander:checked {
   -gtk-icon-source: -gtk-icontheme("pan-down-symbolic");
 }
+
+/* The home screen's "Edit" button: a square card beside the search field. */
+button.sh-home-edit {
+  background-color: var(--sh-card);
+  border: 1px solid var(--sh-card-border);
+  border-radius: 14px;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0;
+}
+
+button.sh-home-edit:hover {
+  background-color: var(--sh-trough);
+}
