@@ -26,7 +26,7 @@ def label(key: str) -> str:
 
 
 def module_name(module: str) -> str:
-    """A module as people call it: "Часы" for clock, "cpu" for custom/cpu."""
+    """A module as people call it: strings.PANEL_MODULES, or the name of a custom/ one."""
     if module in strings.PANEL_MODULES:
         return strings.PANEL_MODULES[module]
     if module.startswith("custom/"):
