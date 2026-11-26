@@ -12,8 +12,10 @@
    look only. It is loaded above base.css and re-read whenever it changes, so
    the window recolours itself while open. An empty file changes nothing.
 5. The font (Onest, style/fonts, SIL OFL) is added to fontconfig for this
-   process only, nothing is installed; without it base.css falls back to the
-   desktop's sans.
+   process only, nothing is installed. It is a provider of its own
+   (set_own_font), so the window can follow the desktop's interface font
+   instead; text sizes in base.css are rem, which follow that font's size and
+   the text scale either way.
 6. Light/dark follows Gtk.Settings:gtk-interface-color-scheme (base.css has
    @media (prefers-color-scheme: dark)). If the platform does not say, the
    GNOME color-scheme setting is used. A forced scheme (for screenshots) wins.
@@ -41,6 +43,8 @@ THEME = "Default"
 CSS_PATH = registry.ROOT / "style" / "base.css"
 FONT_DIR = registry.ROOT / "style" / "fonts"
 PRIORITY = Gtk.STYLE_PROVIDER_PRIORITY_USER + 100
+OWN_FONT_CSS = ('window { font-family: "Onest", "Adwaita Sans", "Inter", "Noto Sans", '
+                'sans-serif; }\n')
 
 
 def palette_css_path() -> Path:
@@ -104,6 +108,11 @@ class Theme:
                                     GObject.BindingFlags.SYNC_CREATE)
         Gtk.StyleContext.add_provider_for_display(display, self.provider, PRIORITY)
 
+        self.own_font = Gtk.CssProvider()
+        self.own_font.connect("parsing-error", self._on_css_error)
+        Gtk.StyleContext.add_provider_for_display(display, self.own_font, PRIORITY)
+        self.set_own_font(True)
+
         self.palette_path = palette_css_path()
         self.palette = Gtk.CssProvider()
         self.palette.connect("parsing-error", self._on_css_error)
@@ -124,6 +133,10 @@ class Theme:
         elif self.settings.get_property("gtk-interface-color-scheme") in (
                 Gtk.InterfaceColorScheme.DEFAULT, Gtk.InterfaceColorScheme.UNSUPPORTED):
             self._follow_gnome()
+
+    def set_own_font(self, own: bool) -> None:
+        """The bundled font, or (False) whatever the desktop's interface font is."""
+        self.own_font.load_from_string(OWN_FONT_CSS if own else "")
 
     def _load_palette(self) -> None:
         try:

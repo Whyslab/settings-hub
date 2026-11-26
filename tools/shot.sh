@@ -17,6 +17,7 @@
 #   --settle   seconds to wait after opening before the screenshot (default 2)
 #   --no-ss-config  no screen-sleep config.json (the page offers the old window)
 #   --row      then scroll the page to this row (the window's "page#row" open)
+#   SHOT_FONT  (environment) the interface font, e.g. "Adwaita Sans 16.5"
 #
 # Wallpaper: the pictures of tests/fixtures/wallpapers in $HOME/.config/hypr/wallpapers,
 # a stub wallpaper.sh that only logs, thumbnails made by magick into $HOME/.cache
@@ -270,6 +271,13 @@ CSS
         mkdir -p "$tmp/.local/share/themes"
         cp -r "$theme_src" "$tmp/.local/share/themes/"
     fi
+fi
+
+# SHOT_FONT="Adwaita Sans 16.5": the interface font GTK reads (text sizes are rem).
+if [ -n "${SHOT_FONT:-}" ]; then
+    mkdir -p "$tmp/.config/gtk-4.0"
+    [ -f "$tmp/.config/gtk-4.0/settings.ini" ] || printf '[Settings]\n' >"$tmp/.config/gtk-4.0/settings.ini"
+    printf 'gtk-font-name=%s\n' "$SHOT_FONT" >>"$tmp/.config/gtk-4.0/settings.ini"
 fi
 
 if [ -n "$history_file" ]; then

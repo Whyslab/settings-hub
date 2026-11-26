@@ -77,6 +77,10 @@ def test_appearance_in_the_window(tmp_path, xvfb):  # noqa: F811
     assert r["font_note"] == "" and "Nope" in r["missing_note"]  # a font that is not there
     assert r["after_font"] == "DejaVu Serif 13"
     assert r["history"][0] == ["look.font"]
+    # the window's own font switch: Onest, the interface font, back by undo
+    assert r["own_font_on"] and r["family_own"].startswith("Onest")
+    assert r["family_system"] == r["gtk_font"].rsplit(" ", 1)[0]
+    assert r["own_font_after_undo"] and r["family_after_undo"].startswith("Onest")
     calls = (tmp_path / "stubs" / "calls.log").read_text()
     assert "set org.gnome.desktop.interface font-name 'DejaVu Serif 13'" in calls
     assert "font-name=DejaVu Serif 13" in (conf / "gtk-4.0" / "settings.ini").read_text()

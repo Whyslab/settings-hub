@@ -20,10 +20,12 @@ sys.path.insert(0, str(repo))
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
 gi.require_version("Pango", "1.0")
-from gi.repository import Gio, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from settings_hub import settings  # noqa: E402
+from settings_hub import theme as hub_theme  # noqa: E402
 from settings_hub.backends import appearance as ap  # noqa: E402
 from settings_hub.history import History  # noqa: E402
 from settings_hub.window import Window  # noqa: E402
@@ -52,8 +54,12 @@ app = Gtk.Application(application_id="io.github.whyslab.SettingsHubLook",
 app.register(None)
 workers = Workers()
 history = History(state_dir / "history.jsonl")
-win = Window(app, history, workers, state_dir, {},
-             settings=settings.Settings(state_dir / "settings.json"))
+theme = hub_theme.Theme(Gdk.Display.get_default())
+hub = settings.Settings(state_dir / "settings.json")
+settings.register(history, hub)
+# what app.py does with the setting
+hub.subscribe(lambda key, value: key == "appearance.own_font" and theme.set_own_font(value))
+win = Window(app, history, workers, state_dir, {}, settings=hub)
 win.set_default_size(920, 1400)
 win.present()
 out: dict = {}
@@ -94,6 +100,21 @@ page.kitty_same.emit("clicked")
 spin(1.5)
 out["after_font"] = page.look.value(ap.FONT)
 out["after_kitty"] = page.look.value(ap.KITTY_FONT)
+
+# The window's own font: Onest, or (switched off) the interface font.
+def family() -> str:
+    spin(0.3)
+    return page.scale_label.get_pango_context().get_font_description().get_family() or ""
+
+
+out["own_font_on"] = page.own_font.get_active()
+out["family_own"] = family()
+page.own_font.set_active(False)
+out["family_system"] = family()
+out["gtk_font"] = Gtk.Settings.get_default().props.gtk_font_name
+history.execute(history.plan_undo_last())
+out["own_font_after_undo"] = page.own_font.get_active()
+out["family_after_undo"] = family()
 out["history"] = [[e.key for e in g.entries] for g in history.groups()]
 out["errors"] = errors
 shoot("appearance-after")

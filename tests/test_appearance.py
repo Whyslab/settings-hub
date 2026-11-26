@@ -319,3 +319,175 @@ def test_a_deleted_include_line_is_put_back_even_if_the_mark_stays(env):
     backend.set(ap.KITTY_FONT, "Iosevka 14")
     assert kitty.read_text().count(f"include {ap.KITTY_FILE}") == 1
     assert backend.read([ap.KITTY_FONT]) == {ap.KITTY_FONT: "Iosevka 14"}
+
+
+# ---- fonts that cannot write the interface's text --------------------------------
+
+
+class _Coverage:
+    def __init__(self, chars):
+        self.chars = {ord(c) for c in chars}
+
+    def get(self, codepoint):
+        from gi.repository import Pango
+        return Pango.CoverageLevel.EXACT if codepoint in self.chars else Pango.CoverageLevel.NONE
+
+
+class _Font:
+    def __init__(self, chars):
+        self.chars = chars
+
+    def get_coverage(self, _language):
+        return _Coverage(self.chars)
+
+
+class _Context:
+    def __init__(self, fonts):
+        self.fonts = fonts  # family -> letters it has
+        self.loaded = []
+
+    def load_font(self, desc):
+        self.loaded.append((desc.get_family(), desc.get_size()))
+        chars = self.fonts.get(desc.get_family())
+        return None if chars is None else _Font(chars)
+
+
+def test_draws_text_needs_latin_and_cyrillic():
+    pytest.importorskip("gi")
+    import gi
+    gi.require_version("Pango", "1.0")
+    from gi.repository import Pango
+
+    from settings_hub.pages import appearance as page
+    ctx = _Context({"Good": "AzЖяbc", "Latin": "Az", "Han": "一", "Ru": "Жя"})
+    desc = Pango.FontDescription.from_string
+    assert page.draws_text(ctx, desc("Good 11"))
+    assert not page.draws_text(ctx, desc("Latin 11"))
+    assert not page.draws_text(ctx, desc("Han 11"))
+    assert not page.draws_text(ctx, desc("Ru 11"))
+    assert not page.draws_text(ctx, desc("Missing 11"))  # nothing loaded
+    page.draws_text(ctx, desc("Good"))  # a face's description has no size
+    assert ctx.loaded[-1][1] > 0
+
+
+def test_readable_family_is_cached_per_family():
+    pytest.importorskip("gi")
+    import gi
+    gi.require_version("Pango", "1.0")
+    from gi.repository import Pango
+
+    from settings_hub.pages import appearance as page
+
+    class Face:
+        def __init__(self, name):
+            self.name = name
+
+        def describe(self):
+            return Pango.FontDescription.from_string(self.name)
+
+    class Family:
+        def __init__(self, name):
+            self.name = name
+
+        def get_name(self):
+            return self.name
+
+        def get_face(self, _name):
+            return Face(self.name)
+
+    page._READABLE.clear()
+    ctx = _Context({"Test Good": "AzЖя", "Test Han": "一"})
+    assert page.readable_family(ctx, Family("Test Good"))
+    assert not page.readable_family(ctx, Family("Test Han"))
+    assert page.readable_family(ctx, Family("Test Good"))
+    assert len(ctx.loaded) == 2  # the third call came from the cache
+    assert not page.readable_family(ctx, object())  # not a family nor a face
+
+
+def test_own_font_setting_defaults_to_onest():
+    from settings_hub import settings, strings
+    field = settings.BY_KEY["appearance.own_font"]
+    assert field.kind == "bool" and field.default is True and field.group == "appearance"
+    assert "appearance.own_font" in strings.HUB_SETTINGS
+
+
+def test_readable_family_with_real_pango_items():
+    """The dialog hands real Pango families (and faces): both must work."""
+    pytest.importorskip("gi")
+    import gi
+    gi.require_version("Pango", "1.0")
+    gi.require_version("PangoCairo", "1.0")
+    from gi.repository import PangoCairo
+
+    from settings_hub.pages import appearance as page
+    fontmap = PangoCairo.FontMap.get_default()
+    ctx = fontmap.create_context()
+    families = fontmap.list_families()
+    assert families
+    page._READABLE.clear()
+    results = [page.readable_family(ctx, f) for f in families]
+    assert any(results)  # some installed family writes Russian
+    family = families[results.index(True)]
+    face = family.get_face(None)
+    assert page.readable_family(ctx, face)  # a face goes through its family
+
+
+def test_refused_font_is_not_applied():
+    """_on_font with a font that draws no letters: nothing set, button reset."""
+    pytest.importorskip("gi")
+    import gi
+    gi.require_version("Pango", "1.0")
+    from gi.repository import Pango
+
+    from settings_hub.pages import appearance as page
+
+    class Button:
+        def __init__(self, name):
+            self.desc = Pango.FontDescription.from_string(name)
+
+        def get_font_desc(self):
+            return self.desc
+
+        def set_font_desc(self, desc):
+            self.desc = desc
+
+    class Look:
+        def __init__(self):
+            self.sets = []
+
+        def value(self, _key):
+            return "Good 11"
+
+        def set(self, key, value):
+            self.sets.append((key, value))
+
+    class Widget:
+        def get_pango_context(self):
+            return _Context({"Good": "AzЖя", "Han": "一"})
+
+    view = page.AppearancePage.__new__(page.AppearancePage)
+    view._look_quiet = False
+    view.look = Look()
+    view.widget = Widget()
+    said = []
+    view.status = said.append
+    button = Button("Han Bold 11")
+    view._on_font(ap.FONT, button)
+    assert view.look.sets == []
+    assert button.desc.to_string() == "Good 11"
+    assert said and "Han" in said[0]
+    good = Button("Good 13")
+    view._on_font(ap.FONT, good)
+    assert view.look.sets == [(ap.FONT, "Good 13")]
+
+
+def test_base_css_sizes_follow_the_interface_font():
+    """Text sizes are rem and the window sets no font: the own_font switch decides."""
+    pytest.importorskip("gi")
+    import re
+
+    from settings_hub import theme
+    css = theme.CSS_PATH.read_text()
+    assert not re.search(r"font-size:\s*[\d.]+px", css)
+    assert "font-family" not in css
+    assert "Onest" in theme.OWN_FONT_CSS

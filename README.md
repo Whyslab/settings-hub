@@ -236,7 +236,10 @@ window's own file, `~/.config/hypr/settings-hub.conf`
   built-in theme, and `style/base.css` (loaded above the user's `gtk.css`) uses
   only literal colours and its own `--sh-*` variables.
 - The font is Onest (`style/fonts`, SIL Open Font License), added to fontconfig
-  for this process only; nothing is installed system-wide.
+  for this process only; nothing is installed system-wide. A switch on
+  **Appearance** (also on **General**) makes the window use the interface font
+  instead. Text sizes in `base.css` are in `rem`, so they follow the interface
+  font size and the text scale either way.
 
 ## Layout
 

@@ -138,6 +138,7 @@ class App(Gtk.Application):
         self.theme = Theme(Gdk.Display.get_default(), self.forced_scheme)
         self.settings = hub_settings.Settings()
         self.theme.set_scheme(str(self.settings.get("appearance.theme")))
+        self.theme.set_own_font(bool(self.settings.get("appearance.own_font")))
         row_widgets.set_highlight_ms(int(self.settings.get("appearance.highlight_ms")))
         self.workers = Workers()
         history = History(keep=int(self.settings.get("behavior.history_keep")))
@@ -188,6 +189,8 @@ class App(Gtk.Application):
             return
         if key == "appearance.theme":
             self.theme.set_scheme(str(value))
+        elif key == "appearance.own_font":
+            self.theme.set_own_font(bool(value))
         elif key == "appearance.transition":
             self.window.stack.set_transition_type(self.window.transition())
         elif key == "appearance.sidebar_width":

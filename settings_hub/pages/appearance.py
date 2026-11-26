@@ -15,6 +15,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import GLib, Gtk, Pango  # noqa: E402
 
+from .. import settings as hub_settings  # noqa: E402
 from .. import strings  # noqa: E402
 from ..backends import appearance as ap  # noqa: E402
 from ..controllers import appearance as ctl  # noqa: E402
@@ -29,6 +30,12 @@ SAMPLE_PX = 24
 # fontconfig aliases, never in Pango's family list, always "installed"
 GENERIC_FAMILIES = frozenset({"sans", "sans-serif", "serif", "monospace", "mono", "system-ui",
                               "cursive", "fantasy", "emoji"})
+# A font for text must draw these: Latin A z, Cyrillic Zhe and ya. Most of the
+# installed families are for one other script (Noto Sans Adlam, ...): offered
+# here they only turn every label into boxes.
+TEXT_CODEPOINTS = (0x41, 0x7A, 0x416, 0x44F)
+OWN_FONT = "appearance.own_font"
+_READABLE: dict[str, bool] = {}  # family name -> draws TEXT_CODEPOINTS
 
 
 def _monospace(item: Any) -> bool:
@@ -36,6 +43,32 @@ def _monospace(item: Any) -> bool:
     family = item if isinstance(item, Pango.FontFamily) else (
         item.get_family() if hasattr(item, "get_family") else None)
     return bool(family is not None and family.is_monospace())
+
+
+def draws_text(context: Pango.Context, desc: Pango.FontDescription) -> bool:
+    """Whether the font `desc` names has Latin and Cyrillic letters."""
+    desc = desc.copy()
+    if desc.get_size() <= 0:
+        desc.set_size(11 * Pango.SCALE)
+    font = context.load_font(desc)
+    if font is None:
+        return False
+    coverage = font.get_coverage(Pango.Language.from_string("ru"))
+    return all(coverage.get(c) == Pango.CoverageLevel.EXACT for c in TEXT_CODEPOINTS)
+
+
+def readable_family(context: Pango.Context, item: Any) -> bool:
+    """The font dialog's filter: hide the families that cannot write Russian."""
+    family = item  # a Pango.FontFamily, or a face of one
+    if not hasattr(family, "get_face") and hasattr(family, "get_family"):
+        family = family.get_family()
+    if family is None or not hasattr(family, "get_face"):
+        return False
+    name = family.get_name()
+    if name not in _READABLE:
+        face = family.get_face(None)
+        _READABLE[name] = face is not None and draws_text(context, face.describe())
+    return _READABLE[name]
 
 
 class AppearancePage(VariablesPage):
@@ -77,6 +110,14 @@ class AppearancePage(VariablesPage):
         self.rows["scale"] = fonts.add(Row(strings.LOOK_SCALE, strings.LOOK_SCALE_HINT,
                                            suffix=self.scale_label, below=self.scale,
                                            row_id="scale"))
+        self.hub = self.ctx.settings  # the window's own settings (always given)
+        self.own_font = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.own_font.set_active(bool(self.hub.get(OWN_FONT)))
+        self.own_font.connect("notify::active", self._on_own_font)
+        self.rows["own_font"] = fonts.add(Row(strings.LOOK_OWN_FONT, strings.LOOK_OWN_FONT_HINT,
+                                              suffix=self.own_font, row_id="own_font"))
+        # Undo and the General page change it too.
+        self.hub.subscribe(lambda key, _v: key == OWN_FONT and self._show_own_font())
 
         elsewhere = self.add_group(Group(strings.LOOK_ELSEWHERE,
                                          note=strings.LOOK_ELSEWHERE_NOTE))
@@ -104,8 +145,12 @@ class AppearancePage(VariablesPage):
 
     def _font_button(self, key: str, monospace: bool = False) -> Gtk.FontDialogButton:
         dialog = Gtk.FontDialog(modal=True)
+        context = self.widget.get_pango_context()
         if monospace:
-            dialog.set_filter(Gtk.CustomFilter.new(_monospace))
+            dialog.set_filter(Gtk.CustomFilter.new(
+                lambda item: _monospace(item) and readable_family(context, item)))
+        else:
+            dialog.set_filter(Gtk.CustomFilter.new(lambda item: readable_family(context, item)))
         button = Gtk.FontDialogButton(dialog=dialog, valign=Gtk.Align.CENTER)
         button.set_level(Gtk.FontLevel.FONT)
         button.set_use_font(True)
@@ -159,14 +204,18 @@ class AppearancePage(VariablesPage):
                 self._show_icon_sample(current)
         finally:
             self._look_quiet = False
-        installed = {f.get_name().casefold()
-                     for f in self.widget.get_pango_context().list_families()}
+        context = self.widget.get_pango_context()
+        installed = {f.get_name().casefold() for f in context.list_families()}
         for key, row_id, hint in ((ap.FONT, "font", strings.LOOK_FONT_HINT),
                                   (ap.MONO, "mono", strings.LOOK_MONO_HINT)):
             family = self._family(key)
             text = hint
             if family and family.casefold() not in installed | GENERIC_FAMILIES:
                 text = f"{hint}\n{strings.LOOK_MISSING.format(family=family)}"
+            elif family and not draws_text(context, Pango.FontDescription.from_string(
+                    values.get(key, ""))):
+                # set elsewhere (or before this check existed): say why it is boxes
+                text = f"{hint}\n{strings.LOOK_UNREADABLE.format(family=family)}"
             self.rows[row_id].subtitle_label.set_label(text)
         ui_family, mono_family = self._family(ap.FONT), self._family(ap.MONO)
         panel = values.get(ap.PANEL_FONT, "")
@@ -186,10 +235,40 @@ class AppearancePage(VariablesPage):
             return
         desc = button.get_font_desc()
         if desc is not None:
+            if not draws_text(self.widget.get_pango_context(), desc):
+                self._look_quiet = True
+                try:  # the button goes back to the font in use at once
+                    current = self.look.value(key)
+                    if current:
+                        button.set_font_desc(Pango.FontDescription.from_string(current))
+                finally:
+                    self._look_quiet = False
+                self.status(strings.LOOK_UNREADABLE.format(family=desc.get_family() or ""))
+                return
             desc = desc.copy()
             # "Name 11", not "Name 11 @wght=700": the family is reused for the panel.
             desc.unset_fields(Pango.FontMask.VARIATIONS | Pango.FontMask.GRAVITY)
             self.look.set(key, desc.to_string())
+
+    def _show_own_font(self) -> None:
+        self._look_quiet = True
+        try:
+            self.own_font.set_active(bool(self.hub.get(OWN_FONT)))
+        finally:
+            self._look_quiet = False
+
+    def _on_own_font(self, switch: Gtk.Switch, _pspec) -> None:
+        if self._look_quiet:
+            return
+        value = switch.get_active()
+        before = self.hub.get(OWN_FONT)
+        if before == value:
+            return
+        self.hub.set(OWN_FONT, value)
+        label = strings.HUB_SETTINGS[OWN_FONT][0]
+        self.ctx.history.record([(hub_settings.SettingsApplier.backend, OWN_FONT, label,
+                                  before, value)])
+        self.status(strings.HUB_APPLIED.format(name=label))
 
     def _show_scale(self, value: float) -> None:
         self.scale_label.set_label(strings.LOOK_PERCENT.format(percent=int(round(value * 100))))

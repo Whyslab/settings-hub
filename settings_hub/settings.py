@@ -98,6 +98,8 @@ FIELDS: tuple[Field, ...] = (
     Field("appearance.window_height", "int", 640, lo=400, hi=1400, step=10,
           group="appearance"),
     Field("appearance.remember_size", "bool", False, group="appearance"),
+    # the bundled Onest; off: the interface font the Appearance page sets
+    Field("appearance.own_font", "bool", True, group="appearance"),
     # ---- behavior -------------------------------------------------------
     Field("behavior.start_page", "choice", START_PAGE_HOME, choices=START_PAGES),
     Field("behavior.preload_s", "int", 20, lo=0, hi=300, step=5, group="advanced"),

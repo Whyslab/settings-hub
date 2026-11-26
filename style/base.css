@@ -91,8 +91,7 @@ window, tooltip, popover {
 window {
   color: var(--sh-fg);
   background-color: var(--sh-bg);
-  font-family: "Onest", "Adwaita Sans", "Inter", "Noto Sans", sans-serif;
-  font-size: 13.5px;
+  font-size: 0.92rem; /* 13.5px at 11 pt */
 }
 
 selection,
@@ -164,7 +163,7 @@ list.sh-nav > row:selected .sh-subtitle {
 
 .sh-nav-header {
   color: var(--sh-fg-dim);
-  font-size: 11.5px;
+  font-size: 0.784rem; /* 11.5px at 11 pt */
   font-weight: 600;
   margin: 14px 10px 4px 10px;
 }
@@ -187,7 +186,7 @@ list.sh-nav > row:selected .sh-icon {
 }
 
 .sh-title {
-  font-size: 24px;
+  font-size: 1.636rem; /* 24px at 11 pt */
   font-weight: 700;
   letter-spacing: -0.3px;
   margin: 20px 28px 6px 28px;
@@ -199,14 +198,14 @@ list.sh-nav > row:selected .sh-icon {
 
 .sh-group-title {
   color: var(--sh-fg-dim);
-  font-size: 12.5px;
+  font-size: 0.852rem; /* 12.5px at 11 pt */
   font-weight: 600;
   margin: 16px 12px 7px 12px;
 }
 
 .sh-group-note {
   color: var(--sh-fg-dim);
-  font-size: 11.5px;
+  font-size: 0.784rem; /* 11.5px at 11 pt */
   margin: 6px 10px 0 10px;
 }
 
@@ -247,12 +246,12 @@ list.sh-group > row:last-child .sh-row-inner {
 
 .sh-subtitle {
   color: var(--sh-fg-dim);
-  font-size: 11.5px;
+  font-size: 0.784rem; /* 11.5px at 11 pt */
 }
 
 .sh-status {
   color: var(--sh-fg-dim);
-  font-size: 12px;
+  font-size: 0.818rem; /* 12px at 11 pt */
   margin: 0 28px 12px 28px;
 }
 
@@ -554,7 +553,7 @@ label.sh-warning {
 
 scale marks mark label {
   color: var(--sh-fg-dim);
-  font-size: 11px;
+  font-size: 0.75rem; /* 11px at 11 pt */
 }
 
 scale {
@@ -597,7 +596,7 @@ flowbox.sh-tiles > flowboxchild.sh-current .sh-thumb {
 
 .sh-tile-name {
   color: var(--sh-fg-dim);
-  font-size: 11px;
+  font-size: 0.75rem; /* 11px at 11 pt */
 }
 
 flowbox.sh-tiles > flowboxchild.sh-current .sh-tile-name {
@@ -611,13 +610,13 @@ flowbox.sh-tiles > flowboxchild.sh-current .sh-tile-name {
 
 .sh-theme-badge {
   color: rgba(255, 255, 255, 0.95);
-  font-size: 13px;
+  font-size: 0.886rem; /* 13px at 11 pt */
   font-weight: 700;
 }
 
 .sh-anim-letter {
   color: rgba(255, 255, 255, 0.92);
-  font-size: 26px;
+  font-size: 1.773rem; /* 26px at 11 pt */
   font-weight: 700;
 }
 
@@ -679,7 +678,7 @@ popover listview > row image {
   background-color: var(--sh-search);
   border-radius: 5px;
   padding: 1px 7px;
-  font-size: 12px;
+  font-size: 0.818rem; /* 12px at 11 pt */
   font-feature-settings: "tnum";
 }
 
@@ -694,7 +693,7 @@ popover listview > row image {
   border-radius: 99px;
   min-width: 16px;
   min-height: 16px;
-  font-size: 11px;
+  font-size: 0.75rem; /* 11px at 11 pt */
   font-weight: 700;
 }
 
@@ -740,7 +739,7 @@ list.sh-group > row.sh-bind-disabled .sh-keys {
 }
 
 .sh-home-title {
-  font-size: 24px;
+  font-size: 1.636rem; /* 24px at 11 pt */
   font-weight: 700;
   letter-spacing: -0.3px;
 }
@@ -792,23 +791,23 @@ button.sh-tile-head:hover .sh-tile-title {
 }
 
 .sh-tile-title {
-  font-size: 15px;
+  font-size: 1.023rem; /* 15px at 11 pt */
   font-weight: 600;
 }
 
 .sh-small-text {
-  font-size: 12.5px;
+  font-size: 0.852rem; /* 12.5px at 11 pt */
 }
 
 .sh-big {
-  font-size: 30px;
+  font-size: 2.045rem; /* 30px at 11 pt */
   font-weight: 700;
   letter-spacing: -0.5px;
   font-feature-settings: "tnum";
 }
 
 .sh-mid {
-  font-size: 19px;
+  font-size: 1.295rem; /* 19px at 11 pt */
   font-weight: 700;
   font-feature-settings: "tnum";
 }
@@ -825,7 +824,7 @@ button.sh-tile-head:hover .sh-tile-title {
   border-radius: 9px;
   min-height: 28px;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: 0.886rem; /* 13px at 11 pt */
   font-weight: 500;
 }
 
@@ -873,7 +872,7 @@ button.sh-small:hover {
  * title with an arrow that turns when it opens. */
 expander-widget.sh-advanced > box > title {
   color: var(--sh-fg-dim);
-  font-size: 12.5px;
+  font-size: 0.852rem; /* 12.5px at 11 pt */
   font-weight: 600;
   margin: 16px 8px 7px 8px;
   padding: 3px 4px;
