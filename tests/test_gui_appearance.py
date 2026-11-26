@@ -11,6 +11,8 @@ import pytest
 from conftest import ROOT
 from test_gui import BUS, xvfb  # noqa: F401 -- the fixture is used by name
 
+from settings_hub import strings
+
 GSETTINGS = r'''#!/usr/bin/env python3
 import json, sys
 from pathlib import Path
@@ -74,7 +76,9 @@ def test_appearance_in_the_window(tmp_path, xvfb):  # noqa: F811
     assert r["sample_icons"] > 0
     assert r["cursor_rows"] == ["cursor:size", "cursor:theme"]
     assert r["panel_same_on"] and not r["kitty_same_on"]  # kitty already has that family
-    assert r["font_note"] == "" and "Nope" in r["missing_note"]  # a font that is not there
+    assert r["font_note"] == strings.LOOK_OWN_FONT_NOTE  # the window keeps Onest
+    assert "Nope" in r["missing_note"]  # a font that is not there
+    assert strings.LOOK_OWN_FONT_NOTE not in r["font_note_off"]  # the window follows it now
     assert r["after_font"] == "DejaVu Serif 13"
     assert r["history"][0] == ["look.font"]
     # the window's own font switch: Onest, the interface font, back by undo

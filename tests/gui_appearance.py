@@ -111,6 +111,7 @@ out["own_font_on"] = page.own_font.get_active()
 out["family_own"] = family()
 page.own_font.set_active(False)
 out["family_system"] = family()
+out["font_note_off"] = page.rows["font"].subtitle_label.get_label()
 out["gtk_font"] = Gtk.Settings.get_default().props.gtk_font_name
 history.execute(history.plan_undo_last())
 out["own_font_after_undo"] = page.own_font.get_active()

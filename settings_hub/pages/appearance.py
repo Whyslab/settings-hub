@@ -216,6 +216,9 @@ class AppearancePage(VariablesPage):
                     values.get(key, ""))):
                 # set elsewhere (or before this check existed): say why it is boxes
                 text = f"{hint}\n{strings.LOOK_UNREADABLE.format(family=family)}"
+            if key == ap.FONT and self.hub.get(OWN_FONT):
+                # the window itself keeps Onest: say so where the font is picked
+                text = f"{text}\n{strings.LOOK_OWN_FONT_NOTE}"
             self.rows[row_id].subtitle_label.set_label(text)
         ui_family, mono_family = self._family(ap.FONT), self._family(ap.MONO)
         panel = values.get(ap.PANEL_FONT, "")
@@ -256,6 +259,8 @@ class AppearancePage(VariablesPage):
             self.own_font.set_active(bool(self.hub.get(OWN_FONT)))
         finally:
             self._look_quiet = False
+        if self.look.look is not None:
+            self.show_look(self.look.look, set(self.look.pending))
 
     def _on_own_font(self, switch: Gtk.Switch, _pspec) -> None:
         if self._look_quiet:
