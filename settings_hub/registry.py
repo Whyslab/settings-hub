@@ -54,6 +54,7 @@ PAGES: tuple[PageInfo, ...] = (
     PageInfo("wallpaper", "display", "wallpaper.svg", "#32ade6"),
     PageInfo("animations", "display", "animations.svg", "#af52de"),
     PageInfo("windows", "display", "windows.svg", "#0a84ff"),
+    PageInfo("appearance", "display", "appearance.svg", "#bf5af2"),
     PageInfo("binds", "keyboard", "binds.svg", "#8e8e93"),
     PageInfo("game-binds", "keyboard", "game-binds.svg", "#ff3b30"),
     PageInfo("input", "keyboard", "input.svg", "#5e5ce6"),

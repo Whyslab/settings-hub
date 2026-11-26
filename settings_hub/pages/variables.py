@@ -33,6 +33,11 @@ def choice_labels(var: variables.Var, themes: list[str] | None = None) -> list[t
 
 
 class VariablesPage(Page):
+    # The reset row's texts; a page with other settings too says what it covers.
+    RESET_TITLE = strings.VAR_RESET
+    RESET_HINT = strings.VAR_RESET_HINT
+    RESET_ASK = strings.VAR_RESET_ASK
+
     def build(self) -> None:
         backend = self.ctx.backends.get(hypr.BACKEND)
         if backend is None:  # normally created by the app, with a History applier
@@ -62,9 +67,9 @@ class VariablesPage(Page):
         reset = self.add_group(Group())
         button = Gtk.Button(label=strings.VAR_RESET_BUTTON)
         button.connect("clicked", lambda *_: self.confirm(
-            strings.VAR_RESET, strings.VAR_RESET_ASK, strings.VAR_RESET_BUTTON,
+            self.RESET_TITLE, self.RESET_ASK, strings.VAR_RESET_BUTTON,
             lambda: self.controller.reset(self.page_options)))
-        self.rows["reset"] = reset.add(Row(strings.VAR_RESET, strings.VAR_RESET_HINT,
+        self.rows["reset"] = reset.add(Row(self.RESET_TITLE, self.RESET_HINT,
                                            suffix=button, row_id="reset"))
 
         self.controller = ctl.Controller(backend, self.ctx.history, self)

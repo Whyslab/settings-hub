@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -34,7 +34,13 @@ command line and a failed attempt is not kept; 802.1X and WEP networks are not
 supported. It also lists Bluetooth devices: connect, disconnect, forget, search
 for a new one (30 s, pairing without a code). **Sound** shows the volume of
 every program that plays (all Firefox tabs are one row) and who records from a
-microphone. The framework:
+microphone. **Appearance** sets the interface font, the monospace font, the text
+size and the icon theme for GTK programs (GSettings plus the gtk-3.0/gtk-4.0
+`settings.ini`; Qt programs do not follow without qt6ct), offers the same font
+for HyprPanel (`theme.font.name`) and kitty (its own
+`~/.config/kitty/settings-hub-font.conf`, included from kitty.conf; open windows
+reload), and holds the cursor rows that used to be on Keyboard and mouse. The
+framework:
 
 - the resident application, the window: a home screen of tiles (screen and
   sleep, sound, network, power, modes and themes shown and changed in place,

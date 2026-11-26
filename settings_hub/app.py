@@ -30,6 +30,7 @@ from . import APP_ID, PRGNAME, strings  # noqa: E402
 from . import settings as hub_settings  # noqa: E402
 from .backends import (  # noqa: E402
     animations,
+    appearance,
     audio,
     autostart,
     binds,
@@ -163,7 +164,7 @@ class App(Gtk.Application):
         power.register(history, backends[power.BACKEND])
         backends[game_binds.BACKEND] = game_binds.Backend(self.workers)
         game_binds.register(history, backends[game_binds.BACKEND])
-        for module in (monitor, notifications, autostart, minimize_anim):
+        for module in (monitor, notifications, autostart, minimize_anim, appearance):
             backends[module.BACKEND] = module.Backend(self.workers)
             module.register(history, backends[module.BACKEND])
         # A reinstall keeps the games file: bring its text up to this version.

@@ -16,7 +16,7 @@ def test_ids_unique_and_well_formed():
     assert len(ids) == len(set(ids))
     assert all(re.fullmatch(r"[a-z0-9-]+", i) for i in ids)  # settings-open accepts these
     assert ids == ["screen-sleep", "sound", "network", "power", "modes", "themes",
-                   "monitor", "wallpaper", "animations", "windows",
+                   "monitor", "wallpaper", "animations", "windows", "appearance",
                    "binds", "game-binds", "input",
                    "notifications", "autostart", "updates", "general", "system", "history"]
 

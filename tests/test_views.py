@@ -7,9 +7,11 @@ import pytest
 pytest.importorskip("gi")
 
 from settings_hub import home  # noqa: E402
+from settings_hub.controllers import appearance as lookctl  # noqa: E402
 from settings_hub.controllers import audio as audctl  # noqa: E402
 from settings_hub.controllers import bluetooth as btctl  # noqa: E402
 from settings_hub.controllers import network as netctl  # noqa: E402
+from settings_hub.pages import appearance as lookpage  # noqa: E402
 from settings_hub.pages import network as netpage  # noqa: E402
 from settings_hub.pages import sound  # noqa: E402
 
@@ -28,6 +30,7 @@ def methods(protocol):
     (netctl.View, netpage.NetworkPage),
     (netctl.View, home.NetworkTile),
     (btctl.View, netpage.NetworkPage),
+    (lookctl.View, lookpage.AppearancePage),
 ])
 def test_view_has_every_method(protocol, view):
     missing = [m for m in methods(protocol)

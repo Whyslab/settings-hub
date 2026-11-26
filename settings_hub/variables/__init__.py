@@ -29,10 +29,11 @@ from typing import Any
 from .. import strings
 
 KINDS = ("int", "float", "bool", "choice", "str")
-PAGES = ("windows", "input")
+PAGES = ("windows", "input", "appearance")
 GROUPS = {
     "windows": ("gaps", "effects", "layout", "tabs", "behavior"),
-    "input": ("keyboard", "mouse", "touchpad", "cursor"),
+    "input": ("keyboard", "mouse", "touchpad"),
+    "appearance": ("cursor",),  # with fonts and icons (pages/appearance.py)
 }
 
 
@@ -142,8 +143,8 @@ VARS: tuple[Var, ...] = (
     var("input:touchpad:scroll_factor", "float", 1.0, "input", "touchpad",
         lo=0.2, hi=3.0, step=0.05),
     # ---- input: cursor (environment, not a keyword) ----------------------
-    var("cursor:theme", "choice", "", "input", "cursor", special=True),
-    var("cursor:size", "int", 24, "input", "cursor", lo=16, hi=96, step=2,
+    var("cursor:theme", "choice", "", "appearance", "cursor", special=True),
+    var("cursor:size", "int", 24, "appearance", "cursor", lo=16, hi=96, step=2,
         unit="px", special=True),
 )
 

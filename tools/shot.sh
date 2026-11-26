@@ -113,9 +113,34 @@ cat >>"$stubs/hyprpanel" <<'STUB'
 case "$1" in toggleDnd) echo Disabled ;; esac
 exit 0
 STUB
-cat >>"$stubs/gsettings" <<'STUB'
-echo "[<{'id': <uint32 2>, 'app-name': <'Telegram'>}>, <{'id': <uint32 1>, 'app-name': <'kitty'>}>]"
-STUB
+cat >"$stubs/gsettings" <<'PY'
+#!/usr/bin/env python3
+# Stored notifications for the Notifications page; the interface keys (fonts,
+# icons, text size) are kept in a file, so a change shows after the refresh.
+import json, sys
+from pathlib import Path
+tmp = Path(__file__).resolve().parent.parent
+args = sys.argv[1:]
+with (tmp / "calls.log").open("a") as fh:
+    fh.write("gsettings " + " ".join(args) + "\n")
+state = tmp / "gsettings.json"
+values = json.loads(state.read_text()) if state.exists() else {
+    "font-name": "'Adwaita Sans 11'", "monospace-font-name": "'Adwaita Mono 11'",
+    "text-scaling-factor": "1.0", "icon-theme": "'Adwaita'"}
+if args[:2] == ["get", "io.astal.notifd"]:
+    print("[<{'id': <uint32 2>, 'app-name': <'Telegram'>}>, "
+          "<{'id': <uint32 1>, 'app-name': <'kitty'>}>]")
+elif args[:2] == ["get", "org.gnome.desktop.interface"] and args[2] in values:
+    print(values[args[2]])
+elif args[:2] == ["set", "org.gnome.desktop.interface"]:
+    values[args[2]] = args[3]
+    state.write_text(json.dumps(values))
+PY
+chmod +x "$stubs/gsettings"
+mkdir -p "$tmp/.config/kitty" "$tmp/.config/hyprpanel"
+printf 'font_family Adwaita Mono\nfont_size 12.0\n' >"$tmp/.config/kitty/kitty.conf"
+printf '{"theme.font.name": "JetBrainsMono Nerd Font", "theme.font.size": "10px"}\n' \
+    >"$tmp/.config/hyprpanel/config.json"
 cat >>"$stubs/checkupdates" <<'STUB'
 printf 'linux 7.2.14-arch1-1 -> 7.2.15-arch1-1\nfirefox 147.0-1 -> 147.0.1-1\nmesa 1:26.1.0-1 -> 1:26.1.1-1\n'
 STUB
