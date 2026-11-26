@@ -156,6 +156,7 @@ BACKENDS = {
     "autostart": "Автозапуск",
     "minimize_anim": "Сворачивание окон",
     "appearance": "Оформление",
+    "panel": "Панель",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -667,6 +668,25 @@ PAGES.update({
             "panel_font": ("Шрифт панели", ["панель", "шрифт панели", "hyprpanel"]),
             "kitty_font": ("Шрифт терминала", ["kitty", "терминал", "шрифт терминала"]),
             "own_font": ("Шрифт этого окна", ["onest", "шрифт окна", "настройки"]),
+        },
+    },
+    "panel": {
+        "title": "Панель",
+        "keywords": [
+            "панель", "hyprpanel", "бар", "верхняя панель", "модули", "часы", "кнопки",
+            "автоскрытие", "прозрачность", "bar",
+        ],
+        "rows": {
+            "location": ("Где панель", ["сверху", "снизу", "положение", "внизу"]),
+            "floating": ("Парящая", ["парящая", "отступ", "floating", "плавающая"]),
+            "opacity": ("Фон панели", ["прозрачность", "фон", "непрозрачность", "прозрачная"]),
+            "autohide": ("Прятать панель", ["автоскрытие", "прятать", "скрывать", "игра"]),
+            "scaling": ("Размер панели", ["размер", "масштаб", "крупнее", "мельче"]),
+            "clock": ("Формат часов", ["часы", "время", "дата", "секунды", "формат"]),
+            "font": ("Шрифт панели", ["шрифт", "nerd font", "font"]),
+            "font_size": ("Размер шрифта панели", ["размер шрифта", "крупнее", "мельче"]),
+            "modules": ("Модули панели", ["модули", "кнопки", "значки", "порядок", "добавить"]),
+            "restart": ("Перезапустить панель", ["перезапуск", "перезапустить", "зависла"]),
         },
     },
 })
@@ -1670,3 +1690,100 @@ LOOK_OWN_FONT_NOTE = ("Окно Настроек остаётся со свои�
 LOOK_OWN_FONT_HINT = ("Включено — окно Настроек пишет своим шрифтом Onest. Выключено — шрифтом "
                       "интерфейса выше. Размер текста окно слушает всегда")
 LOOK_UNREADABLE = "В шрифте «{family}» нет русских или латинских букв: вместо текста квадратики"
+
+# ---- the Panel page (HyprPanel) ----------------------------------------------------
+
+PANEL_LOOK = "Положение и вид"
+PANEL_LOCATION = "Где панель"
+PANEL_LOCATION_HINT = "Сверху или снизу экрана"
+PANEL_LOCATIONS = {"top": "Сверху", "bottom": "Снизу"}
+PANEL_FLOATING = "Парящая"
+PANEL_FLOATING_HINT = "С отступом от края экрана и скруглёнными углами"
+PANEL_OPACITY = "Фон панели"
+PANEL_OPACITY_HINT = "0 % — фона нет, видны только кнопки; 100 % — сплошной"
+PANEL_AUTOHIDE = "Прятать панель"
+PANEL_AUTOHIDE_HINT = "Панель уходит, пока окно на весь экран или одно на столе"
+PANEL_AUTOHIDES = {"never": "Никогда", "fullscreen": "Когда окно на весь экран",
+                   "single-window": "Когда на столе одно окно"}
+PANEL_SCALING = "Размер панели"
+PANEL_SCALING_HINT = "Кнопки и отступы вместе со шрифтом"
+PANEL_PERCENT = "{value} %"
+
+PANEL_CLOCK_GROUP = "Часы"
+PANEL_CLOCK = "Формат часов"
+PANEL_CLOCK_HINT = "Что показывают часы на панели"
+PANEL_CLOCK_CUSTOM = "Свой формат…"
+PANEL_CLOCK_ENTRY_HINT = ("%H часы, %M минуты, %S секунды, %d день, %m месяц, %a день недели, "
+                          "%b месяц словом, %Y год")
+PANEL_CLOCK_PREVIEW = "Сейчас: {text}"
+PANEL_CLOCK_BAD = "Такой формат часы не поймут"
+# format -> how it looks (the page adds today's example)
+PANEL_CLOCK_PRESETS = (
+    ("%H:%M", "Только время"),
+    ("%H:%M:%S", "Время с секундами"),
+    ("%H:%M %d %a", "Время, число и день"),
+    ("%a %d %b  %H:%M", "День, число, месяц и время"),
+    ("%d.%m  %H:%M", "Число.месяц и время"),
+    ("%H:%M  %A", "Время и день недели полностью"),
+)
+
+PANEL_FONT_GROUP = "Шрифт"
+PANEL_FONT = "Шрифт панели"
+PANEL_FONT_HINT = ("Нужен шрифт с значками Nerd Font, иначе вместо значков будут "
+                   "квадратики. Тот же выбор есть на «Оформлении»")
+PANEL_FONT_NO_NERD = "В имени «{family}» нет Nerd Font: значки панели могут пропасть"
+PANEL_FONT_SIZE = "Размер шрифта панели"
+PANEL_FONT_SIZE_HINT = "В точках экрана"
+PANEL_PX = "px"
+
+PANEL_MODULES_GROUP = "Модули"
+PANEL_MODULES_NOTE = ("Стрелки двигают модуль; за краем он переходит в соседнюю часть. "
+                      "Изменения видны на панели сразу; если нет — «Перезапустить панель» ниже")
+PANEL_SECTIONS = {"left": "Слева", "middle": "В центре", "right": "Справа"}
+PANEL_SECTION_EMPTY = "Здесь пусто"
+PANEL_UP = "Выше"
+PANEL_DOWN = "Ниже"
+PANEL_REMOVE = "Убрать с панели"
+PANEL_ADD_ROW = "Добавить модуль"
+PANEL_ADD = "Добавить"
+PANEL_ADD_NOTHING = "Все модули уже на панели"
+PANEL_OTHER_MONITORS = ("У экранов {monitors} в конфиге своя раскладка: она остаётся как есть, "
+                        "здесь меняется только эта")
+PANEL_ALREADY = "«{name}» уже на панели"
+PANEL_LAYOUT_UNREADABLE = ("Раскладку модулей в конфиге панели эта страница не понимает — "
+                           "чтобы не испортить её, модули здесь не меняются")
+PANEL_CUSTOM = "Свой: {name}"
+PANEL_MODULES = {
+    "dashboard": "Меню (значок слева)", "workspaces": "Рабочие столы",
+    "windowtitle": "Заголовок окна", "media": "Музыка", "notifications": "Уведомления",
+    "volume": "Громкость", "network": "Сеть", "bluetooth": "Bluetooth", "clock": "Часы",
+    "systray": "Трей", "battery": "Батарея", "microphone": "Микрофон", "ram": "Память",
+    "cpu": "Процессор", "cputemp": "Температура процессора", "storage": "Диск",
+    "netstat": "Скорость сети", "kbinput": "Раскладка", "updates": "Обновления",
+    "submap": "Режим клавиш", "weather": "Погода", "power": "Кнопка питания",
+    "hyprsunset": "Ночной фильтр", "hypridle": "Не засыпать", "cava": "Звуковой спектр",
+    "worldclock": "Мировые часы", "separator": "Разделитель",
+}
+
+PANEL_SERVICE_GROUP = "Панель"
+PANEL_RESTART = "Перезапустить панель"
+PANEL_RESTART_HINT = "Если панель зависла или не показала изменения. Пропадёт на пару секунд"
+PANEL_RESTART_BUTTON = "Перезапустить"
+PANEL_RESTARTING = "Перезапускаю панель…"
+PANEL_RESTARTED = "Панель перезапущена"
+PANEL_RESTART_FAILED = "Панель не перезапустилась: {error}"
+PANEL_NOT_RUNNING = "Панель HyprPanel сейчас не запущена: изменения увидишь, когда она стартует"
+PANEL_NO_CONFIG = ("Нет файла настроек HyprPanel (~/.config/hyprpanel/config.json): "
+                   "он появится при первом изменении")
+
+PANEL_LABELS = {
+    "theme.bar.location": "Где панель", "theme.bar.floating": "Парящая панель",
+    "theme.bar.opacity": "Фон панели", "bar.autoHide": "Прятать панель",
+    "theme.bar.scaling": "Размер панели", "bar.clock.format": "Формат часов",
+    "theme.font.name": "Шрифт панели", "theme.font.size": "Размер шрифта панели",
+    "bar.layouts": "Модули панели",
+}
+PANEL_READ_FAILED = "Не удалось прочитать настройки панели: {error}"
+PANEL_APPLY_FAILED = "Не применилось ({name}): {error}"
+PANEL_APPLIED = "Применено: {name}"
+PANEL_BAD_VALUE = "Такое значение панель не примет"

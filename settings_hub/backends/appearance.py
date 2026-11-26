@@ -23,7 +23,6 @@ its config on SIGUSR1; open windows follow at once.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -380,13 +379,8 @@ class Backend:
             raise KeyError(key)
 
     def _write_panel(self, changes: dict[str, Any]) -> None:
-        raw = self.panel._load()  # a broken file raises: never overwrite what we cannot read
-        raw.update(changes)
-        try:
-            mode = self.panel.config.resolve().stat().st_mode & 0o777
-        except FileNotFoundError:
-            mode = 0o600
-        write_atomic(self.panel.config, json.dumps(raw, ensure_ascii=False, indent=2), mode)
+        # the panel backends share one lock: see notifications.CONFIG_LOCK
+        self.panel.update(lambda raw: raw.update(changes))
 
     def _write_kitty(self, value: str) -> None:
         conf_dir = self.config / "kitty"

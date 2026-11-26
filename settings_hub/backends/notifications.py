@@ -62,6 +62,10 @@ NAME_MAX = 100
 APPS_MAX = 30
 
 Runner = Callable[[list[str]], tuple[int, str]]
+# config.json is rewritten whole by three backends (this one, appearance, panel),
+# each on its own worker: read-change-write must not interleave, or one change
+# is lost.
+CONFIG_LOCK = threading.Lock()
 
 
 def run(argv: list[str]) -> tuple[int, str]:
@@ -164,13 +168,25 @@ class Backend:
 
     def write(self, changes: dict[str, Any]) -> None:
         """Change these keys in config.json, keeping everything else as it is."""
-        raw = self._load()  # a broken file raises: never overwrite what we cannot read
-        for key, value in changes.items():
-            value = clean(key, value)
-            if value == DEFAULTS[key]:
-                raw.pop(key, None)
-            else:
-                raw[key] = value
+        cleaned = {key: clean(key, value) for key, value in changes.items()}
+
+        def change(raw: dict[str, Any]) -> None:
+            for key, value in cleaned.items():
+                if value == DEFAULTS[key]:
+                    raw.pop(key, None)
+                else:
+                    raw[key] = value
+
+        self.update(change)
+
+    def update(self, change: Callable[[dict[str, Any]], None]) -> None:
+        """Read config.json, let `change` edit the object, write it back whole."""
+        with CONFIG_LOCK:
+            raw = self._load()  # a broken file raises: never overwrite what we cannot read
+            change(raw)
+            self._dump(raw)
+
+    def _dump(self, raw: dict[str, Any]) -> None:
         path = self.config.resolve()  # a symlinked config stays a symlink
         path.parent.mkdir(parents=True, exist_ok=True)
         try:

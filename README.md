@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -39,7 +39,15 @@ size and the icon theme for GTK programs (GSettings plus the gtk-3.0/gtk-4.0
 `settings.ini`; Qt programs do not follow without qt6ct), offers the same font
 for HyprPanel (`theme.font.name`) and kitty (its own
 `~/.config/kitty/settings-hub-font.conf`, included from kitty.conf; open windows
-reload), and holds the cursor rows that used to be on Keyboard and mouse. The
+reload), and holds the cursor rows that used to be on Keyboard and mouse.
+**Panel** edits HyprPanel's `~/.config/hyprpanel/config.json`: position,
+floating, background opacity, auto-hide, size, the clock format (presets or
+your own, with a live preview), the font and its size, and the modules of each
+section (move, remove, add HyprPanel's own or your `custom/*` from
+`modules.json`; the page edits the `"*"` layout and says when a monitor has its
+own). Writes keep the other keys, the permissions and the theme's colours, under
+one lock shared with Notifications and Appearance; every change is undoable. A
+button restarts the panel (waits for the old one to exit). The
 framework:
 
 - the resident application, the window: a home screen of tiles (screen and
