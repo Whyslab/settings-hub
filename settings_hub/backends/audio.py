@@ -7,6 +7,14 @@ here and no volume is kept in memory: every page show asks pactl again.
 
 History: one item per key -- "default.sink", "default.source",
 "volume.<kind>.<name>" (percent) and "mute.<kind>.<name>".
+
+Programs (the mixer): every stream a program plays (`list sink-inputs`) is
+grouped by the program's name, so the three Firefox tabs that play are one row
+and one slider. Their keys are "app.volume.<program>" and "app.mute.<program>";
+undoing one sets all of that program's streams that exist now (a program that
+was closed meanwhile cannot be undone, and says so). Who records from a
+microphone is read from `list source-outputs` (monitor sources do not count:
+they are a visualiser listening to the speakers).
 """
 
 from __future__ import annotations
@@ -18,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import strings
 from ..workers import Workers
 
 log = logging.getLogger(__name__)
@@ -49,6 +58,7 @@ class Device:
     volume: int  # percent, the loudest channel
     mute: bool
     monitor: bool = False  # a source that repeats what a sink plays, not a microphone
+    index: int = -1
 
 
 @dataclass
@@ -57,6 +67,8 @@ class Audio:
     sources: list[Device] = field(default_factory=list)
     default_sink: str = ""
     default_source: str = ""
+    apps: list[App] = field(default_factory=list)
+    recorders: list[str] = field(default_factory=list)  # programs using a microphone
 
     def devices(self, kind: str) -> list[Device]:
         return self.sinks if kind == "sink" else self.sources
@@ -97,8 +109,107 @@ def parse_devices(text: str) -> list[Device]:
             volume=max(percents) if percents else 0,
             mute=bool(item.get("mute")),
             monitor=is_monitor(item),
+            index=int(item.get("index", -1)) if str(item.get("index", "")).isdigit() else -1,
         ))
     return out
+
+
+HIDDEN_APPS = {"speech-dispatcher", "speech-dispatcher-dummy"}  # silent helpers
+APP_KEYS = ("app.volume.", "app.mute.")
+
+
+@dataclass(frozen=True)
+class App:
+    """One program and all the streams it plays now."""
+
+    name: str
+    streams: tuple[int, ...]
+    volume: int  # percent, the loudest stream
+    mute: bool  # all of its streams are muted
+    playing: str  # what plays (media names of streams not paused), may be ""
+    icon: str = ""
+
+
+def _percent(volume) -> int:
+    percents = []
+    for channel in (volume.values() if isinstance(volume, dict) else ()):
+        if not isinstance(channel, dict):
+            continue
+        try:
+            percents.append(int(str(channel.get("value_percent", "")).rstrip("%")))
+        except ValueError:
+            continue
+    return max(percents) if percents else 0
+
+
+def _app_name(properties: dict) -> str:
+    return str(properties.get("application.name") or properties.get(
+        "application.process.binary") or "")
+
+
+def parse_apps(text: str) -> list[App]:
+    """pactl -f json list sink-inputs -> programs, alphabetically."""
+    try:
+        raw = json.loads(text)
+    except ValueError:
+        return []
+    if not isinstance(raw, list):
+        return []
+    grouped: dict[str, list[dict]] = {}
+    for item in raw:
+        if not isinstance(item, dict) or not str(item.get("index", "")).isdigit():
+            continue
+        properties = item.get("properties")
+        if not isinstance(properties, dict):
+            continue
+        name = _app_name(properties)
+        if (not name or name in HIDDEN_APPS or properties.get("stream.monitor") == "true"
+                or properties.get("media.role") == "event"):  # a click or a notification blip
+            continue
+        grouped.setdefault(name, []).append(item)
+    out = []
+    for name, items in grouped.items():
+        playing = [str((i.get("properties") or {}).get("media.name") or "")
+                   for i in items if not i.get("corked")]
+        icon = next((str((i.get("properties") or {}).get("application.icon_name"))
+                     for i in items if (i.get("properties") or {}).get("application.icon_name")),
+                    "")
+        out.append(App(
+            name=name,
+            streams=tuple(int(i["index"]) for i in items),
+            volume=max(_percent(i.get("volume")) for i in items),
+            mute=all(bool(i.get("mute")) for i in items),
+            playing=" · ".join(p for p in playing if p),
+            icon=icon,
+        ))
+    return sorted(out, key=lambda a: a.name.lower())
+
+
+def parse_recorders(text: str, monitors: set[int]) -> list[str]:
+    """pactl -f json list source-outputs -> names of programs using a microphone."""
+    try:
+        raw = json.loads(text)
+    except ValueError:
+        return []
+    names: list[str] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict) or item.get("source") in monitors:
+            continue
+        properties = item.get("properties")
+        if not isinstance(properties, dict) or properties.get("stream.monitor") == "true":
+            continue
+        name = _app_name(properties)
+        if name and name not in HIDDEN_APPS and name not in names:
+            names.append(name)
+    return names
+
+
+def key_app_volume(app: str) -> str:
+    return f"app.volume.{app}"
+
+
+def key_app_mute(app: str) -> str:
+    return f"app.mute.{app}"
 
 
 def key_volume(kind: str, name: str) -> str:
@@ -118,6 +229,7 @@ class Backend:
 
     def probe(self) -> Audio:
         audio = Audio()
+        monitors: set[int] = set()
         for kind in KINDS:
             code, out, _err = self.run(["pactl", "-f", "json", "list", f"{kind}s"])
             devices = parse_devices(out) if code == 0 else []
@@ -131,7 +243,44 @@ class Backend:
                 # be seen, and a real microphone has to be selectable instead.
                 audio.sources = [d for d in devices if not d.monitor or d.name == default]
                 audio.default_source = default
+                monitors = {d.index for d in devices if d.monitor}
+        audio.apps = self.probe_apps()
+        code, out, _err = self.run(["pactl", "-f", "json", "list", "source-outputs"])
+        audio.recorders = parse_recorders(out, monitors) if code == 0 else []
         return audio
+
+    def probe_apps(self) -> list[App]:
+        code, out, _err = self.run(["pactl", "-f", "json", "list", "sink-inputs"])
+        return parse_apps(out) if code == 0 else []
+
+    def queue_apps(self, on_done: Callable[[list[App], BaseException | None], None]) -> None:
+        self.workers.submit(READ_WORKER, self.probe_apps, on_done, key="apps")
+
+    def _app(self, name: str) -> App | None:
+        return next((a for a in self.probe_apps() if a.name == name), None)
+
+    def set_app_volume(self, name: str, percent: int) -> tuple[bool, str]:
+        """Every stream of the program now; False when it plays nothing any more."""
+        app = self._app(name)
+        if app is None:
+            return False, strings.AUDIO_APP_GONE.format(app=name)
+        percent = max(0, min(150, int(percent)))
+        for index in app.streams:
+            ok, message = self._ok(["pactl", "set-sink-input-volume", str(index), f"{percent}%"])
+            if not ok:
+                return ok, message
+        return True, ""
+
+    def set_app_mute(self, name: str, mute: bool) -> tuple[bool, str]:
+        app = self._app(name)
+        if app is None:
+            return False, strings.AUDIO_APP_GONE.format(app=name)
+        for index in app.streams:
+            ok, message = self._ok(["pactl", "set-sink-input-mute", str(index),
+                                    "1" if mute else "0"])
+            if not ok:
+                return ok, message
+        return True, ""
 
     def queue_probe(self, on_done: Callable[[Audio, BaseException | None], None]) -> None:
         self.workers.submit(READ_WORKER, self.probe, on_done)
@@ -159,6 +308,12 @@ class Backend:
         audio = self.probe()
         out: dict[str, Any] = {}
         for key in keys:
+            if key.startswith(APP_KEYS):
+                name = key.split(".", 2)[2]
+                app = next((a for a in audio.apps if a.name == name), None)
+                if app is not None:
+                    out[key] = app.mute if key.startswith("app.mute.") else app.volume
+                continue
             if key in DEFAULT_KEYS.values():
                 kind = "sink" if key == DEFAULT_KEYS["sink"] else "source"
                 out[key] = audio.default(kind)
@@ -178,6 +333,10 @@ class Backend:
                 ok, message = self.set_default("sink", str(value))
             elif key == DEFAULT_KEYS["source"]:
                 ok, message = self.set_default("source", str(value))
+            elif key.startswith("app.volume."):
+                ok, message = self.set_app_volume(key.split(".", 2)[2], int(value))
+            elif key.startswith("app.mute."):
+                ok, message = self.set_app_mute(key.split(".", 2)[2], bool(value))
             else:
                 kind, name = _split_key(key)
                 if key.startswith("mute."):

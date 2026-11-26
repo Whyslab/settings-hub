@@ -2,7 +2,8 @@
 
 "Return to this moment" reverts every group newer than the one clicked; the
 window asks its conflict question once (history.plan_return_to), exactly like
-Ctrl+Z. Export writes the journal next to it as history-export.jsonl.
+Ctrl+Z. "Undo" and "Put back" are Ctrl+Z and Ctrl+Shift+Z (history.stacks).
+Export writes the journal next to it as history-export.jsonl.
 """
 
 from __future__ import annotations
@@ -42,6 +43,12 @@ class HistoryPage(Page):
             strings.HISTORY_UNDO_ROW, strings.HISTORY_UNDO_HINT,
             suffix=self.undo_button, row_id="undo",
         ))
+        self.redo_button = Gtk.Button(label=strings.HISTORY_REDO_BUTTON)
+        self.redo_button.connect("clicked", lambda *_: self._redo())
+        self.rows["redo"] = undo.add(Row(
+            strings.HISTORY_REDO_ROW, strings.HISTORY_REDO_HINT,
+            suffix=self.redo_button, row_id="redo",
+        ))
         tools = self.add_group(Group())
         self.filter_dropdown = Gtk.DropDown.new_from_strings([strings.HISTORY_ALL])
         self.filter_dropdown.set_valign(Gtk.Align.CENTER)
@@ -58,11 +65,17 @@ class HistoryPage(Page):
         self.log = self.add_group(Group(strings.HISTORY_LOG_GROUP))
         self.refresh()
 
+    def _redo(self) -> None:
+        if self.ctx.redo_last is not None:
+            self.ctx.redo_last()
+
     # ---- page protocol --------------------------------------------------
 
     def refresh(self) -> None:
         groups = self.ctx.history.groups()
-        self.undo_button.set_sensitive(bool(groups))
+        undo, redo = self.ctx.history.stacks()
+        self.undo_button.set_sensitive(bool(undo))
+        self.redo_button.set_sensitive(bool(redo) and self.ctx.redo_last is not None)
         self._fill_filter(groups)
         self.log.clear()
         shown = [g for g in reversed(groups)

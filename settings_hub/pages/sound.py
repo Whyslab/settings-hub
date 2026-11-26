@@ -14,6 +14,76 @@ from ..widgets.rows import Group, Row  # noqa: E402
 from .base import Page  # noqa: E402
 
 VOLUME_SETTLE_MS = 600
+APPS_TICK_S = 2  # while the page is on screen, programs come and go
+
+
+class AppRow:
+    """One program: a slider for all of its streams and a mute toggle."""
+
+    def __init__(self, page: SoundPage, app: aud.App) -> None:
+        self.page = page
+        self.name = app.name
+        self.value_label = Gtk.Label(label="")
+        self.value_label.add_css_class("sh-value")
+        self.mute = Gtk.ToggleButton(label=strings.AUDIO_APP_MUTE)
+        self.mute.add_css_class("flat")
+        self.mute.set_tooltip_text(strings.AUDIO_APP_MUTE_TIP)
+        self.mute.connect("toggled", self._on_mute)
+        box = Gtk.Box(spacing=8)
+        box.append(self.value_label)
+        box.append(self.mute)
+        self.scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 150, 1)
+        self.scale.set_draw_value(False)
+        self.scale.set_hexpand(True)
+        self.scale.set_increments(5, 10)
+        self.scale.connect("value-changed", self._on_volume)
+        click = Gtk.GestureClick()
+        click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        click.connect("released", lambda *_: self._settle_now())
+        self.scale.add_controller(click)
+        self.row = Row(app.name, None, suffix=box, below=self.scale, row_id=f"app.{app.name}")
+        self._quiet = False
+        self._settle_source = 0
+        self.show(app, set())
+
+    def show(self, app: aud.App, pending: set[str]) -> None:
+        self._quiet = True
+        try:
+            if aud.key_app_volume(self.name) not in pending and not self._settle_source:
+                self.scale.set_value(app.volume)
+                self.value_label.set_label(strings.AUDIO_PERCENT.format(percent=app.volume))
+            if aud.key_app_mute(self.name) not in pending:
+                self.mute.set_active(app.mute)
+            playing = app.playing or strings.AUDIO_APP_PAUSED
+            self.row.subtitle_label.set_label(playing)
+            self.row.subtitle_label.set_visible(True)
+        finally:
+            self._quiet = False
+
+    def _on_volume(self, scale: Gtk.Scale) -> None:
+        percent = int(round(scale.get_value()))
+        self.value_label.set_label(strings.AUDIO_PERCENT.format(percent=percent))
+        if self._quiet:
+            return
+        self.page.controller.app_volume_moved(self.name, percent)
+        if self._settle_source:
+            GLib.source_remove(self._settle_source)
+        self._settle_source = GLib.timeout_add(VOLUME_SETTLE_MS, self._settle)
+
+    def _settle(self) -> bool:
+        self._settle_source = 0
+        self.page.controller.commit_app_volume(self.name)
+        return False
+
+    def _settle_now(self) -> None:
+        if self._settle_source:
+            GLib.source_remove(self._settle_source)
+            self._settle_source = 0
+            self.page.controller.commit_app_volume(self.name)
+
+    def _on_mute(self, button: Gtk.ToggleButton) -> None:
+        if not self._quiet:
+            self.page.controller.set_app_mute(self.name, button.get_active())
 
 
 class KindGroup:
@@ -141,7 +211,50 @@ class SoundPage(Page):
             "sink": KindGroup(self, "sink", strings.AUDIO_GROUP_OUT),
             "source": KindGroup(self, "source", strings.AUDIO_GROUP_IN),
         }
+        self.recorders_label = Gtk.Label(label="", wrap=True, xalign=1)
+        self.recorders_label.add_css_class("sh-dim")
+        self.rows["recorders"] = self.kinds["source"].group.add(Row(
+            strings.AUDIO_RECORDERS, suffix=self.recorders_label, row_id="recorders"))
+        # The programs sit right under the output, before the microphone.
+        self.apps_group = Group(strings.AUDIO_APPS_GROUP)
+        self._box.insert_child_after(self.apps_group, self.kinds["sink"].group)
+        self.apps_none = self.apps_group.add(Row(strings.AUDIO_APPS_NONE, row_id="apps"))
+        self.rows["apps"] = self.apps_none
+        self.app_rows: dict[str, AppRow] = {}
+        self._tick = 0
+        self.widget.connect("map", lambda *_: self._start_ticks())
+        self.widget.connect("unmap", lambda *_: self._stop_ticks())
         self.refresh()
+
+    # ---- the programs ---------------------------------------------------
+
+    def _start_ticks(self) -> None:
+        if not self._tick:
+            self._tick = GLib.timeout_add_seconds(APPS_TICK_S, self._on_tick)
+
+    def _stop_ticks(self) -> None:
+        if self._tick:
+            GLib.source_remove(self._tick)
+            self._tick = 0
+
+    def _on_tick(self) -> bool:
+        self.controller.refresh_apps()
+        return True
+
+    def show_apps(self, apps: list[aud.App], pending: set[str]) -> None:
+        names = [a.name for a in apps]
+        for name in list(self.app_rows):
+            if name not in names:
+                self.apps_group.list.remove(self.app_rows.pop(name).row)
+        for app in apps:
+            row = self.app_rows.get(app.name)
+            if row is None:
+                row = self.app_rows[app.name] = AppRow(self, app)
+                self.apps_group.add(row.row)
+            else:
+                row.show(app, pending)
+        self.apps_none.set_visible(not apps)
+        self.rows["apps"] = self.app_rows[names[0]].row if apps else self.apps_none
 
     # ---- page protocol --------------------------------------------------
 
@@ -153,6 +266,8 @@ class SoundPage(Page):
     def show_audio(self, audio: aud.Audio) -> None:
         self.kinds["sink"].show(audio.sinks, audio.default_sink)
         self.kinds["source"].show(audio.sources, audio.default_source)
+        self.recorders_label.set_label(", ".join(audio.recorders)
+                                       or strings.AUDIO_RECORDERS_NONE)
 
     def show_volume(self, kind: str, percent: int) -> None:
         group = self.kinds.get(kind)

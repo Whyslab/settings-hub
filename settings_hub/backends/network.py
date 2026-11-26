@@ -6,7 +6,8 @@ its section empty.
 
 History: "wifi.radio" (on/off), "bluetooth.power" (on/off) and
 "wifi.connection" (a saved connection's name) -- undoing that one brings the
-previous saved connection up again.
+previous saved connection up again. Joining a new network (nm_wifi, over D-Bus
+so the password never is on a command line) is logged the same way.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from typing import Any
 
 from .. import strings
 from ..workers import Workers
+from . import nm_wifi
 
 log = logging.getLogger(__name__)
 
@@ -185,9 +187,11 @@ def probe(run: Runner | None = None) -> Network:
 
 
 class Backend:
-    def __init__(self, workers: Workers, runner: Runner | None = None) -> None:
+    def __init__(self, workers: Workers, runner: Runner | None = None,
+                 joiner: nm_wifi.Joiner | None = None) -> None:
         self.workers = workers
         self.run = runner or _run
+        self.joiner = joiner or nm_wifi.Joiner()
 
     def queue_probe(self, on_done: Callable[[Network, BaseException | None], None]) -> None:
         self.workers.submit(READ_WORKER, lambda: probe(self.run), on_done)
@@ -206,14 +210,20 @@ class Backend:
         It only starts the connection: a wrong password shows on the page later.
         """
         if not wait:
-            return self._ok(["nmcli", "-w", "0", "connection", "up", name])
+            return self._ok(["nmcli", "-w", "0", "connection", "up", "id", name])
         if not shutil.which("nmcli"):
             return False, "nmcli not found"
-        code, out, err = self.run(["nmcli", "-w", str(CONNECT_WAIT_S), "connection", "up", name])
+        code, out, err = self.run(["nmcli", "-w", str(CONNECT_WAIT_S), "connection", "up",
+                                   "id", name])
         if code == NMCLI_TIMED_OUT:  # it carries on connecting without us
             return True, STILL_CONNECTING
         text = (out + err).strip()
         return code == 0, "" if code == 0 else (text or f"exit {code}")
+
+    def join(self, ssid: str, password: str = "", hidden: bool = False,
+             expect: str = "") -> nm_wifi.Joined:
+        """A network without a saved connection; blocks until it is up or failed."""
+        return self.joiner.join(ssid, password, hidden, expect)
 
     def disconnect_active(self) -> tuple[bool, str]:
         """Undo a connection made from no connection at all."""
@@ -222,7 +232,7 @@ class Backend:
             return False, strings.NET_NOT_READ
         if not active:
             return True, ""
-        return self._ok(["nmcli", "-w", "0", "connection", "down", active])
+        return self._ok(["nmcli", "-w", "0", "connection", "down", "id", active])
 
     def _ok(self, argv: list[str]) -> tuple[bool, str]:
         if not shutil.which(argv[0]):

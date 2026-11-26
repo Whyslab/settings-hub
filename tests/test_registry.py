@@ -97,3 +97,21 @@ def test_importing_the_core_does_not_import_gtk():
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, check=True,
                          capture_output=True, text=True).stdout
     assert out.strip() == "False"
+
+
+def test_every_history_backend_has_a_name_for_people():
+    """The History page shows strings.BACKENDS[name]; a missing one shows the raw id."""
+    import importlib
+    import pkgutil
+
+    import settings_hub.backends as pkg
+    from settings_hub.variables import backend as hypr_vars
+
+    names = {hypr_vars.BACKEND, "settings"}
+    for info in pkgutil.iter_modules(pkg.__path__):
+        module = importlib.import_module(f"settings_hub.backends.{info.name}")
+        for attr in ("BACKEND", "THEME"):
+            value = getattr(module, attr, None)
+            if isinstance(value, str):
+                names.add(value)
+    assert names - set(strings.BACKENDS) == set()

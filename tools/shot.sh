@@ -8,7 +8,8 @@
 # (a bare Xvfb would take :1 and break the desktop), a temporary HOME and XDG
 # dirs, no WAYLAND_DISPLAY / HYPRLAND_INSTANCE_SIGNATURE, stub hyprctl and
 # friends first in PATH (each logs its arguments to $tmp/calls.log), and a
-# private D-Bus session.
+# private D-Bus session. The system bus points nowhere: Bluetooth and Wi-Fi joining
+# must not reach the real BlueZ or NetworkManager.
 #
 #   --hostile  a gtk.css where every @define-color is #ff00ff (plus a few rules
 #              painting everything #ff00ff) and gtk-theme-name=Monochrome-Vivid
@@ -294,6 +295,7 @@ env -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
     XDG_DATA_HOME="$tmp/.local/share" XDG_CACHE_HOME="$tmp/.cache" XDG_RUNTIME_DIR="$tmp/run" \
     PATH="$stubs:$PATH" DISPLAY=":$display" GDK_BACKEND=x11 GSK_RENDERER="$renderer" NO_AT_BRIDGE=1 GTK_A11Y=none \
     SETTINGS_HUB_APP="$ROOT/app.py" SETTINGS_HUB_ROFI_DIR="$tmp/rofi" PYTHONDONTWRITEBYTECODE=1 \
+    DBUS_SYSTEM_BUS_ADDRESS="unix:path=$tmp/no-system-bus" \
     COLD="$cold" SCHEME_ARG="$scheme_arg" PAGE="$page" OUT="$out" SETTLE="$settle" \
     OPEN="$ROOT/bin/settings-open" ROW="$row" \
     dbus-run-session --config-file="$tmp/bus.conf" -- sh -c '

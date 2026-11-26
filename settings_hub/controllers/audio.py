@@ -20,10 +20,16 @@ class View(Protocol):
 
     def show_volume(self, kind: str, percent: int) -> None: ...
 
+    def show_apps(self, apps: list[aud.App], pending: set[str]) -> None: ...
+
     def status(self, text: str) -> None: ...
 
 
 def label(key: str) -> str:
+    if key.startswith("app.volume."):
+        return strings.AUDIO_LABEL_APP_VOLUME.format(app=key.split(".", 2)[2])
+    if key.startswith("app.mute."):
+        return strings.AUDIO_LABEL_APP_MUTE.format(app=key.split(".", 2)[2])
     if key == aud.DEFAULT_KEYS["sink"]:
         return strings.AUDIO_DEFAULT_SINK
     if key == aud.DEFAULT_KEYS["source"]:
@@ -48,6 +54,8 @@ class Controller:
         self._volume_before: dict[str, int] = {}  # kind -> percent before the drag
         self._volume_last: dict[str, int] = {}  # kind -> percent last applied
         self._volume_device: dict[str, str] = {}  # kind -> the device being moved
+        self._app_before: dict[str, int] = {}  # program -> percent before its drag
+        self._apps_gen = 0  # bumped by every commit: a poll started before it is stale
 
     # ---- reading ---------------------------------------------------------
 
@@ -60,6 +68,7 @@ class Controller:
             return
         self.audio = audio
         self.view.show_audio(audio)
+        self.view.show_apps(audio.apps, set(self.pending))
         for kind in aud.KINDS:
             device = next((d for d in audio.devices(kind) if d.name == audio.default(kind)),
                           None)
@@ -180,6 +189,69 @@ class Controller:
             self.history.record([(BACKEND, key, label(key), before, actual)])
             self.view.status(strings.AUDIO_APPLIED.format(
                 name=strings.AUDIO_VOLUME_DONE.format(percent=actual)))
+
+    # ---- programs (the mixer) ----------------------------------------------
+
+    def refresh_apps(self) -> None:
+        """Only the programs: cheap enough to repeat every few seconds."""
+        gen = self._apps_gen
+        self.backend.queue_apps(lambda apps, error: self._apps_read(apps, error, gen))
+
+    def _apps_read(self, apps: list[aud.App] | None, error: BaseException | None,
+                   gen: int | None = None) -> None:
+        if error is not None or apps is None:
+            return  # the next tick tries again; the full refresh reports errors
+        if gen is not None and gen != self._apps_gen:
+            return  # read before a commit: older than what the controller knows
+        if self.audio is not None:
+            self.audio.apps = apps
+        self.view.show_apps(apps, set(self.pending))
+
+    def _app(self, name: str) -> aud.App | None:
+        if self.audio is None:
+            return None
+        return next((a for a in self.audio.apps if a.name == name), None)
+
+    def app_volume_moved(self, name: str, percent: int) -> None:
+        percent = max(0, min(150, int(percent)))
+        key = aud.key_app_volume(name)
+        if name not in self._app_before:
+            app = self._app(name)
+            self._app_before[name] = app.volume if app else percent
+        self.pending.add(key)
+        self.backend.workers.submit(aud.WORKER, lambda: self.backend.set_app_volume(
+            name, percent), self._volume_applied, key=key)
+
+    def commit_app_volume(self, name: str) -> None:
+        before = self._app_before.pop(name, None)
+        if before is None:
+            return
+        key = aud.key_app_volume(name)
+
+        def job():  # queued after the moves
+            return self.backend.read([key]).get(key)
+
+        def done(actual, error: BaseException | None) -> None:
+            if name not in self._app_before:  # no new drag started meanwhile
+                self.pending.discard(key)
+            if error is not None or actual is None:
+                return  # closed while dragging: nothing to log
+            # A drag resumed after the pause starts from here, not from the last poll.
+            self._apps_gen += 1
+            if self.audio is not None:
+                self.audio.apps = [replace(a, volume=actual) if a.name == name else a
+                                   for a in self.audio.apps]
+            if actual != before:
+                self.history.record([(BACKEND, key, label(key), before, actual)])
+                self.view.status(strings.AUDIO_APPLIED.format(name=label(key)))
+
+        self.backend.workers.submit(aud.WORKER, job, done, key=("commit", key))
+
+    def set_app_mute(self, name: str, mute: bool) -> None:
+        app = self._app(name)
+        before = app.mute if app else not mute
+        self._submit(aud.key_app_mute(name), before, mute,
+                     lambda: self.backend.set_app_mute(name, mute))
 
     def _device(self, kind: str, name: str) -> aud.Device | None:
         if self.audio is None:

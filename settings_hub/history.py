@@ -21,6 +21,12 @@ Backends plug in through an Applier (see below). A plan folds all later groups
 into one target value per (backend, key) -- the "before" of the earliest entry
 -- and execute() calls each backend's apply() exactly once. The revert itself is
 logged as a new group.
+
+Undo and redo (Ctrl+Z, Ctrl+Shift+Z) walk a stack, like an editor: each Ctrl+Z
+reverts one more change back, each redo puts the last reverted one back. Their
+groups carry a link ("undo:<group>" or "redo:<group>") so the stacks can be
+rebuilt from the journal alone; any other group (a change, the History page's
+"undo these" or "return to") is a new change and empties the redo stack.
 """
 
 from __future__ import annotations
@@ -70,14 +76,20 @@ class Entry:
     label: str
     before: Any
     after: Any
+    link: str = ""  # "undo:<group id>" / "redo:<group id>" for Ctrl+Z / Ctrl+Shift+Z
 
     def to_json(self) -> str:
-        return json.dumps(self.__dict__, ensure_ascii=False)
+        raw = dict(self.__dict__)
+        if not raw["link"]:
+            del raw["link"]  # older journals have no such field
+        return json.dumps(raw, ensure_ascii=False)
 
     @classmethod
     def from_dict(cls, raw: dict) -> Entry:
+        link = raw.get("link") or ""
         return cls(**{k: raw[k] for k in
-                      ("id", "group", "ts", "backend", "key", "label", "before", "after")})
+                      ("id", "group", "ts", "backend", "key", "label", "before", "after")},
+                   link=link if isinstance(link, str) else "")
 
 
 @dataclass(frozen=True)
@@ -98,6 +110,10 @@ class Group:
         return ", ".join(seen)
 
     @property
+    def link(self) -> str:
+        return self.entries[0].link
+
+    @property
     def backends(self) -> list[str]:
         out: list[str] = []
         for e in self.entries:
@@ -116,6 +132,7 @@ class Plan:
     flagged: list[Group]  # groups whose items were changed outside the window
     missing: list[str]  # backends without a registered applier
     label_prefix: str = ""
+    link: str = ""  # stored on the revert's entries (see the module docstring)
 
 
 @dataclass
@@ -170,20 +187,26 @@ class History:
             members[e.group].append(e)
         return [Group(g, tuple(members[g])) for g in order]
 
-    def record(self, items: Iterable[tuple[str, str, str, Any, Any]]) -> str | None:
+    def record(self, items: Iterable[tuple[str, str, str, Any, Any]],
+               link: str = "") -> str | None:
         """Log one user action. items: (backend, key, label, before, after).
 
         Items whose value did not change are dropped; returns the group id, or
-        None if nothing changed.
+        None if nothing changed. A linked undo/redo is kept even when nothing
+        changed (the value was already back): without it the undo stack would
+        offer the same group again on every Ctrl+Z.
         """
         group = uuid.uuid4().hex[:12]
         ts = self._clock().strftime("%Y-%m-%dT%H:%M:%S")
-        new = [
+        items = list(items)
+        every = [
             Entry(uuid.uuid4().hex[:12], group, ts, backend, key, label,
-                  _canon(before), _canon(after))
+                  _canon(before), _canon(after), link)
             for backend, key, label, before, after in items
-            if _canon(before) != _canon(after)
         ]
+        new = [e for e in every if e.before != e.after]
+        if not new and link:
+            new = every[:1]  # one marker entry is enough
         if not new:
             return None
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -214,11 +237,57 @@ class History:
 
     # ---- reverting ------------------------------------------------------
 
-    def plan_undo_last(self, label_prefix: str = "") -> Plan | None:
+    def stacks(self) -> tuple[list[Group], list[Group]]:
+        """(undo stack, redo stack), oldest first, rebuilt from the journal.
+
+        A link to a group that was trimmed away is ignored, as if the revert
+        had never been logged.
+        """
         groups = self.groups()
-        if not groups:
+        by_id = {g.id: g for g in groups}
+        undo: list[str] = []
+        redo: list[str] = []
+        for g in groups:
+            kind, _, target = g.link.partition(":")
+            if kind in ("undo", "redo"):
+                if target not in by_id:
+                    continue
+                source, dest = (undo, redo) if kind == "undo" else (redo, undo)
+                if target in source:
+                    source.remove(target)
+                if target not in dest:  # a doubled link (two windows) moves it once
+                    dest.append(target)
+            else:
+                undo.append(g.id)
+                redo.clear()
+        return [by_id[i] for i in undo], [by_id[i] for i in redo]
+
+    def plan_undo_last(self, label_prefix: str = "") -> Plan | None:
+        """Ctrl+Z: revert the newest change not reverted yet."""
+        undo, _redo = self.stacks()
+        if not undo:
             return None
-        return self._plan(groups[-1:], label_prefix)
+        plan = self._plan(undo[-1:], label_prefix)
+        plan.link = f"undo:{undo[-1].id}"
+        return plan
+
+    def plan_redo_last(self, label_prefix: str = "") -> Plan | None:
+        """Ctrl+Shift+Z: put back the change the last Ctrl+Z reverted."""
+        _undo, redo = self.stacks()
+        if not redo:
+            return None
+        group = redo[-1]
+        targets: dict[tuple[str, str], Any] = {}
+        labels: dict[tuple[str, str], str] = {}
+        expected: dict[tuple[str, str], Any] = {}
+        for e in group.entries:
+            k = (e.backend, e.key)
+            targets[k] = e.after  # the last "after" wins
+            labels.setdefault(k, e.label)
+            expected.setdefault(k, e.before)  # what the undo left there
+        plan = self._check(group, targets, labels, expected, label_prefix)
+        plan.link = f"redo:{group.id}"
+        return plan
 
     def plan_undo(self, group_ids: list[str], label_prefix: str = "") -> Plan:
         """Undo these groups only; items changed since are asked about (flagged)."""
@@ -248,6 +317,14 @@ class History:
                 targets.setdefault(k, e.before)
                 labels.setdefault(k, e.label)
                 last_after[k] = e.after
+        return self._check(groups, targets, labels, last_after, label_prefix)
+
+    def _check(self, groups: list[Group] | Group, targets: dict[tuple[str, str], Any],
+               labels: dict[tuple[str, str], str], last_after: dict[tuple[str, str], Any],
+               label_prefix: str) -> Plan:
+        """Flag the groups whose items no longer hold `last_after` (changed outside)."""
+        if isinstance(groups, Group):
+            groups = [groups]
         backends = sorted({b for b, _ in targets})
         missing = [b for b in backends if b not in self._appliers]
         changed_outside: set[tuple[str, str]] = set()
@@ -305,5 +382,5 @@ class History:
                     label = f"{plan.label_prefix}: {label}"
                 log.append((backend, key, label, before.get(key), value))
         if log:
-            result.group = self.record(log)
+            result.group = self.record(log, link=plan.link)
         return result

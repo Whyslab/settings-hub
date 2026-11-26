@@ -11,7 +11,8 @@ Keys (handled in the capture phase, before any child sees them):
     Enter       open the selected page or search result
     Tab         jump between the sidebar and the page (on the tiles: the next control)
     Esc         swallowed on press, hides the window on release
-    Ctrl+Z      undo the last change (one history group)
+    Ctrl+Z      undo the last change (one history group); again: the one before it
+    Ctrl+Shift+Z / Ctrl+Y   put back what Ctrl+Z reverted
 
 While the Binds page captures a key combination, all of these step aside.
 
@@ -159,7 +160,8 @@ class Window(Gtk.ApplicationWindow):
         self.history = history
         self.ctx = pages.Context(history, workers, self.show_status, self.undo_last,
                                  dict(backends or {}), self.settings, self.return_to,
-                                 self.undo_group)
+                                 self.undo_group, self.redo_last,
+                                 lambda target: self.show_page(*target.partition("#")[::2]))
         self._pages: dict[str, pages.Page] = {}
         self.current: str | None = None
         self._esc_armed = False
@@ -540,6 +542,19 @@ class Window(Gtk.ApplicationWindow):
             return
         self._revert(plan)
 
+    def redo_last(self) -> None:
+        """Ctrl+Shift+Z: put back what the last Ctrl+Z reverted."""
+        try:
+            plan = self.history.plan_redo_last(strings.HISTORY_REDO_PREFIX)
+        except Exception as exc:
+            log.exception("planning redo")
+            self.show_status(strings.HISTORY_APPLY_FAILED.format(error=exc))
+            return
+        if plan is None:
+            self.show_status(strings.HISTORY_NOTHING_TO_REDO)
+            return
+        self._revert(plan)
+
     def _revert(self, plan) -> None:
         if plan.missing:
             names = ", ".join(strings.BACKENDS.get(b, b) for b in plan.missing)
@@ -579,7 +594,9 @@ class Window(Gtk.ApplicationWindow):
             self.show_status(strings.HISTORY_APPLY_FAILED.format(error=detail))
         elif result.applied:
             label = ", ".join(g.label for g in plan.groups if g.id not in result.skipped)
-            self.show_status(strings.HISTORY_UNDONE.format(label=label))
+            done = (strings.HISTORY_REDONE if plan.link.startswith("redo:")
+                    else strings.HISTORY_UNDONE)
+            self.show_status(done.format(label=label))
         self._refresh_page()
         if "network" in result.applied:  # undo only starts the connection
             GLib.timeout_add_seconds(NETWORK_SETTLE_S, self._refresh_page)
@@ -616,10 +633,14 @@ class Window(Gtk.ApplicationWindow):
             else:
                 self.home.entry.grab_focus()
             return True
-        if letter == "Z":
-            if focus is not None and isinstance(focus.get_parent(), (Gtk.Entry, Gtk.SearchEntry)):
-                return False  # a text field undoes its own typing
-            self.undo_last()
+        if letter in ("Z", "Y"):
+            # Any text field (search, password, number) undoes its own typing.
+            if isinstance(focus, (Gtk.Text, Gtk.TextView)):
+                return False
+            if letter == "Y" or state & Gdk.ModifierType.SHIFT_MASK:
+                self.redo_last()
+            else:
+                self.undo_last()
             return True
         if keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab):
             if not self.sidebar.get_visible():

@@ -367,6 +367,9 @@ class SoundTile(Tile):
         if kind == "sink":
             self._show_percent(percent)
 
+    def show_apps(self, apps: list[aud.App], pending: set[str]) -> None:
+        """The tile has no mixer: the programs are on the Sound page."""
+
 
 # ---- Network and Bluetooth --------------------------------------------------
 

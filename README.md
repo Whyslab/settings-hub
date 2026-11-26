@@ -28,14 +28,21 @@ Keyboard and mouse apply at once (`hyprctl eval`) and persist in
 while a game window is focused: Hyprland itself does it from
 `~/.config/hypr/settings-hub-games.lua` (`hl.unbind` on focus, `hyprctl reload
 config-only` when focus leaves), so it works with the window closed; Lua config
-only. The framework:
+only. **Network and Bluetooth** joins a new Wi-Fi network with a password (or a
+hidden one) through NetworkManager over D-Bus: the password never reaches a
+command line and a failed attempt is not kept; 802.1X and WEP networks are not
+supported. It also lists Bluetooth devices: connect, disconnect, forget, search
+for a new one (30 s, pairing without a code). **Sound** shows the volume of
+every program that plays (all Firefox tabs are one row) and who records from a
+microphone. The framework:
 
 - the resident application, the window: a home screen of tiles (screen and
   sleep, sound, network, power, modes and themes shown and changed in place,
   a button for every other page), then a sidebar with search and line icons
   next to rounded groups of rows; light and dark looks, keyboard control;
 - search over pages (case-insensitive, `yo`/`ye`, wrong keyboard layout);
-- the change history with undo (one user action = one group of items);
+- the change history with multi-step undo and redo (one user action = one group
+  of items);
 - loading of other projects' live modules under private names, and one
   apply-queue thread per backend;
 - `settings-open`, the hotkey entry point, with every fallback;
@@ -212,7 +219,8 @@ window's own file, `~/.config/hypr/settings-hub.conf`
 - Esc is swallowed on press and hides the window on release, so the held key
   never leaks into the window underneath.
 - Keys: Ctrl+F search, Up/Down move, Enter opens, Tab jumps between the sidebar
-  and the page, Esc hides, Ctrl+Z undoes the last change.
+  and the page, Esc hides, Ctrl+Z undoes a change (again: one more step back),
+  Ctrl+Shift+Z or Ctrl+Y redoes.
 - The home screen (`home.py`) opens by default ("Start page" on the General
   page). A tile is a second view of the same controller its page uses, so a
   change made on a tile is applied and undone exactly like one made on the page.

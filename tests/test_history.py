@@ -140,15 +140,95 @@ def test_undo_rebind_reverts_unbind_and_bind_together(hist):
     assert len(binds.applies) == 1 and len(binds.applies[0]) == 2
 
 
-def test_undo_twice_redoes(hist):
+def test_undo_twice_goes_two_steps_back(hist):
+    ss = FakeBackend({"a": 1, "b": 10})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    change(hist, "screen-sleep", ss, [("b", "b", 20)])
+    hist.execute(hist.plan_undo_last())
+    assert ss.values == {"a": 2, "b": 10}
+    hist.execute(hist.plan_undo_last())  # not a redo: the change before it
+    assert ss.values == {"a": 1, "b": 10}
+    assert hist.plan_undo_last() is None  # both changes are reverted
+    assert len(hist.groups()) == 4
+
+
+def test_redo_puts_back_in_reverse_order(hist):
+    ss = FakeBackend({"a": 1, "b": 10})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    change(hist, "screen-sleep", ss, [("b", "b", 20)])
+    hist.execute(hist.plan_undo_last())
+    hist.execute(hist.plan_undo_last())
+    assert hist.plan_redo_last().link.startswith("redo:")
+    hist.execute(hist.plan_redo_last())
+    assert ss.values == {"a": 2, "b": 10}  # the older change comes back first
+    hist.execute(hist.plan_redo_last())
+    assert ss.values == {"a": 2, "b": 20}
+    assert hist.plan_redo_last() is None
+    hist.execute(hist.plan_undo_last())  # a redone change can be undone again
+    assert ss.values == {"a": 2, "b": 10}
+
+
+def test_a_new_change_empties_the_redo_stack(hist):
+    ss = FakeBackend({"a": 1, "b": 10})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    hist.execute(hist.plan_undo_last())
+    assert hist.plan_redo_last() is not None
+    change(hist, "screen-sleep", ss, [("b", "b", 20)])
+    assert hist.plan_redo_last() is None
+    hist.execute(hist.plan_undo_last())  # undoes b; "a" stays reverted
+    assert ss.values == {"a": 1, "b": 10}
+    assert hist.plan_undo_last() is None
+
+
+def test_redo_flags_a_value_changed_since_the_undo(hist):
     ss = FakeBackend({"a": 1})
     hist.register("screen-sleep", ss)
     change(hist, "screen-sleep", ss, [("a", "a", 2)])
     hist.execute(hist.plan_undo_last())
-    assert ss.values["a"] == 1
-    hist.execute(hist.plan_undo_last())  # the undo is itself the last group
+    ss.values["a"] = 7  # changed outside the window
+    plan = hist.plan_redo_last()
+    assert [g.id for g in plan.flagged] == [plan.groups[0].id]
+    hist.execute(plan, skip=[plan.groups[0].id])
+    assert ss.values["a"] == 7
+
+
+def test_journal_written_before_links_reads_as_plain_changes(hist):
+    """Old undo groups have no link: they are ordinary changes, so Ctrl+Z reverts them."""
+    ss = FakeBackend({"a": 1})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    old = [json.loads(line) for line in hist.path.read_text().splitlines()]
+    old.append(dict(old[0], id="u1", group="g-undo", before=2, after=1, label="Отмена: a"))
+    hist.path.write_text("".join(json.dumps(e) + "\n" for e in old))
+    ss.values["a"] = 1
+    undo, redo = hist.stacks()
+    assert [g.id for g in undo] == [old[0]["group"], "g-undo"] and redo == []
+    hist.execute(hist.plan_undo_last())
     assert ss.values["a"] == 2
-    assert len(hist.groups()) == 3
+
+
+def test_link_to_a_trimmed_group_is_ignored(tmp_path):
+    hist = History(tmp_path / "h.jsonl", keep=2, clock=clock)
+    ss = FakeBackend({"a": 1, "b": 1})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    hist.execute(hist.plan_undo_last())  # undo group links to the first
+    change(hist, "screen-sleep", ss, [("b", "b", 2)])  # the first is trimmed now
+    undo, redo = hist.stacks()
+    assert [g.label for g in undo] == ["b"] and redo == []
+
+
+def test_link_is_stored_only_when_set(hist):
+    ss = FakeBackend({"a": 1})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    hist.execute(hist.plan_undo_last())
+    first, second = (json.loads(line) for line in hist.path.read_text().splitlines())
+    assert "link" not in first
+    assert second["link"] == f"undo:{first['group']}"
 
 
 def test_nothing_to_undo(hist):
@@ -270,3 +350,29 @@ def test_values_compare_as_json(hist):
     hist.register("binds", binds)
     hist.record([("binds", "K", "k", [], ("bind = K",))])
     assert hist.plan_undo_last().flagged == []
+
+
+def test_undo_of_a_value_already_back_moves_on_to_the_change_before(hist):
+    ss = FakeBackend({"a": 1, "b": 10})
+    hist.register("screen-sleep", ss)
+    change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    change(hist, "screen-sleep", ss, [("b", "b", 20)])
+    ss.values["b"] = 10  # set back outside the window
+    plan = hist.plan_undo_last()
+    hist.execute(plan)  # nothing to change, but it counts as undone
+    following = hist.plan_undo_last()
+    assert following is not None and following.link != plan.link
+    hist.execute(following)
+    assert ss.values == {"a": 1, "b": 10}
+    marker = hist.groups()[-2]
+    assert len(marker.entries) == 1 and marker.entries[0].before == marker.entries[0].after
+
+
+def test_a_doubled_undo_link_moves_the_group_once(hist):
+    ss = FakeBackend({"a": 1})
+    hist.register("screen-sleep", ss)
+    group = change(hist, "screen-sleep", ss, [("a", "a", 2)])
+    hist.record([("screen-sleep", "a", "a", 2, 1)], link=f"undo:{group}")
+    hist.record([("screen-sleep", "a", "a", 2, 1)], link=f"undo:{group}")  # a second window
+    undo, redo = hist.stacks()
+    assert undo == [] and [g.id for g in redo] == [group]

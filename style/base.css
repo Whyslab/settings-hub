@@ -512,14 +512,22 @@ window.message {
   font-feature-settings: "tnum";
 }
 
-.sh-group-note.sh-warning {
+.sh-group-note.sh-warning,
+label.sh-warning {
   color: #c93400;
 }
 
 @media (prefers-color-scheme: dark) {
-  .sh-group-note.sh-warning {
+  .sh-group-note.sh-warning,
+  label.sh-warning {
     color: #ff9f0a;
   }
+}
+
+/* A small form in a popover (a Wi-Fi password). */
+.sh-popover-form {
+  padding: 6px;
+  min-width: 240px;
 }
 
 /* A segmented control: buttons in one rounded strip (see .sh-seg below). */

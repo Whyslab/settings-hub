@@ -100,6 +100,8 @@ PAGES = {
         "keywords": ["история", "отмена", "откат", "журнал", "изменения"],
         "rows": {
             "undo": ("Отменить последнее изменение", ["отменить", "назад", "ctrl+z"]),
+            "redo": ("Вернуть отменённое", ["вернуть", "повторить", "вперёд", "ctrl+shift+z",
+                                            "ctrl+y"]),
             "log": ("Журнал изменений", ["список", "правки"]),
         },
     },
@@ -109,12 +111,18 @@ PAGES = {
 HISTORY_UNDO_GROUP = "Отменить"
 HISTORY_UNDO_ROW = PAGES["history"]["rows"]["undo"][0]
 HISTORY_UNDO_BUTTON = "Отменить"
-HISTORY_UNDO_HINT = "Ctrl+Z в любом месте окна"
+HISTORY_UNDO_HINT = "Ctrl+Z в любом месте окна; ещё раз — шаг дальше назад"
+HISTORY_REDO_ROW = PAGES["history"]["rows"]["redo"][0]
+HISTORY_REDO_BUTTON = "Вернуть"
+HISTORY_REDO_HINT = "Ctrl+Shift+Z: вернуть то, что отменил Ctrl+Z"
 HISTORY_LOG_GROUP = "Изменения"
 HISTORY_EMPTY = "Изменений пока нет"
 HISTORY_UNDO_PREFIX = "Отмена"
 HISTORY_UNDONE = "Отменено: {label}"
 HISTORY_NOTHING_TO_UNDO = "Нечего отменять"
+HISTORY_REDO_PREFIX = "Возврат"
+HISTORY_REDONE = "Возвращено: {label}"
+HISTORY_NOTHING_TO_REDO = "Нечего возвращать"
 HISTORY_NO_APPLIER = "Не умею применять: {backends}"
 HISTORY_APPLY_FAILED = "Не удалось вернуть: {error}"
 HISTORY_CONFLICT_TITLE = "Значения менялись вне окна"
@@ -146,6 +154,7 @@ BACKENDS = {
     "monitor": "Монитор",
     "notifications": "Уведомления",
     "autostart": "Автозапуск",
+    "minimize_anim": "Сворачивание окон",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -908,11 +917,25 @@ PAGES.update({
             "source.device": ("Вход: устройство", ["микрофон", "вход", "устройство"]),
             "source.volume": ("Громкость микрофона", ["микрофон", "громкость"]),
             "source.mute": ("Микрофон без звука", ["микрофон", "mute", "глухо"]),
+            "apps": ("Громкость программ", ["микшер", "программы", "приложения", "firefox",
+                                            "громкость программы", "тише программу"]),
+            "recorders": ("Кто слушает микрофон", ["микрофон", "запись", "слушает",
+                                                    "приватность"]),
         },
     },
 })
 
 AUDIO_KINDS = {"sink": "выход", "source": "вход"}
+AUDIO_APPS_GROUP = "Программы"
+AUDIO_APPS_NONE = "Сейчас ни одна программа не играет звук"
+AUDIO_APP_PAUSED = "на паузе"
+AUDIO_APP_MUTE = "Без звука"
+AUDIO_APP_MUTE_TIP = "Выключить звук только этой программы"
+AUDIO_APP_GONE = "«{app}» уже не играет звук"
+AUDIO_LABEL_APP_VOLUME = "Громкость: {app}"
+AUDIO_LABEL_APP_MUTE = "Без звука: {app}"
+AUDIO_RECORDERS = "Микрофон слушают"
+AUDIO_RECORDERS_NONE = "Сейчас микрофон никто не слушает"
 AUDIO_GROUP_OUT = "Выход"
 AUDIO_GROUP_IN = "Вход"
 AUDIO_DEVICE = "Устройство"
@@ -940,7 +963,16 @@ PAGES.update({
             "wifi.radio": ("Wi-Fi", ["wi-fi", "wifi", "радио", "включить", "выключить"]),
             "wifi.current": ("Текущая сеть", ["сеть", "подключение", "сигнал"]),
             "wifi.saved": ("Сохранённые сети", ["сеть", "подключить", "сохранённые"]),
+            "wifi.hidden": ("Скрытая сеть", ["скрытая", "сеть", "пароль", "подключить",
+                                             "ssid"]),
+            "wifi.visible": ("Подключиться к новой сети", ["пароль", "подключить", "новая сеть",
+                                                           "видимые сети", "wi-fi"]),
             "bluetooth.power": ("Bluetooth", ["bluetooth", "блютуз", "радио"]),
+            "bluetooth.devices": ("Bluetooth-устройства", ["наушники", "airpods", "колонка",
+                                                           "мышь", "подключить", "отключить",
+                                                           "забыть"]),
+            "bluetooth.search": ("Найти Bluetooth-устройство", ["сопряжение", "найти",
+                                                                "новое устройство", "pair"]),
             "tailscale": ("Tailscale", ["tailscale", "vpn", "сеть", "адрес"]),
         },
     },
@@ -967,11 +999,105 @@ NET_VISIBLE_GROUP = "Видимые сети"
 NET_VISIBLE = "{ssid}"
 NET_VISIBLE_DETAIL = "сигнал {signal}% · {security}"
 NET_OPEN_SUFFIX = " (открытая)"
+NET_JOIN = "Подключить"
+NET_JOINING = "Подключаю…"
+NET_JOIN_PASSWORD = "Пароль сети"
+NET_JOIN_NO_NM = "NetworkManager не отвечает"
+NET_JOIN_PASSWORD_HINT = "Пароль от «{ssid}»"
+NET_JOIN_SSID = "Имя сети"
+NET_JOIN_STARTED = "Подключаю к «{ssid}»…"
+NET_JOIN_DONE = "Подключено: {name}"
+NET_JOIN_FAILED_STATUS = "Не подключилось: {error}"
+NET_JOIN_NO_DEVICE = "нет Wi-Fi адаптера"
+NET_JOIN_NOT_VISIBLE = "сеть «{ssid}» сейчас не видна"
+NET_JOIN_NO_NAME = "не указано имя сети"
+NET_JOIN_LONG_NAME = "имя сети длиннее 32 байт"
+NET_JOIN_UNSUPPORTED = "сети с логином (802.1X) и старые WEP пока не поддерживаются"
+NET_JOIN_UNSUPPORTED_TIP = "Сети с логином (802.1X) и старые WEP пока не поддерживаются"
+NET_JOIN_PASSWORD_LENGTH = ("пароль Wi-Fi — от 8 до 63 латинских букв, цифр и знаков "
+                            "(или ключ из 64 знаков 0-9, a-f)")
+NET_JOIN_NO_KIND = "не известна защита сети — обновите список и попробуйте снова"
+NET_VISIBLE_MIXED = " · ⚠ есть точки с этим именем и другой защитой"
+NET_JOIN_SECURITY_CHANGED = ("сеть «{ssid}» сейчас видна с другой защитой, чем в списке — "
+                             "не подключаю (возможно, чужая точка с тем же именем)")
+NET_JOIN_HIDDEN_NEEDS_PASSWORD = "для скрытой сети нужен пароль"
+NET_JOIN_DONE_UNSAVED = "Подключено: {name}, но не сохранилось на следующий запуск"
+NET_JOIN_BUSY = "уже идёт другое подключение — подождите"
+NET_JOIN_UNEXPECTED = "непредвиденная ошибка ({kind}), подробности в журнале"
+NET_JOIN_REFUSED = "NetworkManager отказал: {error}"
+NET_JOIN_BAD_PASSWORD = "неверный пароль"
+NET_JOIN_TIMEOUT = "сеть не ответила за 30 секунд"
+NET_JOIN_FAILED = "ошибка NetworkManager (код {code})"
+NET_HIDDEN = "Скрытая сеть"
+NET_HIDDEN_HINT = "Сеть, которая не показывает своё имя"
+NET_HIDDEN_BUTTON = "Подключить…"
 NET_BLUETOOTH_GROUP = "Bluetooth"
 NET_BLUETOOTH = "Bluetooth"
 NET_BLUETOOTH_HINT = "Радио Bluetooth: выключить или включить"
 NET_BT_CONNECTED = "Подключено"
 NET_BT_NONE = "Нет подключённых устройств"
+BT_MY_DEVICES_NONE = "Сопряжённых устройств нет — найдите новое ниже"
+BT_CONNECTED = "Подключено"
+BT_NOT_CONNECTED = "Не подключено"
+BT_BATTERY = " · заряд {percent}%"
+BT_CONNECT = "Подключить"
+BT_DISCONNECT = "Отключить"
+BT_WORKING = "Подождите…"
+BT_FORGET = "Забыть"
+BT_FORGET_TIP = "Удалить сопряжение: чтобы подключить снова, устройство придётся найти заново"
+BT_FORGET_ASK = "Забыть «{name}»?"
+BT_FORGET_DETAIL = "Чтобы подключить его снова, понадобится режим сопряжения на самом устройстве."
+BT_SEARCH = "Найти новое устройство"
+BT_SEARCH_HINT = "Переведите устройство в режим сопряжения, поиск идёт {seconds} с"
+BT_SEARCH_BUTTON = "Искать"
+BT_SEARCH_STOP = "Остановить"
+BT_SEARCHING = "Ищу…"
+BT_FOUND_NONE = "Пока ничего не найдено"
+BT_FOUND_DETAIL = "{kind} · {address}"
+BT_KINDS = {
+    "audio-headphones": "наушники",
+    "audio-headset": "гарнитура",
+    "audio-card": "колонка",
+    "audio": "звук",
+    "input-mouse": "мышь",
+    "input-keyboard": "клавиатура",
+    "input-gaming": "геймпад",
+    "input-tablet": "планшет для рисования",
+    "phone": "телефон",
+    "computer": "компьютер",
+    "camera": "камера",
+    "printer": "принтер",
+}
+BT_KIND_UNKNOWN = "тип неизвестен"
+BT_PAIR_ASK = "Подключить «{name}»?"
+BT_PAIR_DETAIL = ("Тип: {kind}, адрес {address}.\nУстройство запомнится и сможет "
+                  "подключаться само. Имя назначает само устройство — подключайте, "
+                  "только если это ваше и оно рядом в режиме сопряжения.")
+BT_PAIR_DETAIL_RISKY = ("Тип: {kind}, адрес {address}.\nЭто не просто звук (устройство ввода, "
+                        "телефон, компьютер или тип неизвестен): оно сможет печатать и "
+                        "нажимать за вас и будет "
+                        "подключаться само. Имя назначает само устройство, его легко "
+                        "подделать. Подключайте, только если это точно ваше устройство "
+                        "и вы видите его рядом в режиме сопряжения.")
+BT_PAIR = "Подключить"
+BT_DONE_CONNECT = "Подключено: {name}"
+BT_DONE_DISCONNECT = "Отключено: {name}"
+BT_DONE_FORGET = "Забыто: {name}"
+BT_DONE_PAIR = "Сопряжено и подключено: {name}"
+BT_FAILED = "{name}: {error}"
+BT_NO_DEVICES_LIST = "Список Bluetooth-устройств недоступен"
+BT_ERR_AUTH = "устройство не приняло сопряжение (если оно просит код — это пока не поддерживается)"
+BT_ERR_TIMEOUT = "устройство не ответило вовремя"
+BT_ERR_UNREACHABLE = "устройство не отвечает — оно включено и рядом?"
+BT_ERR_FAILED = "не получилось (устройство занято другим телефоном или выключено?)"
+BT_ERR_BUSY = "уже идёт другое действие"
+BT_ERR_ALREADY = "уже сопряжено"
+BT_ERR_OFF = "Bluetooth выключен"
+BT_ERR_GONE = "устройство пропало из списка"
+BT_ERR_NO_BLUEZ = "служба Bluetooth не запущена"
+BT_ERR_OTHER = "ошибка Bluetooth: {error}"
+BT_ERR_IS_INPUT = ("оно оказалось устройством ввода (может печатать за вас) — "
+                   "забыто; если это ваше, подключите снова и согласитесь с предупреждением")
 NET_TAILSCALE_GROUP = "Tailscale"
 NET_TAILSCALE = "Tailscale"
 NET_TAILSCALE_STATE = "{state} · {addresses}"
@@ -1119,10 +1245,9 @@ SYS_FAILED = "Упавшие службы"
 SYS_FAILED_OK = "Упавших служб нет"
 SYS_FAILED_BAD = "Упавших служб: {count}"
 SYS_UPDATES = "Обновления"
-SYS_UPDATES_N = "Доступно обновлений: {count}"
-SYS_UPDATES_OK = "Обновлений нет"
-SYS_UPDATES_UNKNOWN = "Не удалось проверить"
-SYS_UPDATES_HINT = "Обновиться: pacman -Syu"
+SYS_UPDATES_N = "По последней проверке ждут обновления: {count}"
+SYS_UPDATES_OK = "Проверить и обновить — на странице «Обновления»"
+SYS_UPDATES_OPEN = "Открыть"
 SYS_REFRESH = "Проверить снова"
 SYS_REFRESH_HINT = "Перечитать сведения о компьютере"
 SYS_READ_FAILED = "Не удалось прочитать сведения: {error}"

@@ -129,7 +129,7 @@ def test_undo_reads_only_what_it_needs_and_does_not_wait(monkeypatch):
     assert calls == [["nmcli", "radio", "wifi"]]
     calls.clear()
     b.apply({network.WIFI_CONNECTION: "Дом"})
-    assert calls == [["nmcli", "-w", "0", "connection", "up", "Дом"]]
+    assert calls == [["nmcli", "-w", "0", "connection", "up", "id", "Дом"]]
 
 
 def test_undoing_a_first_connection_takes_it_down(monkeypatch):
@@ -141,7 +141,7 @@ def test_undoing_a_first_connection_takes_it_down(monkeypatch):
         return 0, "Дом:802-11-wireless:yes\n", ""
 
     network.Backend(None, runner=run).apply({network.WIFI_CONNECTION: ""})
-    assert calls[-1] == ["nmcli", "-w", "0", "connection", "down", "Дом"]
+    assert calls[-1] == ["nmcli", "-w", "0", "connection", "down", "id", "Дом"]
 
 
 def test_connected_to_nothing_is_an_answer(monkeypatch):

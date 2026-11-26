@@ -9,7 +9,7 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk, Pango  # noqa: E402
 
 from .. import strings  # noqa: E402
 from ..backends import sysinfo  # noqa: E402
@@ -53,14 +53,21 @@ class SystemPage(Page):
             ("temperature", strings.SYS_TEMPERATURE),
             ("uptime", strings.SYS_UPTIME),
         ):
-            row = about.add(Row(title, row_id=row_id))
+            value = Gtk.Label(label="—", xalign=1, selectable=True,
+                              ellipsize=Pango.EllipsizeMode.END, max_width_chars=44)
+            value.add_css_class("sh-dim")
+            row = about.add(Row(title, suffix=value, row_id=row_id))
+            row.value_label = value
             self.rows[row_id] = row
             self.values[row_id] = row
 
         state = self.add_group(Group(strings.SYS_STATE_GROUP))
         self.failed_row = state.add(Row(strings.SYS_FAILED, row_id="failed"))
         self.rows["failed"] = self.failed_row
-        self.updates_row = state.add(Row(strings.SYS_UPDATES, row_id="updates"))
+        open_updates = Gtk.Button(label=strings.SYS_UPDATES_OPEN)
+        open_updates.connect("clicked", lambda *_: self._open("updates"))
+        self.updates_row = state.add(Row(strings.SYS_UPDATES, strings.SYS_UPDATES_OK,
+                                         suffix=open_updates, row_id="updates"))
         self.rows["updates"] = self.updates_row
 
         refresh = self.add_group(Group())
@@ -81,10 +88,10 @@ class SystemPage(Page):
             self.ctx.status(strings.SYS_READ_FAILED.format(error=error))
             return
         self._set("model", info.model or "—", "")
-        self._set("hostname", info.hostname or "—", info.session or "")
+        self._set("hostname", info.hostname or "—", "")
         self._set("os", info.os_name or "—", "")
         self._set("kernel", info.kernel or "—", "")
-        self._set("hyprland", info.hyprland or "—", "")
+        self._set("hyprland", info.hyprland or info.session or "—", "")
         if info.cpu:
             self._set("cpu", info.cpu,
                       strings.SYS_CORES.format(cores=info.cores))
@@ -128,28 +135,27 @@ class SystemPage(Page):
             self.failed_row.subtitle_label.set_visible(False)
             self.failed_row.title_label.remove_css_class("sh-warning")
 
-        if info.updates is None:
-            self.updates_row.title_label.set_label(strings.SYS_UPDATES_UNKNOWN)
-            self.updates_row.subtitle_label.set_visible(False)
-        elif info.updates:
-            self.updates_row.title_label.set_label(
-                strings.SYS_UPDATES_N.format(count=info.updates))
-            self.updates_row.title_label.add_css_class("sh-warning")
-            self.updates_row.subtitle_label.set_label(strings.SYS_UPDATES_HINT)
-            self.updates_row.subtitle_label.set_visible(True)
-        else:
-            self.updates_row.title_label.set_label(strings.SYS_UPDATES_OK)
-            self.updates_row.title_label.remove_css_class("sh-warning")
-            self.updates_row.subtitle_label.set_visible(False)
+        # pacman -Qu only knows the last database sync: the title stays "Updates",
+        # the number (if any) is a hint, and the button leads to the fresh check.
+        self.updates_row.title_label.set_label(strings.SYS_UPDATES)
+        self.updates_row.subtitle_label.set_label(
+            strings.SYS_UPDATES_N.format(count=info.updates) if info.updates
+            else strings.SYS_UPDATES_OK)
+        self.updates_row.subtitle_label.set_visible(True)
+
+    def _open(self, page_id: str) -> None:
+        if self.ctx.open_page is not None:
+            self.ctx.open_page(page_id)
 
     def _set(self, row_id: str, value: str, hint: str = "") -> None:
+        """The value on the right, as on the Power page; a detail under the title."""
         row = self.values.get(row_id)
         if row is None:
             return
-        title = strings.SYS_TITLES[row_id]
-        row.title_label.set_label(f"{title} · {hint}" if hint else title)
-        row.subtitle_label.set_label(value)
-        row.subtitle_label.set_visible(True)
+        row.value_label.set_label(value)
+        row.value_label.set_tooltip_text(value)
+        row.subtitle_label.set_label(hint)
+        row.subtitle_label.set_visible(bool(hint))
 
 
 PAGE = SystemPage

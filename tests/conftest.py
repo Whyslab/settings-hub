@@ -16,6 +16,11 @@ def _private_home(request, tmp_path_factory, monkeypatch):
     """
     # No test may send a real "mouse battery low" notification (live ones too).
     monkeypatch.setenv("SETTINGS_HUB_NO_BATTERY_ALERTS", "1")
+    # Wi-Fi joining and Bluetooth talk to the system bus: no test (live ones too,
+    # and every window they start from os.environ) may reach the real BlueZ or
+    # NetworkManager -- a GUI test that clicks "Forget" must not unpair anything.
+    bus_dir = tmp_path_factory.mktemp("bus")
+    monkeypatch.setenv("DBUS_SYSTEM_BUS_ADDRESS", f"unix:path={bus_dir}/no-system-bus")
     if request.node.get_closest_marker("live"):
         return
     home = tmp_path_factory.mktemp("home")
