@@ -34,6 +34,7 @@ from .backends import (  # noqa: E402
     audio,
     autostart,
     binds,
+    default_apps,
     devices,
     game_binds,
     lockscreen,
@@ -168,7 +169,7 @@ class App(Gtk.Application):
         backends[game_binds.BACKEND] = game_binds.Backend(self.workers)
         game_binds.register(history, backends[game_binds.BACKEND])
         for module in (monitor, notifications, autostart, minimize_anim, appearance, panel,
-                       lockscreen):
+                       lockscreen, default_apps):
             backends[module.BACKEND] = module.Backend(self.workers)
             module.register(history, backends[module.BACKEND])
         # A reinstall keeps the games file: bring its text up to this version.

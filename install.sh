@@ -169,6 +169,33 @@ ok "program in $APP_DIR"
 put 755 "$SRC/bin/settings-open" "$BIN_DIR/settings-open"
 put 755 "$SRC/uninstall.sh" "$BIN_DIR/settings-hub-uninstall"
 ok "settings-open and settings-hub-uninstall in $BIN_DIR"
+# Programs find the terminal chosen on "Default applications" through
+# xdg-terminal-exec. Ours only when the system has none (a real one wins).
+# Looked for outside ~/.local/bin, so a real one installed later wins at the next
+# reinstall (ours, no longer recorded, is then removed below — only if it is ours).
+TERM_EXEC=""
+OLD_IFS=$IFS
+IFS=:
+set -f
+for d in $PATH; do
+    case $d in /*) ;; *) continue ;; esac  # a relative entry is no system
+    [ "${d%/}" != "$BIN_HOME" ] || continue
+    if [ -x "$d/xdg-terminal-exec" ]; then
+        TERM_EXEC=$d/xdg-terminal-exec
+        break
+    fi
+done
+set +f
+IFS=$OLD_IFS
+OURS_TERM='^# settings-hub xdg-terminal-exec$'
+if [ -n "$TERM_EXEC" ]; then
+    ok "xdg-terminal-exec of the system kept: $TERM_EXEC"
+elif [ -e "$BIN_DIR/xdg-terminal-exec" ] && ! grep -q "$OURS_TERM" "$BIN_DIR/xdg-terminal-exec"; then
+    ok "xdg-terminal-exec in $BIN_DIR is someone else's: kept"
+else
+    put 755 "$SRC/bin/xdg-terminal-exec" "$BIN_DIR/xdg-terminal-exec"
+    ok "xdg-terminal-exec in $BIN_DIR"
+fi
 
 put 644 "$STAGE/settings-hub.desktop" "$DESKTOP_DIR/settings-hub.desktop"
 put 644 "$STAGE/settings-hub.conf" "$OWN_CONF"
@@ -321,6 +348,10 @@ ROOT=${PREFIX:-$HOME}
 if [ -f "$MANIFEST" ]; then
     grep "^file$TAB" "$MANIFEST" | cut -f 2 | while IFS= read -r old; do
         if ! grep -Fxq "file$TAB$old" "$NEW_MANIFEST"; then
+            case $old in
+                */xdg-terminal-exec)  # removed only while it is still ours
+                    grep -q '^# settings-hub xdg-terminal-exec$' "$old" 2>/dev/null || continue ;;
+            esac
             case $old in
                 "$ROOT"/*) if dry; then would "remove $old"; else rm -f -- "$old"; fi ;;
             esac

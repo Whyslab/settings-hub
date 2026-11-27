@@ -1,0 +1,139 @@
+#!/usr/bin/python3 -I
+# settings-hub xdg-terminal-exec
+"""xdg-terminal-exec [COMMAND [ARG...]] - run COMMAND in the chosen terminal.
+
+A small stand-in for the xdg-terminal-exec program, installed by settings-hub
+only when the system has none. GLib (GTK programs, `gio launch`) runs it for
+desktop entries with Terminal=true. The terminal is the first desktop file id
+in xdg-terminals.list ($XDG_CONFIG_HOME, then $XDG_CONFIG_DIRS) that is
+installed; the "Default applications" page writes that list. Nothing listed:
+the first installed terminal emulator by name.
+
+The command is passed as arguments after the terminal's -e (or the entry's
+X-TerminalArgExec), never through a shell.
+"""
+
+import configparser
+import os
+import re
+import shlex
+import shutil
+import sys
+from pathlib import Path
+
+ID = re.compile(r"[A-Za-z0-9_.+-]{1,120}\.desktop")  # a file id, never a path
+FIELD_CODES = {"%f", "%F", "%u", "%U", "%d", "%D", "%n", "%N", "%i", "%c", "%k", "%v", "%m"}
+
+
+def env_dirs(name, default):
+    return [Path(p) for p in (os.environ.get(name) or default).split(":") if p.startswith("/")]
+
+
+def home_dir(name, default):
+    value = os.environ.get(name, "")
+    return Path(value) if value.startswith("/") else Path.home() / default
+
+
+def entry(path):
+    parser = configparser.RawConfigParser(interpolation=None, strict=False, delimiters=("=",))
+    parser.optionxform = str
+    try:
+        parser.read_string(path.read_text(encoding="utf-8", errors="replace"))
+        section = parser["Desktop Entry"]
+    except (OSError, configparser.Error, KeyError):
+        return None
+    if section.get("Hidden") == "true" or not section.get("Exec", "").strip():
+        return None
+    return section
+
+
+def app_dirs():
+    data = home_dir("XDG_DATA_HOME", ".local/share")
+    return [d / "applications" for d in (data, *env_dirs("XDG_DATA_DIRS",
+                                                         "/usr/local/share:/usr/share"))]
+
+
+def find(desktop_id):
+    """The entry of a file id; "org-x-Term.desktop" may be org/x-Term.desktop and so on."""
+    names = [desktop_id] + [desktop_id[:i] + "/" + desktop_id[i + 1:]
+                            for i, c in enumerate(desktop_id) if c == "-"]
+    names = [n for n in names if all(part not in ("", ".", "..") for part in n.split("/"))]
+    for folder in app_dirs():
+        for name in names:
+            path = folder / name
+            if path.is_file():
+                return entry(path)  # a Hidden one masks the ones below it
+    return None
+
+
+def listed():
+    config = home_dir("XDG_CONFIG_HOME", ".config")
+    desktops = [d.lower() for d in os.environ.get("XDG_CURRENT_DESKTOP", "").split(":") if d]
+    for folder in (config, *env_dirs("XDG_CONFIG_DIRS", "/etc/xdg")):
+        for name in [f"{d}-xdg-terminals.list" for d in desktops] + ["xdg-terminals.list"]:
+            try:  # split on "\n" only, as the page does
+                lines = (folder / name).read_text(encoding="utf-8").split("\n")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for line in lines:
+                line = line.strip().split(":", 1)[0]  # "foot.desktop:server": the id
+                if ID.fullmatch(line):
+                    yield line
+
+
+def any_terminals():
+    """Installed terminal emulators, by name."""
+    found = []
+    for folder in app_dirs():
+        for path in sorted(folder.glob("*.desktop")):
+            section = entry(path)
+            if section is not None and section.get("NoDisplay") != "true" and \
+                    "TerminalEmulator" in section.get("Categories", "").split(";"):
+                found.append((section.get("Name", path.name).casefold(), path.name, section))
+    return [section for _name, _file, section in sorted(found, key=lambda t: t[:2])]
+
+
+def command(section):
+    """argv of an entry's Exec, or None when it cannot be run from here."""
+    try_exec = section.get("TryExec", "").strip()
+    if try_exec and not shutil.which(try_exec):
+        return None
+    try:
+        argv = [p for p in shlex.split(section["Exec"]) if p not in FIELD_CODES]
+    except ValueError:  # unbalanced quotes
+        return None
+    if not argv or ("/" in argv[0] and not argv[0].startswith("/")):  # never relative to cwd
+        return None
+    return argv if shutil.which(argv[0]) else None
+
+
+def candidates():
+    for desktop_id in listed():
+        section = find(desktop_id)
+        if section is not None:
+            yield section
+    yield from any_terminals()
+
+
+def main(args):
+    failed = None
+    for section in candidates():
+        argv = command(section)
+        if argv is None:
+            continue
+        if args:
+            flag = section.get("X-TerminalArgExec", "-e").strip()  # "" = the command as is
+            argv += [*([flag] if flag else []), *args]
+        try:
+            os.execvp(argv[0], argv)
+        except OSError as exc:  # not runnable after all: the next one
+            failed = exc
+    if failed is not None:
+        print(f"xdg-terminal-exec: {failed}", file=sys.stderr)
+        return 126
+    print("xdg-terminal-exec: no terminal emulator is installed", file=sys.stderr)
+    return 127
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

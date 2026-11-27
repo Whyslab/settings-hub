@@ -19,7 +19,8 @@ def test_ids_unique_and_well_formed():
                    "monitor", "wallpaper", "animations", "windows", "appearance", "panel",
                    "lockscreen",
                    "binds", "game-binds", "input",
-                   "notifications", "autostart", "updates", "general", "system", "history"]
+                   "notifications", "autostart", "default-apps", "updates", "general", "system",
+                   "history"]
 
 
 def test_groups_are_runs_in_group_order():

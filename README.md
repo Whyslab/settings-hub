@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Default applications**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -54,10 +54,16 @@ CPU/RAM/temperature, battery, Wi-Fi, power button; the password field always
 stays), clock and date formats from a list, the text font and sizes, wallpaper
 blur and brightness. Choices only redraw a preview drawn by
 `~/.local/share/hyprlock-sim/simlock.py` (hyprlock itself is never started);
-"Apply" writes the file as one undoable change, and the first one over a
-hand-made file copies it to `~/.config/hypr/backups/<date>-settings-hub-lock/`
-first ("Restore" puts it back). The
-framework:
+"Apply" writes the file as one undoable change; a hand-made file is copied to
+`~/.config/hypr/backups/<date-time>-settings-hub-lock/` first ("Restore" puts
+it back).
+**Default applications** picks the program for links, mail, folders, pictures,
+video, music, text and PDF — one choice sets every format of its kind in the
+`[Default Applications]` of `~/.config/mimeapps.list` (other lines kept, every
+choice undoable) — and the terminal, first in `~/.config/xdg-terminals.list`.
+Programs find that terminal through `xdg-terminal-exec`; when the system has
+none, `install.sh` puts a small one (`bin/xdg-terminal-exec`) in `~/.local/bin`.
+The framework:
 
 - the resident application, the window: a home screen of tiles (screen and
   sleep, sound, network, power, modes and themes shown and changed in place,

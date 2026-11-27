@@ -156,7 +156,8 @@ START_PAGES = (
     START_PAGE_LAST, START_PAGE_HOME, "screen-sleep", "wallpaper", "animations", "binds",
     "general", "windows", "appearance", "panel", "lockscreen", "input", "system", "sound",
     "network", "power",
-    "modes", "history", "monitor", "notifications", "autostart", "updates",
+    "modes", "history", "monitor", "notifications", "autostart", "default-apps",
+    "updates",
 )
 
 FIELDS: tuple[Field, ...] = (

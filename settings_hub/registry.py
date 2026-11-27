@@ -62,6 +62,7 @@ PAGES: tuple[PageInfo, ...] = (
     PageInfo("input", "keyboard", "input.svg", "#5e5ce6"),
     PageInfo("notifications", "system", "notifications.svg", "#ff3b30"),
     PageInfo("autostart", "system", "autostart.svg", "#34c759"),
+    PageInfo("default-apps", "system", "default-apps.svg", "#ff9f0a"),
     PageInfo("updates", "system", "updates.svg", "#007aff"),
     PageInfo("general", "system", "general.svg", "#8e8e93"),
     PageInfo("system", "system", "system.svg", "#8e8e93"),

@@ -166,6 +166,10 @@ done <"$MANIFEST"
 removed=0
 while IFS="$TAB" read -r kind path; do
     [ "$kind" = file ] || continue
+    case $path in
+        */xdg-terminal-exec)  # replaced by someone else's since: not ours to remove
+            grep -q '^# settings-hub xdg-terminal-exec$' "$path" 2>/dev/null || continue ;;
+    esac
     if inside "$path"; then
         if dry; then
             [ -e "$path" ] && would "remove $path"

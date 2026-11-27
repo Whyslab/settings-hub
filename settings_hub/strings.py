@@ -158,6 +158,7 @@ BACKENDS = {
     "appearance": "Оформление",
     "panel": "Панель",
     "lockscreen": "Экран блокировки",
+    "default-apps": "Приложения по умолчанию",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1553,6 +1554,23 @@ PAGES.update({
             "system": ("Из hyprland.lua", ["конфиг", "система", "hyprland"]),
         },
     },
+    "default-apps": {
+        "title": "Приложения по умолчанию",
+        "keywords": ["по умолчанию", "открывать", "открыть с помощью", "чем открывать",
+                     "браузер", "почта", "файлы", "проводник", "картинки", "видео",
+                     "музыка", "текст", "pdf", "терминал", "mime", "xdg", "default"],
+        "rows": {
+            "browser": ("Браузер", ["ссылки", "интернет", "http", "firefox", "chrome"]),
+            "mail": ("Почта", ["mailto", "письмо", "email"]),
+            "files": ("Файлы", ["папки", "проводник", "файловый менеджер"]),
+            "images": ("Картинки", ["фото", "изображения", "png", "jpg", "просмотр"]),
+            "video": ("Видео", ["фильмы", "mp4", "mkv", "плеер"]),
+            "music": ("Музыка", ["аудио", "mp3", "flac", "звук"]),
+            "text": ("Текст", ["текстовый редактор", "txt", "markdown", "блокнот"]),
+            "pdf": ("PDF", ["документы", "читалка"]),
+            "terminal": ("Терминал", ["консоль", "kitty", "ghostty", "xdg-terminal-exec"]),
+        },
+    },
     "updates": {
         "title": "Обновления",
         "keywords": ["обновления", "обновить", "pacman", "yay", "пакеты", "ядро",
@@ -1669,6 +1687,35 @@ AUTO_DUPLICATE = "Такая команда уже есть в списке"
 AUTO_IN_CONFIG = "Это уже запускается из hyprland.lua — второй раз не нужно"
 AUTO_BAD = "Пустая или слишком длинная команда"
 AUTO_FULL = "В списке уже {count} программ — больше нельзя"
+
+# Default applications
+DEFAPPS_GROUP = "Чем открывать"
+DEFAPPS_NOTE = ("Выбор пишется в ~/.config/mimeapps.list и действует сразу для всех "
+                "программ; Ctrl+Z возвращает прежний")
+DEFAPPS_TERMINAL_GROUP = "Терминал"
+DEFAPPS_TERMINAL_NOTE = ("Для программ, которым нужен терминал (они запускают "
+                         "xdg-terminal-exec). Сочетание клавиш для терминала — на «Биндах»")
+DEFAPPS_HINT = {
+    "browser": "Ссылки и веб-страницы",
+    "mail": "Ссылки «написать письмо»",
+    "files": "Папки",
+    "images": "PNG, JPEG, GIF, WebP и другие",
+    "video": "MP4, MKV, WebM и другие",
+    "music": "MP3, FLAC, OGG, WAV и другие",
+    "text": "Простой текст и Markdown",
+    "pdf": "Документы PDF",
+    "terminal": "Какой терминал открывают программы",
+}
+DEFAPPS_NONE = "Не выбрано"
+DEFAPPS_VARIOUS = "Разные программы"
+DEFAPPS_NOT_CHOSEN = "Сейчас не выбрано — каждая программа решает сама, может по-разному"
+DEFAPPS_MIXED = "Часть форматов сейчас открывается другим — выбор поставит один для всех"
+DEFAPPS_NO_APPS = "Нет программ, которые это открывают"
+DEFAPPS_NO_SHIM = ("Нет xdg-terminal-exec — программы выбор не увидят. Переустанови "
+                   "Настройки (install.sh), он поставит свой")
+DEFAPPS_SAVED = "{kind}: теперь {app}"
+DEFAPPS_FAILED = "Не получилось: {error}"
+DEFAPPS_HISTORY = "По умолчанию: {kind}"
 
 # Updates
 UPD_STATE_GROUP = "Состояние"
