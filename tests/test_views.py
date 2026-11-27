@@ -10,9 +10,11 @@ from settings_hub import home  # noqa: E402
 from settings_hub.controllers import appearance as lookctl  # noqa: E402
 from settings_hub.controllers import audio as audctl  # noqa: E402
 from settings_hub.controllers import bluetooth as btctl  # noqa: E402
+from settings_hub.controllers import lockscreen as lockctl  # noqa: E402
 from settings_hub.controllers import network as netctl  # noqa: E402
 from settings_hub.controllers import panel as panelctl  # noqa: E402
 from settings_hub.pages import appearance as lookpage  # noqa: E402
+from settings_hub.pages import lockscreen as lockpage  # noqa: E402
 from settings_hub.pages import network as netpage  # noqa: E402
 from settings_hub.pages import panel as panelpage  # noqa: E402
 from settings_hub.pages import sound  # noqa: E402
@@ -34,6 +36,7 @@ def methods(protocol):
     (btctl.View, netpage.NetworkPage),
     (lookctl.View, lookpage.AppearancePage),
     (panelctl.View, panelpage.PanelPage),
+    (lockctl.View, lockpage.LockscreenPage),
 ])
 def test_view_has_every_method(protocol, view):
     missing = [m for m in methods(protocol)

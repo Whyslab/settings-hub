@@ -62,6 +62,8 @@ SHAPES = {
     "appearance": '<path d="M4 19l5-14h1l5 14M6.2 13.5h7.6"/><path d="M17 11v8M15 14.5h4"/>',
     "panel": ('<rect x="3" y="4" width="18" height="16" rx="2"/>'
               '<path d="M3 9h18M6.5 6.5h.01M10 6.5h4"/>'),
+    "lockscreen": ('<rect x="5" y="11" width="14" height="9" rx="2"/>'
+                   '<path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>'),
     "command": ('<rect x="3" y="5" width="18" height="14" rx="2"/>'
                 '<path d="M7 10l3 2-3 2M12 15h5"/>'),
     "edit": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',

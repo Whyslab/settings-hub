@@ -154,7 +154,8 @@ START_PAGE_LAST = "last"
 START_PAGE_HOME = "home"  # the tiles (home.HOME)
 START_PAGES = (
     START_PAGE_LAST, START_PAGE_HOME, "screen-sleep", "wallpaper", "animations", "binds",
-    "general", "windows", "appearance", "panel", "input", "system", "sound", "network", "power",
+    "general", "windows", "appearance", "panel", "lockscreen", "input", "system", "sound",
+    "network", "power",
     "modes", "history", "monitor", "notifications", "autostart", "updates",
 )
 

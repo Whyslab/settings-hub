@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -47,7 +47,16 @@ section (move, remove, add HyprPanel's own or your `custom/*` from
 `modules.json`; the page edits the `"*"` layout and says when a monitor has its
 own). Writes keep the other keys, the permissions and the theme's colours, under
 one lock shared with Notifications and Appearance; every change is undoable. A
-button restarts the panel (waits for the old one to exit). The
+button restarts the panel (waits for the old one to exit).
+**Lock screen** builds `~/.config/hypr/hyprlock.conf` from a layout (Dock — the
+hand-made one, Centre, Minimal, Corner), which parts to show (clock, date,
+CPU/RAM/temperature, battery, Wi-Fi, power button; the password field always
+stays), clock and date formats from a list, the text font and sizes, wallpaper
+blur and brightness. Choices only redraw a preview drawn by
+`~/.local/share/hyprlock-sim/simlock.py` (hyprlock itself is never started);
+"Apply" writes the file as one undoable change, and the first one over a
+hand-made file copies it to `~/.config/hypr/backups/<date>-settings-hub-lock/`
+first ("Restore" puts it back). The
 framework:
 
 - the resident application, the window: a home screen of tiles (screen and

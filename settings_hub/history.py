@@ -5,8 +5,9 @@ entry is one item that changed:
 
     {"id", "group", "ts", "backend", "key", "label", "before", "after"}
 
-Whole files are never stored, so reverting one item never overwrites anything
-else in the same file. A *group* is one user action that may change several
+Whole files are not stored, so reverting one item never overwrites anything
+else in the same file (one exception: the lock screen, whose item is its whole
+generated hyprlock.conf, a few KB). A *group* is one user action that may change several
 items (a preset sets four idle fields, a slider drag sets the temperature and
 the manual-override flag, a rebind writes the old and the new key combination).
 Undo always works on whole groups.
