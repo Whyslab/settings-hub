@@ -38,7 +38,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from . import hypr, pages, registry, strings  # noqa: E402
 from .binds.writer import WINDOW_CLASS, main_rule_match  # noqa: E402
-from .history import History  # noqa: E402
+from .history import ASK_WORKER, History, Result  # noqa: E402
 from .home import HOME, Home  # noqa: E402
 from .settings import Settings  # noqa: E402
 from .widgets import keycapture  # noqa: E402
@@ -166,6 +166,7 @@ class Window(Gtk.ApplicationWindow):
         self.current: str | None = None
         self._esc_armed = False
         self._status_source = 0
+        self._reverting = False  # a revert waiting for a password
 
         self.sidebar = Sidebar(
             width=int(self.settings.get("appearance.sidebar_width")),
@@ -587,7 +588,33 @@ class Window(Gtk.ApplicationWindow):
         dialog.choose(self, None, answered)
 
     def _execute(self, plan, skip) -> None:
-        result = self.history.execute(plan, skip)
+        if not self.history.asks_password(plan):
+            self._executed(plan, self.history.execute(plan, skip))
+            return
+        # a system change: the password dialog may stay open for minutes, so
+        # the window must keep answering meanwhile; one at a time
+        if self._reverting:
+            self.show_status(strings.HISTORY_BUSY)
+            return
+        self._reverting = True
+        self.show_status(strings.HISTORY_ASKING)
+        # the others first, here: some of them touch GTK
+        quick = self.history.carry_out(plan, skip, slow=False)
+
+        def done(result, error) -> None:
+            self._reverting = False
+            if error is not None:
+                result = Result(errors={"timelang": str(error)}, skipped=quick.skipped)
+            self._executed(plan, self.history.finish(plan, result, quick))
+
+        try:
+            self.ctx.workers.submit(ASK_WORKER,
+                                    lambda: self.history.carry_out(plan, skip, slow=True), done)
+        except RuntimeError:  # closing
+            self._reverting = False
+            self.history.finish(plan, quick)
+
+    def _executed(self, plan, result) -> None:
         if result.errors:
             detail = "; ".join(f"{strings.BACKENDS.get(b, b)}: {m}"
                                for b, m in result.errors.items())

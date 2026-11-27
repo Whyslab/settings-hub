@@ -1,0 +1,17 @@
+! model
+  pc105           Generic 105-key PC
+
+! layout
+  us              English (US)
+  al              Albanian
+  ru              Russian
+  no              Norwegian
+  ua              Ukrainian
+  custom          A user-defined custom Layout
+
+! variant
+  chr             us: Cherokee
+
+! option
+  grp                  Switching to another layout
+  grp:win_space_toggle Win+Space

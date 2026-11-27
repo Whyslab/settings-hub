@@ -47,6 +47,7 @@ from .backends import (  # noqa: E402
     power,
     screen_sleep,
     themes,
+    timelang,
     wallpaper,
 )
 from .history import History  # noqa: E402
@@ -174,6 +175,8 @@ class App(Gtk.Application):
             backends[module.BACKEND] = module.Backend(self.workers)
             module.register(history, backends[module.BACKEND])
         backends[backups.BACKEND] = backups.Backend(self.workers)  # nothing to undo
+        backends[timelang.BACKEND] = timelang.Backend(self.workers)
+        timelang.register(history, backends[timelang.BACKEND])
         # A reinstall keeps the games file: bring its text up to this version.
         self.workers.submit(game_binds.WORKER, backends[game_binds.BACKEND].sync)
         # A window that crashed mid-capture may have left Hyprland in the capture

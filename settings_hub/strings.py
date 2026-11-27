@@ -123,6 +123,8 @@ HISTORY_NOTHING_TO_UNDO = "Нечего отменять"
 HISTORY_REDO_PREFIX = "Возврат"
 HISTORY_REDONE = "Возвращено: {label}"
 HISTORY_NOTHING_TO_REDO = "Нечего возвращать"
+HISTORY_ASKING = "Возвращаю системную настройку: спросят пароль"
+HISTORY_BUSY = "Подождите: ещё возвращается прошлое изменение"
 HISTORY_NO_APPLIER = "Не умею применять: {backends}"
 HISTORY_APPLY_FAILED = "Не удалось вернуть: {error}"
 HISTORY_CONFLICT_TITLE = "Значения менялись вне окна"
@@ -161,6 +163,7 @@ BACKENDS = {
     "default-apps": "Приложения по умолчанию",
     "backups": "Бэкапы",
     "disk-space": "Место на диске",
+    "timelang": "Дата, время и язык",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1408,6 +1411,7 @@ SYS_PACKAGES_AUTO = ("Чистятся сами раз в неделю; оста
                      "пакета — на случай отката.")
 SYS_PACKAGES_MANUAL = ("Сами не чистятся. Включить чистку раз в неделю: "
                        "sudo systemctl enable --now paccache.timer")
+SYS_PACKAGES_CLEAN = "Почистить…"
 SYS_PACKAGES_UNKNOWN = ("Скачанные пакеты, нужные для отката. Чистит их программа "
                         "paccache (раз в неделю, если включён paccache.timer).")
 SYS_GAMES = SYS_ROWS["games"][0]
@@ -1690,6 +1694,27 @@ PAGES.update({
             "pacnew": ("Файлы .pacnew", ["pacnew", "pacdiff", "настройки"]),
         },
     },
+    "datetime": {
+        "title": "Дата, время и язык",
+        "keywords": ["дата", "время", "часы", "часовой пояс", "язык", "локаль", "раскладка",
+                     "клавиатура", "ntp", "регион"],
+        "rows": {
+            "now": ("Сейчас", ["дата", "время", "часы", "сегодня"]),
+            "timezone": ("Часовой пояс", ["часовой пояс", "зона", "timezone", "utc", "город",
+                                          "переезд"]),
+            "ntp": ("Время по интернету", ["синхронизация", "ntp", "точное время",
+                                           "автоматически", "отстают часы"]),
+            "locale": ("Язык системы", ["язык", "локаль", "locale", "русский", "english",
+                                        "английский"]),
+            "layouts": ("Раскладки", ["раскладка", "клавиатура", "язык ввода", "us", "ru"]),
+            "add-layout": ("Добавить раскладку", ["добавить", "новая раскладка", "украинская",
+                                                  "норвежская"]),
+            "switch": ("Переключение раскладки", ["переключение", "win+пробел", "alt+shift",
+                                                  "ctrl+shift", "сочетание"]),
+            "login-keys": ("Раскладки на экране входа", ["экран входа", "sddm", "вход",
+                                                         "пароль при входе"]),
+        },
+    },
 })
 
 # Monitor
@@ -1821,6 +1846,98 @@ DEFAPPS_NO_SHIM = ("Нет xdg-terminal-exec — программы выбор �
 DEFAPPS_SAVED = "{kind}: теперь {app}"
 DEFAPPS_FAILED = "Не получилось: {error}"
 DEFAPPS_HISTORY = "По умолчанию: {kind}"
+
+# Date, time and language
+TL_ROWS = PAGES["datetime"]["rows"]
+TL_TIME_GROUP = "Дата и время"
+TL_TIME_NOTE = "Часовой пояс и время по интернету меняются для всей системы: спросят пароль."
+TL_NOW_FORMAT = "%A, %-d %B %Y, %H:%M"
+TL_NOW_HINT = "UTC{offset}"
+TL_ZONE_ITEM = "{zone} · UTC{offset}"
+TL_NTP_HINT_ON = "Часы сверяются с интернетом сами"
+TL_NTP_HINT_SYNCED = "Часы сверяются с интернетом сами; сейчас время точное"
+TL_NTP_HINT_OFF = "Выключено: часы идут сами по себе и могут отставать"
+TL_TIME_UNKNOWN = "Не удалось прочитать: timedatectl не ответил"
+TL_NTP_NONE = "Службы времени по интернету нет (systemd-timesyncd)"
+TL_LANG_GROUP = "Язык"
+TL_LOCALE_HINT = ("Язык программ, дат и чисел. Меняется для всей системы (спросят пароль) и "
+                  "начнёт действовать после нового входа.")
+TL_LOCALE_MORE = ("Здесь только языки, установленные в системе. Другой: раскомментировать его "
+                  "в /etc/locale.gen и выполнить sudo locale-gen.")
+TL_LOCALE_NAMES = {
+    "ru_RU.UTF-8": "Русский",
+    "en_US.UTF-8": "English (US)",
+    "en_GB.UTF-8": "English (UK)",
+    "nb_NO.UTF-8": "Norsk bokmål",
+    "nn_NO.UTF-8": "Norsk nynorsk",
+    "uk_UA.UTF-8": "Українська",
+    "be_BY.UTF-8": "Беларуская",
+    "de_DE.UTF-8": "Deutsch",
+    "fr_FR.UTF-8": "Français",
+    "es_ES.UTF-8": "Español",
+    "sv_SE.UTF-8": "Svenska",
+    "pl_PL.UTF-8": "Polski",
+}
+TL_KEYS_GROUP = "Раскладки клавиатуры"
+TL_KEYS_NOTE = ("Раскладки этого сеанса меняются сразу, без пароля (то же, что на странице "
+                "«Клавиатура и мышь»).")
+TL_LAYOUT_NAMES = {
+    "us": "Английская (США)", "gb": "Английская (Британия)", "ru": "Русская",
+    "ua": "Украинская", "by": "Белорусская", "no": "Норвежская", "se": "Шведская",
+    "fi": "Финская", "dk": "Датская", "de": "Немецкая", "fr": "Французская",
+    "es": "Испанская", "it": "Итальянская", "pl": "Польская", "cz": "Чешская",
+    "tr": "Турецкая", "kz": "Казахская", "ge": "Грузинская", "am": "Армянская",
+    "il": "Иврит", "gr": "Греческая", "pt": "Португальская", "br": "Португальская (Бразилия)",
+    "jp": "Японская", "cn": "Китайская", "kr": "Корейская", "lt": "Литовская",
+    "lv": "Латышская", "ee": "Эстонская", "rs": "Сербская", "bg": "Болгарская",
+}
+TL_LAYOUT_ITEM = "{name} ({code})"
+TL_LAYOUT_FIRST = "Первая — при входе в сеанс"
+TL_LAYOUT_UP = "Выше"
+TL_LAYOUT_UP_A11Y = "Поднять раскладку «{name}»"
+TL_LAYOUT_REMOVE_A11Y = "Убрать раскладку «{name}»"
+TL_LAYOUT_LAST = "Последнюю раскладку убрать нельзя"
+TL_LAYOUT_ADD = "Добавить"
+TL_LAYOUT_HAS = "Эта раскладка уже есть"
+TL_LAYOUT_MAX = "Больше четырёх раскладок клавиатура не держит"
+TL_SWITCHES = {
+    "grp:win_space_toggle": "Win+Пробел",
+    "grp:alt_shift_toggle": "Alt+Shift",
+    "grp:ctrl_shift_toggle": "Ctrl+Shift",
+    "grp:alt_space_toggle": "Alt+Пробел",
+    "grp:ctrl_space_toggle": "Ctrl+Пробел",
+    "grp:caps_toggle": "Caps Lock",
+    "grp:shifts_toggle": "Оба Shift",
+    "": "Нет",
+}
+TL_SWITCH_HINT = "Сочетание клавиш для смены раскладки"
+TL_LOGIN_HINT = "Сейчас: {layouts}{switch}. Поле пароля при входе пишет на первой."
+TL_LOGIN_SWITCH = " · {switch}"
+TL_LOGIN_SAME = "Сейчас: как в этом сеансе"
+TL_LOGIN_UNSAFE = ("\nСкопировать нельзя: нужно сочетание для смены раскладки (а одна "
+                   "раскладка — только латинская), иначе пароль при входе не набрать")
+TL_LOGIN_BUTTON = "Как здесь"
+TL_LOGIN_A11Y = "Сделать раскладки экрана входа такими же, как в этом сеансе"
+TL_LOGIN_UNKNOWN = "Не удалось прочитать"
+TL_HISTORY = {
+    "timezone": "Часовой пояс",
+    "ntp": "Время по интернету",
+    "locale": "Язык системы",
+    "login-keys": "Раскладки на экране входа",
+}
+TL_DONE = {
+    "timezone": "Часовой пояс: {value}",
+    "ntp": "Время по интернету: {value}",
+    "locale": "Язык системы: {value}. Начнёт действовать после нового входа",
+    "login-keys": "Раскладки на экране входа: {value}",
+}
+TL_ON, TL_OFF = "включено", "выключено"
+TL_DENIED = "Не изменено: пароль не введён"
+TL_NO_AGENT = "Не изменено: некому спросить пароль (polkit-агент не запущен)"
+TL_TIMEOUT = "Не изменено: окно пароля так и не ответило"
+TL_FAILED = "Не изменено: {error}"
+TL_READ_FAILED = "Не удалось прочитать: {error}"
+TL_UNKNOWN = "Не удалось прочитать (timedatectl/localectl не ответили)"
 
 # Backups
 BK_STATE_GROUP = "Состояние"

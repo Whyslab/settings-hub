@@ -56,6 +56,7 @@ def test_disk_space_part(tmp_path, xvfb):  # noqa: F811
     assert r["folders"][:1] == ["Видео"] and "Данные программ" in r["folders"], r["folders"]
     assert "~/Videos" in r["folder_paths"]
     assert r["opened"] == [str(home / "Videos")]
+    assert r["pages_opened"] == ["updates#cache"]  # cleaning is on the Updates page
     assert "файлов и папок: 1" in r["trash_hint"] and r["trash_sensitive"]
     assert r["games_visible"] and "Dota 2 (71.7 ГБ)" in r["games_hint"], r["games_hint"]
     assert "сами раз в неделю" in r["packages_hint"]

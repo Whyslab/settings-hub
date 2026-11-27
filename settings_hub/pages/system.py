@@ -128,8 +128,11 @@ class SystemPage(Page):
         self.rows["trash"] = self.trash_row
         self.cache_row = free.add(self._sized_row(strings.SYS_CACHE, strings.SYS_CACHE_HINT,
                                                   "cache", openable=True))
-        self.packages_row = free.add(self._sized_row(strings.SYS_PACKAGES, "", "packages",
-                                                     openable=True))
+        self.packages_row = free.add(self._sized_row(strings.SYS_PACKAGES, "", "packages"))
+        clean = Gtk.Button(label=strings.SYS_PACKAGES_CLEAN)
+        clean.add_css_class("flat")
+        clean.connect("clicked", lambda *_: self._open("updates#cache"))
+        self.packages_row.suffix_box.append(clean)
         self.games_row = free.add(self._sized_row(strings.SYS_GAMES, "", "games"))
         for row_id, row in (("cache", self.cache_row), ("packages", self.packages_row),
                             ("games", self.games_row)):
@@ -223,6 +226,7 @@ class SystemPage(Page):
         box.append(value)
         row = Row(title, hint or None, suffix=box, row_id=row_id)
         row.value_label = value
+        row.suffix_box = box
         row.hint = hint
         row.open_button = None
         if openable:

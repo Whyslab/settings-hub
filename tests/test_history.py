@@ -376,3 +376,42 @@ def test_a_doubled_undo_link_moves_the_group_once(hist):
     hist.record([("screen-sleep", "a", "a", 2, 1)], link=f"undo:{group}")  # a second window
     undo, redo = hist.stacks()
     assert undo == [] and [g.id for g in redo] == [group]
+
+
+def test_carrying_out_records_nothing_until_finished(hist):
+    """A revert that waits for a password runs on a worker (carry_out) and is
+    recorded back on the GTK thread (finish)."""
+    slow = FakeBackend({"zone": "A"})
+    slow.asks_password = True
+    plain = FakeBackend({"x": 1})
+    hist.register("slow", slow)
+    hist.register("plain", plain)
+    change(hist, "slow", slow, [("zone", "Zone", "B")])
+    plan = hist.plan_undo_last("Undo")
+    assert hist.asks_password(plan)
+    before = len(hist.entries())
+    result = hist.carry_out(plan)
+    assert slow.values["zone"] == "A" and len(hist.entries()) == before
+    hist.finish(plan, result)
+    assert len(hist.entries()) == before + 1 and result.group
+    change(hist, "plain", plain, [("x", "X", 2)])
+    assert not hist.asks_password(hist.plan_undo_last("Undo"))
+
+
+def test_a_split_revert_runs_each_applier_once_and_records_once(hist):
+    slow = FakeBackend({"zone": "A"})
+    slow.asks_password = True
+    plain = FakeBackend({"x": 1})
+    hist.register("slow", slow)
+    hist.register("plain", plain)
+    a = change(hist, "slow", slow, [("zone", "Zone", "B")])
+    b = change(hist, "plain", plain, [("x", "X", 2)])
+    plan = hist.plan_undo([a, b], "Undo")
+    before = len(hist.entries())
+    quick = hist.carry_out(plan, slow=False)
+    assert plain.applies == [{"x": 1}] and slow.applies == []
+    rest = hist.carry_out(plan, slow=True)
+    assert slow.applies == [{"zone": "A"}] and plain.applies == [{"x": 1}]
+    result = hist.finish(plan, rest, quick)
+    assert set(result.applied) == {"slow", "plain"}
+    assert len(hist.entries()) == before + 2

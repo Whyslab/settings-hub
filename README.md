@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Default applications**, **Backups**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Default applications**, **Backups**, **Date, time and language**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -74,6 +74,11 @@ room can be freed (Trash, program caches, old package versions, Steam games) and
 the biggest folders of the home folder (`du -x`, on opening the page at most
 every 10 minutes, and on "Recount"). The one action is emptying the Trash
 (`gio trash --empty`), after asking; no root.
+**Date, time and language**: the time zone, network time, the system language and
+the login screen's layouts change through `timedatectl` / `localectl` (polkit
+asks for the password; each goes to History, Ctrl+Z puts it back, asking
+again); the session's layouts and their switch are Hyprland variables, at once
+and without a password.
 The framework:
 
 - the resident application, the window: a home screen of tiles (screen and

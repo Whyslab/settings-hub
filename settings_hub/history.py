@@ -43,6 +43,9 @@ from pathlib import Path
 from typing import Any, Protocol
 
 KEEP = 1000
+# One worker for every change that waits for a password (reverts and pages'
+# own), so only one password dialog is ever open and they apply in order.
+ASK_WORKER = "history-ask"
 
 
 class Applier(Protocol):
@@ -140,6 +143,7 @@ class Plan:
 class Result:
     applied: dict[str, dict[str, Any]] = field(default_factory=dict)  # backend -> values
     skipped: list[str] = field(default_factory=list)  # group ids left as they are
+    log: list = field(default_factory=list)  # what finish() records
     errors: dict[str, str] = field(default_factory=dict)  # backend -> message
     group: str | None = None  # id of the group that logs this revert
 
@@ -342,7 +346,31 @@ class History:
         return Plan(groups, targets, labels, flagged, missing, label_prefix)
 
     def execute(self, plan: Plan, skip: Iterable[str] = ()) -> Result:
-        """Revert the plan's groups except `skip`; one apply() per backend.
+        """Revert the plan's groups except `skip`; one apply() per backend."""
+        return self.finish(plan, self.carry_out(plan, skip))
+
+    def asks_password(self, plan: Plan) -> bool:
+        """An applier of this plan waits for a password dialog (run it off the
+        GTK thread: carry_out on a worker, finish back on the GTK thread)."""
+        return any(getattr(self._appliers.get(e.backend), "asks_password", False)
+                   for g in plan.groups for e in g.entries)
+
+    def finish(self, plan: Plan, result: Result, *more: Result) -> Result:
+        """Record what carry_out did (GTK thread: the file is not locked); more:
+        the other half of a split run, merged in."""
+        for other in more:
+            result.applied.update(other.applied)
+            result.errors.update(other.errors)
+            result.log.extend(other.log)
+        if result.log:
+            result.group = self.record(result.log, link=plan.link)
+        return result
+
+    def carry_out(self, plan: Plan, skip: Iterable[str] = (),
+                  slow: bool | None = None) -> Result:
+        """execute() without recording it. slow=True: only the appliers that ask
+        for a password (run it on a worker); slow=False: only the others (they
+        may touch GTK: GTK thread); None: all.
 
         Skipping a group keeps all of its items. Any other group sharing an item
         with a skipped group is skipped too, so no group is ever half-reverted
@@ -367,6 +395,8 @@ class History:
         log: list[tuple[str, str, str, Any, Any]] = []
         for backend, values in wanted.items():
             applier = self._appliers.get(backend)
+            if slow is not None and getattr(applier, "asks_password", False) != slow:
+                continue
             if applier is None:
                 result.errors[backend] = "no applier"
                 continue
@@ -382,6 +412,5 @@ class History:
                 if plan.label_prefix:
                     label = f"{plan.label_prefix}: {label}"
                 log.append((backend, key, label, before.get(key), value))
-        if log:
-            result.group = self.record(log, link=plan.link)
+        result.log = log
         return result

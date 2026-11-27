@@ -128,6 +128,11 @@ opened = []
 page.open_folder = opened.append
 page._folder_rows[0].open_button.emit("clicked")
 out["opened"] = [str(p) for p in opened]
+pages_opened = []
+page.ctx.open_page = pages_opened.append
+for child in (page.packages_row.suffix_box.get_last_child(),):
+    child.emit("clicked")
+out["pages_opened"] = pages_opened
 
 # The Trash: "no" changes nothing, "yes" empties it and says so
 asked = []
