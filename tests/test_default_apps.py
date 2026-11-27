@@ -383,7 +383,7 @@ def test_shim_with_no_terminal_says_so(tmp_path, home):
 
 def test_undo_brings_back_a_hand_written_odd_value(home):
     mimeapps(home).parent.mkdir(parents=True, exist_ok=True)
-    original = ("[Default Applications]\ntext/plain=zed.desktop; weird@x.desktop\n"
+    original = ("[Default Applications]\ntext/plain=zed.desktop; weird~x.desktop\n"
                 "text/markdown=\n")
     mimeapps(home).write_text(original)
     b = backend(home)
