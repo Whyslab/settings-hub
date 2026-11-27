@@ -63,9 +63,9 @@ def test_steam_files():
     assert ds.read_manifest(acf) == ds.Game("Dota 2", 77)
     assert ds.read_manifest('"name" "x"\n"SizeOnDisk" "0"') is None
     assert ds.read_manifest('"name" "x"') is None
-    vdf = '"libraryfolders"\n{\n "0"\n {\n  "path"  "/home/u/.local/share/Steam"\n }\n' \
+    vdf = '"libraryfolders"\n{\n "0"\n {\n  "path"  "/data/Steam"\n }\n' \
           ' "1"\n {\n  "path"  "/mnt/games"\n }\n}\n'
-    assert ds.library_paths(vdf) == [Path("/home/u/.local/share/Steam"), Path("/mnt/games")]
+    assert ds.library_paths(vdf) == [Path("/data/Steam"), Path("/mnt/games")]
 
 
 def test_pacman_cache_dirs():
