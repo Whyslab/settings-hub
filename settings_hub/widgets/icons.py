@@ -68,6 +68,8 @@ SHAPES = {
                      '<rect x="13" y="4" width="7" height="7" rx="1.5"/>'
                      '<rect x="4" y="13" width="7" height="7" rx="1.5"/>'
                      '<rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
+    "backups": ('<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4.5 3.5v4h4"/>'
+                '<path d="M12 8v4l2.8 2"/>'),
     "command": ('<rect x="3" y="5" width="18" height="14" rx="2"/>'
                 '<path d="M7 10l3 2-3 2M12 15h5"/>'),
     "edit": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',

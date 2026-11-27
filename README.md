@@ -19,7 +19,7 @@ The interface is in Russian; all user-facing text lives in
 ## Status
 
 Done so far: the **framework** and the pages **Screen and sleep**, **Wallpaper
-and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Default applications**, **Keyboard and
+and theme**, **Animations**, **Binds**, **Game binds**, **Windows and look**, **Appearance**, **Panel**, **Lock screen**, **Default applications**, **Backups**, **Keyboard and
 mouse**, **General**, **System**, **Sound**, **Network and Bluetooth**, **Power
 and brightness**, **Modes** and **History**. Values on Windows and look and
 Keyboard and mouse apply at once (`hyprctl eval`) and persist in
@@ -63,6 +63,12 @@ video, music, text and PDF — one choice sets every format of its kind in the
 choice undoable) — and the terminal, first in `~/.config/xdg-terminals.list`.
 Programs find that terminal through `xdg-terminal-exec`; when the system has
 none, `install.sh` puts a small one (`bin/xdg-terminal-exec`) in `~/.local/bin`.
+**Backups** shows how backup-manager's BorgBackup copies are doing — the last
+copy, its size, the next run, the last check, the list of copies — read
+without root from `/var/lib/backup-manager/status.json`, `archives.txt` and
+`systemctl show`; "Back up now" and "Full" start `bm-backup.service` /
+`bm-full.service` (`systemctl start --no-block`, the password asked by polkit).
+Nothing is restored or deleted from here.
 The framework:
 
 - the resident application, the window: a home screen of tiles (screen and

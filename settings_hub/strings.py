@@ -159,6 +159,7 @@ BACKENDS = {
     "panel": "Панель",
     "lockscreen": "Экран блокировки",
     "default-apps": "Приложения по умолчанию",
+    "backups": "Бэкапы",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1571,6 +1572,23 @@ PAGES.update({
             "terminal": ("Терминал", ["консоль", "kitty", "ghostty", "xdg-terminal-exec"]),
         },
     },
+    "backups": {
+        "title": "Бэкапы",
+        "keywords": ["бэкап", "бекап", "резервная копия", "копия", "borg", "сохранить",
+                     "backup", "архив"],
+        "rows": {
+            "state": ("Как дела с копиями", ["состояние", "ошибка", "работает"]),
+            "last": ("Последняя копия", ["когда", "дата", "свежая"]),
+            "size": ("Размер копии", ["сколько", "место", "гб"]),
+            "count": ("Хранится копий", ["сколько копий", "диск", "репозиторий"]),
+            "next": ("Следующая копия", ["расписание", "таймер", "когда"]),
+            "checked": ("Проверка копий", ["целостность", "check"]),
+            "drilled": ("Пробное восстановление", ["drill", "достаётся"]),
+            "now": ("Сделать копию сейчас", ["запустить", "сейчас", "вручную"]),
+            "full": ("Полная копия", ["вся", "музыка", "полностью"]),
+            "archives": ("Список копий", ["архивы", "копии", "даты"]),
+        },
+    },
     "updates": {
         "title": "Обновления",
         "keywords": ["обновления", "обновить", "pacman", "yay", "пакеты", "ядро",
@@ -1716,6 +1734,66 @@ DEFAPPS_NO_SHIM = ("Нет xdg-terminal-exec — программы выбор �
 DEFAPPS_SAVED = "{kind}: теперь {app}"
 DEFAPPS_FAILED = "Не получилось: {error}"
 DEFAPPS_HISTORY = "По умолчанию: {kind}"
+
+# Backups
+BK_STATE_GROUP = "Состояние"
+BK_ACTIONS_GROUP = "Сделать сейчас"
+BK_ACTIONS_NOTE = ("Запускается та же служба, что ночью; система спросит пароль. "
+                   "Копия идёт в фоне, окно можно закрыть")
+BK_LIST_GROUP = "Копии"
+BK_LIST_NOTE = "Новые сверху; старые удаляются сами"
+BK_NOT_SET = "Бэкапы не настроены"
+BK_NOT_SET_HINT = "Нет /var/lib/backup-manager/status.json — его пишет backup-manager (bm)"
+BK_OK = "Всё хорошо"
+BK_OK_HINT = "Копии делаются по расписанию"
+BK_RUNNING = {"backup": "Сейчас делается копия…", "full": "Сейчас делается полная копия…",
+              "check": "Сейчас проверяются копии…", "drill": "Идёт пробное восстановление…"}
+BK_RUNNING_HINT = "Можно закрыть окно — всё идёт само. Пока это идёт, новую копию не начать"
+BK_FAILED = "Не получилось: {kinds}"
+BK_FAILED_HINT = "Подробно: journalctl -u {units}"
+BK_KIND = {"backup": "копия", "full": "полная копия", "check": "проверка копий",
+           "drill": "пробное восстановление"}
+BK_STALE = "Копии давно не было"
+BK_STALE_HINT = "Последняя старше полутора суток — машина спала или не было сети"
+BK_SKIPPED = "Не запустилась: {kinds}"
+BK_SKIPPED_HINT = ("{date}: systemd пропустил запуск — не выполнено условие службы "
+                   "(есть ли /etc/backup-manager/passphrase?)")
+BK_CHECK_OLD = "Копии давно не проверялись"
+BK_CHECK_OLD_HINT = "Проверка целостности была больше трёх недель назад или не было вовсе"
+BK_SCHEDULE_OFF = "Расписание выключено"
+BK_SCHEDULE_OFF_HINT = "Копии сами не делаются: таймер bm-backup или bm-full не запущен"
+BK_UNKNOWN = "Состояние служб неизвестно"
+BK_NO_UNITS = "systemctl не ответил — копии сейчас не запустить"
+BK_FIRST = "Копий ещё не было"
+BK_FIRST_HINT = "Первая сделается ночью — или нажми «Сделать сейчас»"
+BK_UNREADABLE = "Состояние не читается"
+BK_UNREADABLE_HINT = "Файл /var/lib/backup-manager/status.json повреждён или закрыт"
+BK_WHEN = "{date} · {ago}"
+BK_NEVER = "Ещё не было"
+BK_SIZE = "{size}, новых данных {added}"
+BK_COUNT = "{count} · {repo} на диске"
+BK_NEXT = "{backup}; полная — {full}"
+BK_NEXT_FULL = "полная — {full}"
+BK_NOW = "Сделать сейчас"
+BK_NOW_HINT = "Как ночная: без музыки и больших папок, обычно несколько минут"
+BK_FULL = "Полную"
+BK_FULL_HINT = "Со всем, как по воскресеньям — дольше"
+BK_NOW_A11Y = "Сделать копию сейчас"
+BK_FULL_A11Y = "Сделать полную копию сейчас"
+BK_STARTED = "Копия началась — идёт в фоне"
+BK_DENIED = "Не запущено: пароль не введён"
+BK_NO_AGENT = "Не запущено: некому спросить пароль (polkit-агент не запущен)"
+BK_TIMEOUT = "Не запущено: окно пароля так и не ответило"
+BK_NO_SYSTEMCTL = "Не запущено: нет systemctl"
+BK_START_FAILED = "Не запустилось: {error}"
+BK_READ_FAILED = "Не прочиталось: {error}"
+BK_ARCHIVE_NIGHTLY = "Обычная"
+BK_ARCHIVE_FULL = "Полная"
+BK_EMPTY = "Копий пока нет"
+BK_AGO_MIN = "{n} мин назад"
+BK_AGO_HOURS = "{n} ч назад"
+BK_AGO_DAYS = "{n} дн назад"
+BK_DATE = "%d.%m в %H:%M"
 
 # Updates
 UPD_STATE_GROUP = "Состояние"

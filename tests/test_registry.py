@@ -19,7 +19,8 @@ def test_ids_unique_and_well_formed():
                    "monitor", "wallpaper", "animations", "windows", "appearance", "panel",
                    "lockscreen",
                    "binds", "game-binds", "input",
-                   "notifications", "autostart", "default-apps", "updates", "general", "system",
+                   "notifications", "autostart", "default-apps", "updates", "backups", "general",
+                   "system",
                    "history"]
 
 
