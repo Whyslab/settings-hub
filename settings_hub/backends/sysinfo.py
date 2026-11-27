@@ -69,14 +69,6 @@ def _memory() -> dict[str, int]:
     return values
 
 
-def _disk() -> dict[str, int]:
-    try:
-        usage = shutil.disk_usage("/")
-    except OSError:
-        return {}
-    return {"total": usage.total, "used": usage.used, "free": usage.free}
-
-
 def _uptime() -> int:
     try:
         return int(float(_read("/proc/uptime").split()[0]))
@@ -161,7 +153,6 @@ class Info:
     session: str = ""
     uptime_s: int = 0
     memory: dict[str, int] = field(default_factory=dict)
-    disk: dict[str, int] = field(default_factory=dict)
     temperature_c: float | None = None
     failed_units: list[str] = field(default_factory=list)
     updates: int | None = None
@@ -181,7 +172,6 @@ def probe() -> Info:
             "XDG_SESSION_DESKTOP", ""),
         uptime_s=_uptime(),
         memory=_memory(),
-        disk=_disk(),
         temperature_c=_temperature(),
         failed_units=_failed_units(),
         updates=_updates(),

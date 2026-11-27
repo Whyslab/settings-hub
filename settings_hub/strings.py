@@ -160,6 +160,7 @@ BACKENDS = {
     "lockscreen": "Экран блокировки",
     "default-apps": "Приложения по умолчанию",
     "backups": "Бэкапы",
+    "disk-space": "Место на диске",
 }
 
 # settings-open shows this when the window could not be started at all.
@@ -1267,7 +1268,7 @@ PAGES.update({
         "title": "Система",
         "keywords": ["система", "компьютер", "о компьютере", "об этом", "ядро",
                      "процессор", "память", "диск", "температура", "обновления",
-                     "службы", "uptime"],
+                     "службы", "uptime", "место", "свободно", "корзина", "заполнен"],
         "rows": {
             "model": ("Компьютер", ["ноутбук", "модель", "производитель"]),
             "hostname": ("Имя", ["имя", "хост", "hostname"]),
@@ -1276,11 +1277,19 @@ PAGES.update({
             "hyprland": ("Композитор", ["hyprland", "версия"]),
             "cpu": ("Процессор", ["процессор", "cpu", "ядра", "потоки"]),
             "memory": ("Память", ["оперативная", "ram", "озу", "подкачка"]),
-            "disk": ("Диск", ["диск", "место", "свободно"]),
             "temperature": ("Температура", ["температура", "нагрев", "градусы"]),
             "uptime": ("Время работы", ["время", "аптайм", "uptime"]),
             "failed": ("Упавшие службы", ["службы", "systemd", "ошибки"]),
             "updates": ("Обновления", ["обновления", "pacman", "пакеты"]),
+            "disk": ("Место на диске", ["диск", "место", "свободно", "заполнен", "раздел",
+                                        "занято", "кончается место"]),
+            "space": ("Что занимает место", ["папки", "большие папки", "размер", "занято",
+                                             "du", "много места"]),
+            "trash": ("Корзина", ["корзина", "удалённые", "очистить корзину", "мусор"]),
+            "cache": ("Кэш программ", ["кэш", "cache", "временные файлы"]),
+            "packages": ("Старые версии пакетов", ["пакеты", "pacman", "кэш пакетов",
+                                                   "paccache"]),
+            "games": ("Игры Steam", ["steam", "игры", "стим"]),
         },
     },
 })
@@ -1295,7 +1304,6 @@ SYS_TITLES = {
     "hyprland": "Композитор",
     "cpu": "Процессор",
     "memory": "Память",
-    "disk": "Диск",
     "temperature": "Температура процессора",
     "uptime": "Время работы",
 }
@@ -1306,14 +1314,11 @@ SYS_KERNEL = SYS_TITLES["kernel"]
 SYS_HYPRLAND = SYS_TITLES["hyprland"]
 SYS_CPU = SYS_TITLES["cpu"]
 SYS_MEMORY = SYS_TITLES["memory"]
-SYS_DISK = SYS_TITLES["disk"]
 SYS_TEMPERATURE = SYS_TITLES["temperature"]
 SYS_UPTIME = SYS_TITLES["uptime"]
 SYS_CORES = "{cores} потоков"
 SYS_MEMORY_VALUE = "{used} из {total} ГБ · {percent}%"
 SYS_SWAP = "Подкачка: {used} из {total} ГБ"
-SYS_DISK_VALUE = "{used} из {total} ГБ · {percent}%"
-SYS_DISK_FREE = "Свободно {free} ГБ"
 SYS_TEMPERATURE_VALUE = "{celsius:.1f} °C"
 SYS_UPTIME_HM = "{hours} ч {minutes} мин"
 SYS_UPTIME_DMY = "{days} д {hours} ч {minutes} мин"
@@ -1327,6 +1332,88 @@ SYS_UPDATES_OPEN = "Открыть"
 SYS_REFRESH = "Проверить снова"
 SYS_REFRESH_HINT = "Перечитать сведения о компьютере"
 SYS_READ_FAILED = "Не удалось прочитать сведения: {error}"
+
+# Disk space (System page)
+SYS_ROWS = PAGES["system"]["rows"]
+SYS_SPACE_GROUP = SYS_ROWS["disk"][0]
+SYS_MOUNT_NAMES = {
+    "/": "Системный диск",
+    "/home": "Домашняя папка",
+    "/boot": "Загрузочный раздел",
+    "/efi": "Загрузочный раздел",
+    "/boot/efi": "Загрузочный раздел",
+}
+SYS_MOUNT_VALUE = "{percent}%"
+SYS_MOUNT_A11Y = "{name}: занято {percent}%"
+SYS_MOUNT_HINT = "Свободно {free} из {total}"
+SYS_MOUNT_LOW = "Почти заполнен: свободно {free} из {total}"
+SYS_MOUNT_NONE = "Не удалось прочитать диски"
+SYS_TB = "{n:.1f} ТБ"
+SYS_GB = "{n:.1f} ГБ"
+SYS_MB = "{n:.0f} МБ"
+SYS_KB = "{n:.0f} КБ"
+SYS_USAGE_GROUP = SYS_ROWS["space"][0]
+SYS_USAGE_NOTE = ("Папки домашней папки, самые большие сверху. Считается при открытии "
+                  "страницы, не чаще раза в 10 минут.")
+SYS_USAGE_TITLE = "Домашняя папка: {size}"
+SYS_USAGE_COUNTING = "Считаю…"
+SYS_USAGE_AT = "Посчитано в {time}"
+SYS_USAGE_PARTIAL = "Посчитать не вышло: программа du не ответила"
+SYS_USAGE_RECOUNT = "Пересчитать"
+SYS_USAGE_FAILED = "Не удалось посчитать место: {error}"
+SYS_FOLDER_NAMES = {
+    ".local": "Данные программ",
+    ".cache": "Кэш программ",
+    ".config": "Настройки программ",
+    ".var": "Программы Flatpak",
+    ".steam": "Steam",
+    ".npm": "Пакеты npm",
+    ".cargo": "Rust (cargo)",
+    ".rustup": "Rust",
+    ".wine": "Wine",
+    ".mozilla": "Firefox",
+    "Desktop": "Рабочий стол",
+    "Documents": "Документы",
+    "Downloads": "Загрузки",
+    "Music": "Музыка",
+    "Pictures": "Изображения",
+    "Videos": "Видео",
+    "Projects": "Проекты",
+}
+SYS_OPEN = "Открыть папку"
+SYS_OPEN_A11Y = "Открыть папку «{name}»"
+SYS_OPEN_FAILED = "Не удалось открыть папку: {error}"
+SYS_FREE_GROUP = "Где можно освободить"
+SYS_TRASH = SYS_ROWS["trash"][0]
+SYS_TRASH_HINT = "{size} · файлов и папок: {count}"
+SYS_TRASH_NONE = "Пусто"
+SYS_TRASH_BUTTON = "Очистить…"
+SYS_TRASH_A11Y = "Очистить корзину"
+SYS_TRASH_ASK = "Очистить корзину?"
+SYS_TRASH_ASK_DETAIL = ("Файлы и папки в корзине ({count} шт., {size}) будут удалены "
+                        "навсегда. Вернуть их будет нельзя.")
+SYS_TRASH_ASK_OTHER = "Из них {count} — в корзинах других дисков (флешек, разделов)."
+SYS_TRASH_ASK_NETWORK = ("Корзины сетевых дисков ({disks}) тоже очистятся — их содержимое "
+                         "не посчитано.")
+SYS_TRASH_NONE_NOW = "Корзина уже пуста"
+SYS_TRASH_OK = "Удалить навсегда"
+SYS_TRASH_DONE = "Корзина очищена"
+SYS_TRASH_FAILED = "Не удалось очистить корзину: {error}"
+SYS_TRASH_TIMEOUT = "Корзина не очистилась за 5 минут; часть файлов могла остаться"
+SYS_CACHE = SYS_ROWS["cache"][0]
+SYS_CACHE_HINT = ("Программы кладут сюда то, что могут скачать или создать заново. Чистить "
+                  "не обязательно: после чистки они какое-то время работают медленнее.")
+SYS_PACKAGES = SYS_ROWS["packages"][0]
+SYS_PACKAGES_AUTO = ("Чистятся сами раз в неделю; остаются три последние версии каждого "
+                     "пакета — на случай отката.")
+SYS_PACKAGES_MANUAL = ("Сами не чистятся. Включить чистку раз в неделю: "
+                       "sudo systemctl enable --now paccache.timer")
+SYS_PACKAGES_UNKNOWN = ("Скачанные пакеты, нужные для отката. Чистит их программа "
+                        "paccache (раз в неделю, если включён paccache.timer).")
+SYS_GAMES = SYS_ROWS["games"][0]
+SYS_GAMES_HINT = "Больше всего места: {top}. Удалить игру можно в Steam."
+SYS_GAMES_NONE = "Игр Steam не найдено"
+SYS_GAMES_ITEM = "{name} ({size})"
 
 # ---- Modes page --------------------------------------------------------------
 

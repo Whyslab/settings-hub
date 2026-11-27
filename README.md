@@ -69,6 +69,11 @@ without root from `/var/lib/backup-manager/status.json`, `archives.txt` and
 `systemctl show`; "Back up now" and "Full" start `bm-backup.service` /
 `bm-full.service` (`systemctl start --no-block`, the password asked by polkit).
 Nothing is restored or deleted from here.
+**System → Disk space**: how full each disk is (orange when nearly full), where
+room can be freed (Trash, program caches, old package versions, Steam games) and
+the biggest folders of the home folder (`du -x`, on opening the page at most
+every 10 minutes, and on "Recount"). The one action is emptying the Trash
+(`gio trash --empty`), after asking; no root.
 The framework:
 
 - the resident application, the window: a home screen of tiles (screen and

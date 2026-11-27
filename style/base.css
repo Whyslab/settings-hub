@@ -523,6 +523,36 @@ label.sh-warning {
   }
 }
 
+/* How full a disk is (System page): a thin bar, orange when it is nearly full. */
+levelbar.sh-fill {
+  min-width: 140px;
+}
+
+levelbar.sh-fill > trough {
+  background-color: var(--sh-trough);
+  border: none;
+  border-radius: 99px;
+  padding: 0;
+}
+
+levelbar.sh-fill > trough > block {
+  border: none;
+  border-radius: 99px;
+  min-height: 6px;
+}
+
+levelbar.sh-fill > trough > block.filled {
+  background-color: var(--sh-accent);
+}
+
+levelbar.sh-fill > trough > block.empty {
+  background-color: transparent;
+}
+
+levelbar.sh-fill.sh-full > trough > block.filled {
+  background-color: #ff9f0a;
+}
+
 /* A small form in a popover (a Wi-Fi password). */
 .sh-popover-form {
   padding: 6px;

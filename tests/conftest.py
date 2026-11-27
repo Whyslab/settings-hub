@@ -21,8 +21,12 @@ def _private_home(request, tmp_path_factory, monkeypatch):
     # NetworkManager -- a GUI test that clicks "Forget" must not unpair anything.
     bus_dir = tmp_path_factory.mktemp("bus")
     monkeypatch.setenv("DBUS_SYSTEM_BUS_ADDRESS", f"unix:path={bus_dir}/no-system-bus")
+    # gio trash/list talk to the session's gvfsd, which uses the real home whatever
+    # HOME says: without gvfs, `gio trash --empty` cannot reach the real Trash.
+    monkeypatch.setenv("GIO_USE_VFS", "local")
     if request.node.get_closest_marker("live"):
         return
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", f"unix:path={bus_dir}/no-session-bus")
     home = tmp_path_factory.mktemp("home")
     monkeypatch.setenv("HOME", str(home))
     for name, sub in (("XDG_CONFIG_HOME", ".config"), ("XDG_STATE_HOME", ".local/state"),
